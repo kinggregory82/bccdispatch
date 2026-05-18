@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>BCC Delivery Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111;
+      font-family: 'Barlow', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── HEADER ── */
+    header {
+      width: 100%;
+      background: #111;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 2px solid #C41230;
+    }
+    header img {
+      height: 48px;
+      width: auto;
+    }
+    .header-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .header-name {
+      font-family: 'Oswald', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .header-sub {
+      font-size: 11px;
+      color: #888;
+      letter-spacing: 0.08em;
+      margin-top: 1px;
+    }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      width: 100%;
+      max-width: 520px;
+      padding: 32px 20px 80px;
+    }
+
+    /* ── ORDER PILL ── */
+    .order-pill {
+      display: inline-block;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      padding: 4px 14px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 20px;
+    }
+    .order-pill b { color: #C41230; font-weight: 700; }
+
+    /* ── STATUS ── */
+    .status-label {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .status-text {
+      font-family: 'Oswald', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .status-text.red    { color: #C41230; }
+    .status-text.green  { color: #2ecc71; }
+    .status-sub {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 24px;
+    }
+
+    /* ── ETA BLOCK ── */
+    .eta-block {
+      background: #C41230;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+    }
+    .eta-label {
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 6px;
+    }
+    .eta-time {
+      font-family: 'Oswald', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .eta-note {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    /* ── INFO CARD ── */
+    .info-card {
+      background: #1e1e1e;
+      border: 1px solid #2a2a2a;
+      padding: 0 18px;
+      margin-bottom: 16px;
+    }
+    .info-card-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #888;
+      padding: 12px 0 8px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-key {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #666;
+    }
+    .info-val {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f0f0f0;
+      text-align: right;
+      max-width: 60%;
+    }
+
+    /* ── PROGRESS ── */
+    .progress-wrap { margin-bottom: 20px; }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .progress-bar { height: 3px; background: #2a2a2a; }
+    .progress-fill { height: 100%; background: #C41230; transition: width 0.7s ease; }
+
+    /* ── LOADING / ERROR ── */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-top: 100px;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #2a2a2a;
+      border-top-color: #C41230;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: #666; font-size: 13px; letter-spacing: 0.08em; }
+    .error-state { text-align: center; margin-top: 90px; padding: 0 24px; }
+    .error-code { font-family: 'Oswald', sans-serif; font-size: 72px; color: #2a2a2a; margin-bottom: 12px; }
+    .error-msg { color: #666; font-size: 14px; line-height: 1.7; }
+
+    /* ── REFRESH BAR ── */
+    .refresh-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 11px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #666;
+    }
+    .dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #C41230;
+      animation: blink 2s ease infinite;
+      margin-right: 7px;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .a1 { animation: fadeUp 0.3s ease 0.05s both; }
+    .a2 { animation: fadeUp 0.3s ease 0.12s both; }
+    .a3 { animation: fadeUp 0.3s ease 0.18s both; }
+    .a4 { animation: fadeUp 0.3s ease 0.24s both; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="background:#fff; padding:4px 8px; display:flex; align-items:center;">
+    <img src="bcc-logo.jpeg" alt="BCC Logo" style="height:44px; width:auto; display:block;">
+  </div>
+  <div class="header-text">
+    <div class="header-name">Ben's Contractor Center</div>
+    <div class="header-sub">Delivery Tracker</div>
+  </div>
+</header>
+
+<main>
+  <div id="app">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading your delivery…</div>
+    </div>
+  </div>
+</main>
+
+<div class="refresh-bar" id="refresh-bar" style="display:none;">
+  <div><span class="dot"></span>Live tracking active</div>
+  <div id="countdown-label">Refreshes in 90s</div>
+</div>
+
+<script>
+  const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
+
+  async function fbGet(path) {
+    const res = await fetch(`${DB}/${path}.json`);
+    if (!res.ok) throw new Error(`Firebase ${res.status}`);
+    return res.json();
+  }
+
+  const token = new URLSearchParams(window.location.search).get('token');
+  let cdTimer, secondsLeft = 90;
+
+  const fmt = d => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  async function loadDelivery() {
+    try {
+      const tokenData = await fbGet(`tokens/${token}`);
+      if (!tokenData) return showError('Tracking link not found.');
+
+      const { routeId, stopId } = tokenData;
+      const route = await fbGet(`routes/${routeId}`);
+      if (!route) return showError('Route data not available.');
+
+      const stop = route.stops[stopId];
+      if (!stop) return showError('Stop not found.');
+
+      const allStops   = Object.values(route.stops);
+      const stopsAhead = allStops.filter(s => s.sequence < stop.sequence && s.status === 'pending').length;
+      const total      = allStops.length;
+      const completed  = allStops.filter(s => s.status === 'complete').length;
+      const pct        = Math.round((completed / total) * 100);
+
+      // ETA — prefer Firebase sources
+      let etaLow, etaHigh, etaNote;
+      if (stop.etaOverridden && stop.customerEta) {
+        const mid = new Date(stop.customerEta);
+        etaLow  = new Date(mid.getTime() - 30 * 60000);
+        etaHigh = new Date(mid.getTime() + 30 * 60000);
+        etaNote = 'Estimated window — updates as route progresses';
+      } else if (stop.calculatedEta) {
+        const mid = new Date(stop.calculatedEta);
+        etaLow  = new Date(mid.getTime() - 30 * 60000);
+        etaHigh = new Date(mid.getTime() + 30 * 60000);
+        etaNote = 'Estimated window — updates as route progresses';
+      } else {
+        const avg     = route.avgServiceMinutes || 35;
+        const baseMin = stopsAhead * avg;
+        etaLow  = new Date(Date.now() + Math.max(0, baseMin - 15) * 60000);
+        etaHigh = new Date(Date.now() + (baseMin + 25) * 60000);
+        etaNote = 'Estimated window — updates as route progresses';
+      }
+
+      render({ route, stop, stopsAhead, etaLow, etaHigh, etaNote, completed, total, pct });
+    } catch (err) {
+      console.error(err);
+      showError('Connection error — retrying…');
+    }
+  }
+
+  function render({ route, stop, stopsAhead, etaLow, etaHigh, etaNote, completed, total, pct }) {
+    const delivered = stop.status === 'complete';
+    const arrived   = !delivered && !!stop.arrivalTime;
+    const isNext    = !delivered && !arrived && stopsAhead === 0;
+
+    const orderPill = `<div class="order-pill a1">Order <b>${stop.orderNumber || '—'}</b></div>`;
+
+    // ── STATUS ──
+    let statusHTML;
+    if (delivered) {
+      const ts = stop.completedAt ? fmt(new Date(stop.completedAt)) : '';
+      statusHTML = `<div class="a1">
+        <div class="status-label">Status</div>
+        <div class="status-text green">Your delivery<br>is complete ✓</div>
+        ${ts ? `<div class="status-sub">Completed at ${ts}</div>` : ''}
+      </div>`;
+    } else if (arrived) {
+      const arrTs = fmt(new Date(stop.arrivalTime));
+      statusHTML = `<div class="a1">
+        <div class="status-label">Status</div>
+        <div class="status-text green">Your delivery<br>has arrived</div>
+        <div class="status-sub">Driver on site since ${arrTs}</div>
+      </div>`;
+    } else if (isNext) {
+      statusHTML = `<div class="a1">
+        <div class="status-label">Status</div>
+        <div class="status-text red">Your delivery<br>is on the way</div>
+        <div class="status-sub">Next stop — driver heading to you now</div>
+      </div>`;
+    } else {
+      statusHTML = `<div class="a1">
+        <div class="status-label">Status</div>
+        <div class="status-text red">Your delivery<br>is on the way</div>
+        <div class="status-sub">${stopsAhead} stop${stopsAhead === 1 ? '' : 's'} ahead of yours</div>
+      </div>`;
+    }
+
+    // ── ETA ──
+    let etaHTML = '';
+    if (!delivered && !arrived) {
+      const isActual = !!stop.arrivalTime;
+      etaHTML = `<div class="eta-block a2">
+        <div class="eta-label">Estimated Arrival</div>
+        <div class="eta-time">${fmt(etaLow)} – ${fmt(etaHigh)}</div>
+        <div class="eta-note">${etaNote}</div>
+      </div>`;
+    }
+
+    // ── PROGRESS ──
+    const progressHTML = `<div class="progress-wrap a3">
+      <div class="progress-header">
+        <span>Route Progress</span>
+        <span>${completed} / ${total} stops complete</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+
+    // ── INFO ──
+    const driverName = route.driverName ? route.driverName.split(' ')[0] : '—';
+    const infoHTML = `<div class="info-card a4">
+      <div class="info-card-label">Delivery Info</div>
+      <div class="info-row">
+        <span class="info-key">Truck</span>
+        <span class="info-val">Unit ${route.asset || '—'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Address</span>
+        <span class="info-val">${stop.address || '—'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Order #</span>
+        <span class="info-val">${stop.orderNumber || '—'}</span>
+      </div>
+    </div>`;
+
+    document.getElementById('app').innerHTML = orderPill + statusHTML + etaHTML + progressHTML + infoHTML;
+    document.getElementById('refresh-bar').style.display = delivered ? 'none' : 'flex';
+  }
+
+  function showError(msg) {
+    document.getElementById('app').innerHTML = `<div class="error-state">
+      <div class="error-code">?</div>
+      <div class="error-msg">${msg}<br><br>Contact your sales rep if the problem continues.</div>
+    </div>`;
+  }
+
+  function startCountdown() {
+    secondsLeft = 90;
+    clearInterval(cdTimer);
+    cdTimer = setInterval(() => {
+      const el = document.getElementById('countdown-label');
+      if (el) el.textContent = `Refreshes in ${--secondsLeft}s`;
+      if (secondsLeft <= 0) secondsLeft = 90;
+    }, 1000);
+  }
+
+  if (!token) {
+    showError('No tracking token in URL.');
+  } else {
+    loadDelivery();
+    startCountdown();
+    setInterval(() => { loadDelivery(); startCountdown(); }, 90000);
+  }
+</script>
+</body>
+</html>
