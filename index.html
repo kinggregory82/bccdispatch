@@ -377,7 +377,7 @@ function getStats() {
   routes.forEach(r => r.stops.forEach(s => {
     stops++;
     if (s.status === 'complete') delivered++;
-    if (s.smsSent && (s.smsSent.at || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
+    if (s.smsSent && (s.smsSent.at || s.smsSent.departed === true || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
   }));
   return { routes: routes.length, stops, delivered, smsSent };
 }
