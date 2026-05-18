@@ -600,23 +600,41 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
         <div class="dx-customer">${esc(s.customerName||'')}</div>
         <div class="dx-customer-sub">${esc(s.address||'')}</div>
       </td>
-      <td>${etaCellHTML(s.customerEta, s.etaOverridden)}</td>
+      <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.arrivalTime)}</td>
       <td>${statusBadgeHTML(s.status, s.completedAt)}</td>
       <td>${smsCellHTML(s.smsSent, isQueued)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>`;
 }
 
-function etaCellHTML(eta, overridden) {
-  if (!eta || !eta.low || eta.low === '—') return '<span class="dx-eta-empty">&mdash;</span>';
-  return `<div class="dx-eta">
-    <span class="dx-eta-window">
-      <span>${esc(eta.low)}</span>
-      <span class="dx-eta-dash">&ndash;</span>
-      <span>${esc(eta.high||'')}</span>
-    </span>
-    ${overridden ? '<span class="dx-eta-tag">Manual</span>' : ''}
-  </div>`;
+function etaCellHTML(eta, overridden, arrivalTime) {
+  // Prefer manual customerEta override
+  if (eta && eta.low && eta.low !== '—') {
+    return `<div class="dx-eta">
+      <span class="dx-eta-window">
+        <span>${esc(eta.low)}</span>
+        <span class="dx-eta-dash">&ndash;</span>
+        <span>${esc(eta.high||'')}</span>
+      </span>
+      ${overridden ? '<span class="dx-eta-tag">Manual</span>' : ''}
+    </div>`;
+  }
+  // Fall back to arrivalTime from poller
+  if (arrivalTime) {
+    const d = new Date(arrivalTime);
+    if (!isNaN(d)) {
+      const low  = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      const high = new Date(d.getTime() + 30*60000).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      return `<div class="dx-eta">
+        <span class="dx-eta-window">
+          <span>${low}</span>
+          <span class="dx-eta-dash">&ndash;</span>
+          <span>${high}</span>
+        </span>
+      </div>`;
+    }
+  }
+  return '<span class="dx-eta-empty">&mdash;</span>';
 }
 
 function statusBadgeHTML(status, completedAt) {
