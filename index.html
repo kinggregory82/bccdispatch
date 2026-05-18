@@ -768,9 +768,16 @@ function renderDrawer() {
   document.getElementById('dx-save-eta').onclick = async () => {
     const low  = document.getElementById('dx-eta-low').value.trim() || '—';
     const high = document.getElementById('dx-eta-high').value.trim() || '—';
+    const oldEta = stop.customerEta ? `${stop.customerEta.low||'—'} – ${stop.customerEta.high||'—'}` : '—';
     try {
       await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`,
         { customerEta: { low, high }, etaOverridden: true });
+      await logHistory({
+        field: 'customerEta',
+        oldValue: oldEta,
+        newValue: `${low} – ${high}`,
+        route, stop,
+      });
       toast('CUSTOMER ETA UPDATED');
     } catch(e) { toast(e.message, true); }
   };
@@ -783,6 +790,12 @@ function renderDrawer() {
       else patch.completedAt = null;
       try {
         await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, patch);
+        await logHistory({
+          field: 'status',
+          oldValue: stop.status || 'pending',
+          newValue: next,
+          route, stop,
+        });
         const labels = { pending:'PENDING', next:'MARKED NEXT', complete:'MARKED COMPLETE', skipped:'MARKED SKIPPED' };
         toast(labels[next] || 'STATUS UPDATED');
       } catch(e) { toast(e.message, true); }
@@ -793,6 +806,12 @@ function renderDrawer() {
     const phone = document.getElementById('dx-phone').value.trim();
     try {
       await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, { phone });
+      await logHistory({
+        field: 'phone',
+        oldValue: stop.phone || '—',
+        newValue: phone,
+        route, stop,
+      });
       toast('PHONE NUMBER UPDATED');
     } catch(e) { toast(e.message, true); }
   };
@@ -805,9 +824,38 @@ function renderDrawer() {
         requestedAt: Date.now(),
         requestedBy: 'dispatcher',
       });
+      await logHistory({
+        field: 'smsSent',
+        oldValue: '—',
+        newValue: 'resend queued',
+        route, stop,
+      });
       toast('SMS QUEUED — SENDS ON NEXT POLL');
     } catch(e) { toast(e.message, true); }
   };
+}
+
+// ── History logging ───────────────────────────────────────────────────────────
+async function logHistory({ field, oldValue, newValue, route, stop }) {
+  const dk = dateKey();
+  try {
+    await dbPush(`history/${dk}`, {
+      changedAt:    Date.now(),
+      changedBy:    'dispatcher',
+      routeId:      route.id,
+      asset:        route.asset || '—',
+      driverName:   route.driverName || '—',
+      stopId:       stop.stopId,
+      orderNumber:  stop.orderNumber || '—',
+      customerName: stop.customerName || '—',
+      address:      stop.address || '—',
+      field,
+      oldValue:     String(oldValue),
+      newValue:     String(newValue),
+    });
+  } catch(e) {
+    console.warn('History log failed:', e.message);
+  }
 }
 
 function renderDrawerIfOpen() {
