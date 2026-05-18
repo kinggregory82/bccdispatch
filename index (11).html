@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1.0">
+<title>BCC Dispatcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ════════════════════════════════════════════════════════════
+   BCC Dispatcher — production styles
+   Inlined from ../ui_kits/dispatcher/styles.css + colors_and_type.css
+   ════════════════════════════════════════════════════════════ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: #fff; color: #111;
+  font-family: 'Roboto', sans-serif;
+  min-height: 100vh;
+}
+
+/* ── PAGE HEADER ── */
+.dx-header { background: #111; border-bottom: 5px solid #cc0000; padding: 14px 28px;
+  display: flex; align-items: center; justify-content: space-between; }
+.dx-brand { display: flex; align-items: center; gap: 18px; }
+.dx-brand img { height: 52px; width: auto; filter: invert(1); }
+.dx-divider { width: 1px; height: 36px; background: #2c2c2c; }
+.dx-product { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+.dx-product-name { display: block; font-size: 20px; font-weight: 700; letter-spacing: 0.16em; color: #cc0000; }
+.dx-product-sub { display: block; font-size: 11px; letter-spacing: 0.20em; color: #aaa; margin-top: 2px; }
+.dx-user { font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #aaa; display: flex; align-items: center; gap: 12px; }
+.dx-user b { color: #fff; font-weight: 600; }
+.dx-avatar { width: 32px; height: 32px; background: #cc0000; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 14px; }
+.dx-signout-btn { background: transparent; border: 1px solid #2c2c2c; color: #aaa;
+  font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; font-weight: 600; padding: 5px 10px; cursor: pointer; }
+.dx-signout-btn:hover { border-color: #cc0000; color: #cc0000; }
+
+/* ── DATE / STAT BAR ── */
+.dx-subbar { display: flex; align-items: stretch; justify-content: space-between;
+  background: #fff; border-bottom: 1px solid #e0e0e0; padding: 0 28px; }
+.dx-datenav { display: flex; align-items: center; gap: 0; }
+.dx-datenav button { background: #fff; border: 0; width: 36px; height: 64px;
+  cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 18px;
+  color: #888; border-right: 1px solid #e0e0e0; }
+.dx-datenav button:first-child { border-left: 1px solid #e0e0e0; }
+.dx-datenav button:hover { color: #cc0000; background: #fafafa; }
+.dx-date { padding: 0 22px; height: 64px; display: flex; flex-direction: column;
+  justify-content: center; border-right: 1px solid #e0e0e0; min-width: 220px; }
+.dx-date-label { font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.20em;
+  text-transform: uppercase; color: #888; }
+.dx-date-value { font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600;
+  color: #111; margin-top: 1px; }
+.dx-today-btn { width: auto; padding: 0 16px; font-size: 11px; letter-spacing: 0.16em;
+  text-transform: uppercase; font-weight: 600; color: #cc0000; }
+.dx-stats { display: flex; align-items: stretch; }
+.dx-stat { padding: 12px 22px; border-left: 1px solid #e0e0e0;
+  display: flex; flex-direction: column; justify-content: center; min-width: 110px; }
+.dx-stat-label { font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.20em;
+  text-transform: uppercase; color: #888; }
+.dx-stat-value { font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700;
+  color: #111; line-height: 1.1; letter-spacing: -1px; }
+.dx-stat-value.red { color: #cc0000; }
+
+/* ── MAIN ── */
+.dx-main { padding: 24px 28px 80px; display: flex; flex-direction: column; gap: 24px;
+  min-height: calc(100vh - 64px - 64px); }
+
+/* ── ROUTE BLOCK ── */
+.dx-route { border: 2px solid #111; }
+.dx-route-head { background: #111; color: #fff; padding: 12px 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.dx-route-head-left { display: flex; align-items: baseline; gap: 18px;
+  font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+.dx-route-id { font-size: 18px; font-weight: 700; letter-spacing: 0.10em; color: #fff; }
+.dx-route-id b { color: #cc0000; font-weight: 700; }
+.dx-route-meta { font-size: 12px; letter-spacing: 0.16em; color: #aaa; }
+.dx-route-meta b { color: #fff; font-weight: 600; }
+.dx-route-head-right { display: flex; align-items: center; gap: 18px; min-width: 320px; }
+.dx-route-progress { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.dx-route-progress-meta { display: flex; justify-content: space-between;
+  font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #aaa; }
+.dx-route-bar { height: 4px; background: #2c2c2c; }
+.dx-route-fill { height: 100%; background: #cc0000; transition: width 0.6s ease; }
+
+/* ── STOPS TABLE ── */
+.dx-table { width: 100%; border-collapse: collapse; background: #fff; }
+.dx-table th, .dx-table td { text-align: left; padding: 12px 14px;
+  border-bottom: 1px solid #eee; font-size: 13px; vertical-align: middle; }
+.dx-table th { font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #888; background: #fafafa;
+  padding-top: 9px; padding-bottom: 9px; font-weight: 500; border-bottom: 1px solid #e0e0e0; }
+.dx-table tbody tr { cursor: pointer; }
+.dx-table tbody tr:hover { background: #fafafa; }
+.dx-table tbody tr.selected { background: #fff5f5; }
+.dx-table tbody tr.skipped td { opacity: 0.55; }
+.dx-table tbody tr:last-child td { border-bottom: 0; }
+.dx-seq { font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 700;
+  color: #cc0000; width: 44px; text-align: center; }
+.dx-order { font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.10em;
+  font-weight: 600; color: #111; white-space: nowrap; }
+.dx-customer { font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; color: #111; }
+.dx-customer-sub { font-family: 'Roboto', sans-serif; font-size: 12px; color: #888; margin-top: 2px; }
+
+/* ── ETA / BADGES / SMS ── */
+.dx-eta { display: inline-flex; align-items: center; gap: 8px; font-family: 'Oswald', sans-serif; }
+.dx-eta-window { font-size: 15px; font-weight: 500; color: #111;
+  display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.dx-eta-dash { color: #888; font-size: 12px; }
+.dx-eta-tag { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+  font-weight: 600; color: #cc0000; border: 1px solid #cc0000; padding: 1px 5px; }
+.dx-eta-empty { color: #ccc; font-family: 'Oswald', sans-serif; font-size: 14px; }
+.dx-badge { display: inline-block; font-family: 'Oswald', sans-serif;
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 3px 10px; font-weight: 600; white-space: nowrap; }
+.dx-badge.pending  { background: #fff; color: #888; border: 1px solid #ddd; }
+.dx-badge.next     { background: #cc0000; color: #fff; }
+.dx-badge.complete { background: #111; color: #fff; }
+.dx-badge.skipped  { background: #fff; color: #aaa; border: 1px solid #ddd; text-decoration: line-through; }
+.dx-sms-cell { display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'Oswald', sans-serif; font-size: 12px;
+  letter-spacing: 0.14em; text-transform: uppercase; }
+.dx-sms-cell.sent   { color: #111; font-weight: 600; }
+.dx-sms-cell.unsent { color: #aaa; font-weight: 500; }
+.dx-sms-cell.queued { color: #cc0000; font-weight: 600; }
+.dx-sms-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #2e8a3e; }
+.dx-sms-cell.queued .dx-sms-dot { background: #cc0000; animation: dx-blink 1.5s ease infinite; }
+@keyframes dx-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.dx-more-btn { background: transparent; border: 0; font-family: 'Oswald', sans-serif;
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600;
+  color: #888; padding: 4px 8px; cursor: pointer; white-space: nowrap; }
+.dx-more-btn:hover { color: #cc0000; }
+
+/* ── DRAWER ── */
+.dx-drawer-scrim { position: fixed; inset: 0; background: rgba(17,17,17,0.4);
+  z-index: 50; animation: dx-fade-in 0.18s ease both; }
+@keyframes dx-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.dx-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 480px;
+  background: #fff; border-left: 5px solid #cc0000; z-index: 51;
+  display: flex; flex-direction: column; animation: dx-slide 0.22s ease both; overflow-y: auto; }
+@keyframes dx-slide { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.dx-drawer-head { background: #111; color: #fff; padding: 16px 22px;
+  display: flex; align-items: center; justify-content: space-between; }
+.dx-seq-big { font-family: 'Oswald', sans-serif; font-size: 36px; font-weight: 700;
+  color: #cc0000; line-height: 1; }
+.dx-drawer-titles { flex: 1; margin: 0 16px; min-width: 0; }
+.dx-drawer-title { font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600;
+  letter-spacing: 0.10em; text-transform: uppercase; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dx-drawer-order { font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.20em;
+  text-transform: uppercase; color: #aaa; margin-top: 4px; }
+.dx-drawer-close { background: transparent; border: 0; color: #aaa;
+  font-family: 'Oswald', sans-serif; font-size: 22px;
+  cursor: pointer; padding: 0 6px; line-height: 1; }
+.dx-drawer-close:hover { color: #cc0000; }
+.dx-drawer-intro { padding: 12px 22px; background: #fff5f5;
+  border-bottom: 1px solid #f5dada; font-family: 'Oswald', sans-serif;
+  font-size: 11px; letter-spacing: 0.20em; text-transform: uppercase;
+  color: #cc0000; font-weight: 600; }
+.dx-drawer-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 20px; }
+
+.dx-edit-block { display: flex; flex-direction: column; gap: 10px;
+  padding-bottom: 18px; border-bottom: 1px solid #eee; }
+.dx-edit-label { font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: #111; font-weight: 600; }
+.dx-edit-help { font-family: 'Roboto', sans-serif; font-size: 12px; line-height: 1.55; color: #888; }
+.dx-edit-help em { color: #cc0000; font-style: normal; font-weight: 600; }
+
+.dx-input { font-family: 'Oswald', sans-serif; font-size: 16px; font-weight: 600;
+  color: #111; padding: 9px 12px; border: 1px solid #111; background: #fff;
+  text-transform: uppercase; letter-spacing: 0.06em; width: 100%; }
+.dx-input:focus { outline: 0; border-color: #cc0000; box-shadow: inset 0 0 0 1px #cc0000; }
+.dx-eta-edit { display: flex; align-items: center; gap: 10px; }
+.dx-eta-edit .dx-input { flex: 1; min-width: 0; }
+.dx-eta-edit-dash { font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #888; font-weight: 500; }
+
+.dx-phone-edit { display: flex; align-items: center; gap: 8px; }
+.dx-phone-edit .dx-input-phone { flex: 1; letter-spacing: 0.02em; text-transform: none; }
+
+.dx-status-picker { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 0; border: 1px solid #111; }
+.dx-status-btn { background: #fff; border: 0; border-right: 1px solid #111;
+  font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; font-weight: 600; color: #111; padding: 11px 0; cursor: pointer; }
+.dx-status-btn:last-child { border-right: 0; }
+.dx-status-btn:hover { background: #fafafa; color: #cc0000; }
+.dx-status-btn.active { background: #111; color: #fff; }
+.dx-status-btn.active:hover { background: #cc0000; }
+
+.dx-action-btn { background: #fff; border: 1px solid #111; color: #111;
+  font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.16em;
+  text-transform: uppercase; padding: 11px 12px; cursor: pointer; font-weight: 600; text-align: center; }
+.dx-action-btn:hover { background: #111; color: #fff; }
+.dx-action-btn.primary { background: #cc0000; color: #fff; border-color: #cc0000; }
+.dx-action-btn.primary:hover { background: #a30000; border-color: #a30000; }
+.dx-action-btn.full { width: 100%; }
+.dx-action-btn:disabled { background: #f3f3f3; border-color: #ddd; color: #aaa; cursor: not-allowed; }
+.dx-action-btn:disabled:hover { background: #f3f3f3; color: #aaa; }
+
+.dx-readonly-block { padding-top: 4px; display: flex; flex-direction: column; gap: 14px; }
+.dx-field { display: flex; flex-direction: column; gap: 5px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+.dx-field:last-child { border-bottom: 0; padding-bottom: 0; }
+.dx-field-label { font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: #888; }
+.dx-field-value { font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; color: #111; }
+.dx-field-value.mono { font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px; font-weight: 400; color: #555; word-break: break-all; }
+.dx-field-value a { color: #111; }
+.dx-field-value a:hover { color: #cc0000; }
+
+.dx-items-list { display: flex; flex-direction: column; }
+.dx-items-list .dx-item { display: flex; align-items: baseline; gap: 14px;
+  padding: 7px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+.dx-items-list .dx-item:last-child { border-bottom: 0; }
+.dx-items-list .dx-item-qty { font-family: 'Oswald', sans-serif; font-weight: 700;
+  font-size: 18px; color: #cc0000; min-width: 32px; }
+
+/* ── TOAST ── */
+.dx-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #111; border-top: 3px solid #cc0000; color: #fff;
+  font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 0.20em;
+  text-transform: uppercase; padding: 12px 22px; z-index: 100;
+  animation: dx-toast-in 0.22s ease both; pointer-events: none; }
+@keyframes dx-toast-in { from { transform: translate(-50%, 8px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+.dx-toast.error { background: #cc0000; border-top-color: #fff; }
+
+.dx-meta-foot { text-align: center; font-family: 'Oswald', sans-serif; font-size: 11px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: #aaa; padding: 12px; }
+
+/* ── LOGIN SCREEN ── */
+.dx-login-shell { min-height: 100vh; background: #fff; display: flex; align-items: center;
+  justify-content: center; padding: 40px 20px; }
+.dx-login { width: 100%; max-width: 360px; }
+.dx-login-brand { display: flex; flex-direction: column; align-items: center;
+  gap: 12px; margin-bottom: 32px; }
+.dx-login-brand img { height: 80px; }
+.dx-login-product { font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase; color: #cc0000; }
+.dx-login-sub { font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: #888; }
+.dx-login-form { border: 2px solid #111; background: #fff; }
+.dx-login-form-head { background: #111; color: #fff; padding: 8px 16px;
+  font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.20em;
+  text-transform: uppercase; }
+.dx-login-fields { padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+.dx-login-field { display: flex; flex-direction: column; gap: 5px; }
+.dx-login-field label { font-family: 'Oswald', sans-serif; font-size: 10px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: #888; }
+.dx-login-actions { padding: 0 18px 18px; }
+.dx-login-error { color: #cc0000; font-size: 12px; padding: 8px 16px 0;
+  font-family: 'Oswald', sans-serif; letter-spacing: 0.10em;
+  text-transform: uppercase; font-weight: 600; }
+
+/* ── BOOT / LOADING ── */
+.dx-boot { min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; color: #888; }
+.dx-boot-spinner { width: 38px; height: 38px; border: 3px solid #ddd;
+  border-top-color: #cc0000; border-radius: 50%; animation: dx-spin .75s linear infinite; }
+@keyframes dx-spin { to { transform: rotate(360deg); } }
+.dx-boot-text { font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.18em;
+  text-transform: uppercase; }
+
+.dx-empty { padding: 80px 24px; text-align: center; color: #888; }
+.dx-empty-code { font-family: 'Oswald', sans-serif; font-size: 80px;
+  color: #ddd; margin-bottom: 12px; }
+.dx-empty-msg { font: 400 14px/1.7 'Roboto'; max-width: 380px; margin: 0 auto; }
+</style>
+
+<!-- React + Babel (in-browser transpile) -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// ── Firebase REST (no SDK, no eval) ──
+const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
+const DISPATCH_PIN = '2025';
+const TRACKER_BASE = 'https://bcc-sms.netlify.app';
+async function dbGet(path){const r=await fetch(`${DB}/${path}.json`);if(!r.ok)throw new Error(`DB read ${r.status}`);return r.json();}
+async function dbPatch(path,data){const r=await fetch(`${DB}/${path}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw new Error(`DB write ${r.status}`);return r.json();}
+async function dbPush(path,data){const r=await fetch(`${DB}/${path}.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw new Error(`DB write ${r.status}`);return r.json();}
+</script>
+
+<script>
+"use strict";
+const { useState, useEffect, useRef, useMemo } = React;
+
+// Date string used by the poller: YYYY-MM-DD
+const ymd = d => d.toISOString().slice(0, 10);
+const fmtNow = () => new Date().toLocaleTimeString('en-US', {
+  hour: 'numeric',
+  minute: '2-digit'
+});
+const fmtDate = d => d.toLocaleDateString('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric'
+});
+
+// ══════════════════════════════════════════════════════════
+// PIN SCREEN
+// ══════════════════════════════════════════════════════════
+function PinScreen({ onSuccess }) {
+  const [pin, setPin] = useState('');
+  const [err, setErr] = useState('');
+  const check = () => {
+    if (pin === DISPATCH_PIN) { onSuccess(); }
+    else { setErr('Incorrect PIN'); setPin(''); }
+  };
+  return React.createElement('div', { className: 'dx-login-shell' },
+    React.createElement('div', { className: 'dx-login' },
+      React.createElement('div', { className: 'dx-login-brand' },
+        React.createElement('span', { className: 'dx-login-product' }, 'BCC Dispatch'),
+        React.createElement('span', { className: 'dx-login-sub' }, 'Dispatcher access only')
+      ),
+      React.createElement('div', { className: 'dx-login-form' },
+        React.createElement('div', { className: 'dx-login-form-head' }, 'Enter PIN'),
+        React.createElement('div', { className: 'dx-login-fields' },
+          React.createElement('div', { className: 'dx-login-field' },
+            React.createElement('label', { htmlFor: 'dx-pin' }, 'PIN'),
+            React.createElement('input', {
+              id: 'dx-pin', className: 'dx-input', type: 'password',
+              inputMode: 'numeric', value: pin, autoFocus: true,
+              onChange: e => { setPin(e.target.value); setErr(''); },
+              onKeyDown: e => { if (e.key === 'Enter') check(); },
+              placeholder: '••••'
+            })
+          )
+        ),
+        err ? React.createElement('div', { className: 'dx-login-error' }, err) : null,
+        React.createElement('div', { className: 'dx-login-actions' },
+          React.createElement('button', { className: 'dx-action-btn primary full', type: 'button', onClick: check }, 'Enter')
+        )
+      )
+    )
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+// LOGIN (legacy — no longer used; kept to avoid ref errors)
+// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// LOGIN
+// ══════════════════════════════════════════════════════════
+function LoginScreen() { return null; }
+
+// ══════════════════════════════════════════════════════════
+// MAIN APP (after auth)
+// ══════════════════════════════════════════════════════════
+function App({
+  user
+}) {
+  // Date being viewed; defaults to today.
+  const [dateOffset, setDateOffset] = useState(0); // 0 = today, +1 = tomorrow, -1 = yesterday
+  const targetDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + dateOffset);
+    return d;
+  }, [dateOffset]);
+  const dateKey = ymd(targetDate);
+  const isToday = dateOffset === 0;
+  const [routesObj, setRoutesObj] = useState(null); // raw routes map from FB
+  const [resendQueue, setResendQueue] = useState({}); // /resend_queue snapshot
+  const [selected, setSelected] = useState(null); // { routeId, stopId }
+  const [toast, setToast] = useState({
+    msg: '',
+    error: false
+  });
+  const toastTimer = useRef(null);
+  const showToast = (msg, error = false) => {
+    setToast({
+      msg,
+      error
+    });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast({
+      msg: '',
+      error: false
+    }), 2000);
+  };
+
+  // ── Poll /routes and /resend_queue every 5s ──
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const [r, q] = await Promise.all([dbGet('routes'), dbGet('resend_queue')]);
+        if (!cancelled) { setRoutesObj(r || {}); setResendQueue(q || {}); }
+      } catch(e) { if (!cancelled) showToast(e.message, true); }
+    };
+    poll();
+    const id = setInterval(poll, 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // ── Filter routes by selected date ──
+  const routes = useMemo(() => {
+    if (!routesObj) return [];
+    return Object.entries(routesObj).filter(([_, r]) => r && r.date === dateKey).map(([id, r]) => ({
+      id,
+      ...r,
+      stops: r.stops ? Object.entries(r.stops).map(([stopId, s]) => ({
+        stopId,
+        ...s
+      })).sort((a, b) => (a.sequence || 0) - (b.sequence || 0)) : []
+    })).sort((a, b) => a.id.localeCompare(b.id));
+  }, [routesObj, dateKey]);
+
+  // Which stopIds have a pending resend in the queue?
+  const queuedStopIds = useMemo(() => {
+    const ids = new Set();
+    Object.values(resendQueue).forEach(e => e && e.stopId && ids.add(e.stopId));
+    return ids;
+  }, [resendQueue]);
+
+  // Live stats
+  const stats = useMemo(() => {
+    let stops = 0,
+      delivered = 0,
+      smsSent = 0;
+    for (const r of routes) {
+      for (const s of r.stops) {
+        stops++;
+        if (s.status === 'complete') delivered++;
+        if (s.smsSent && (s.smsSent.at || s.smsSent['0'] || s.smsSent['1'] || s.smsSent['3'])) smsSent++;
+      }
+    }
+    return {
+      routes: routes.length,
+      stops,
+      delivered,
+      smsSent
+    };
+  }, [routes]);
+
+  // Drawer selection lookups
+  const selRoute = selected ? routes.find(r => r.id === selected.routeId) : null;
+  const selStop = selRoute ? selRoute.stops.find(s => s.stopId === selected.stopId) : null;
+
+  // ── WRITE: ETA override ──
+  const saveEta = async newEta => {
+    if (!selected) return;
+    try {
+      await dbPatch(`routes/${selected.routeId}/stops/${selected.stopId}`, { customerEta: newEta, etaOverridden: true });
+      showToast('CUSTOMER ETA UPDATED');
+    } catch(e) { showToast(e.message, true); }
+  };
+
+  // ── WRITE: Status change ──
+  const setStatus = async next => {
+    if (!selected) return;
+    const patch = { status: next };
+    if (next === 'complete') patch.completedAt = new Date().toISOString(); else patch.completedAt = null;
+    try {
+      await dbPatch(`routes/${selected.routeId}/stops/${selected.stopId}`, patch);
+      const labels = { pending:'PENDING', next:'MARKED NEXT', complete:'MARKED COMPLETE', skipped:'MARKED SKIPPED' };
+      showToast(labels[next] || 'STATUS UPDATED');
+    } catch(e) { showToast(e.message, true); }
+  };
+
+  // ── WRITE: Push resend request to queue ──
+  const requestResend = async () => {
+    if (!selected) return;
+    try {
+      await dbPush('resend_queue', { routeId: selected.routeId, stopId: selected.stopId, requestedAt: Date.now(), requestedBy: 'dispatcher' });
+      showToast('SMS QUEUED — SENDS ON NEXT POLL');
+    } catch(e) { showToast(e.message, true); }
+  };
+
+  // ── WRITE: Phone-number correction ──
+  const savePhone = async newPhone => {
+    if (!selected) return;
+    try {
+      await dbPatch(`routes/${selected.routeId}/stops/${selected.stopId}`, { phone: newPhone });
+      showToast('PHONE NUMBER UPDATED');
+    } catch(e) { showToast(e.message, true); }
+  };
+
+  // Esc closes drawer
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') setSelected(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // ── RENDER ──
+  if (routesObj === null) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "dx-boot"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "dx-boot-spinner"
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "dx-boot-text"
+    }, "Loading routes\u2026"));
+  }
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("header", {
+    className: "dx-header"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-brand"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-product",
+    style: {
+      color: '#fff',
+      fontSize: 22,
+      letterSpacing: '0.10em'
+    }
+  }, "BCC"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-divider"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "dx-product"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-product-name"
+  }, "Dispatch"), /*#__PURE__*/React.createElement("span", {
+    className: "dx-product-sub"
+  }, "Tracking interface"))), /*#__PURE__*/React.createElement("div", {
+    className: "dx-user"
+  }, /*#__PURE__*/React.createElement("span", null, "BCC ", /*#__PURE__*/React.createElement("b", null, "Dispatcher")), /*#__PURE__*/React.createElement("span", {
+    className: "dx-avatar"
+  }, "D"), /*#__PURE__*/React.createElement("button", {
+    className: "dx-signout-btn",
+    onClick: () => location.reload()
+  }, "Lock"))), /*#__PURE__*/React.createElement("div", {
+    className: "dx-subbar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-datenav"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDateOffset(o => o - 1),
+    title: "Previous day"
+  }, "\u2039"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-date"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-date-label"
+  }, "Showing"), /*#__PURE__*/React.createElement("span", {
+    className: "dx-date-value"
+  }, fmtDate(targetDate))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDateOffset(o => o + 1),
+    title: "Next day"
+  }, "\u203A"), !isToday ? /*#__PURE__*/React.createElement("button", {
+    className: "dx-today-btn",
+    onClick: () => setDateOffset(0)
+  }, "Today") : null), /*#__PURE__*/React.createElement("div", {
+    className: "dx-stats"
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "Routes",
+    value: stats.routes
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Stops",
+    value: stats.stops
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Delivered",
+    value: stats.delivered
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "SMS Sent",
+    value: stats.smsSent,
+    red: true
+  }))), /*#__PURE__*/React.createElement("main", {
+    className: "dx-main"
+  }, routes.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "dx-empty"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-empty-code"
+  }, "\u2205"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-empty-msg"
+  }, "No routes for ", fmtDate(targetDate), ".", /*#__PURE__*/React.createElement("br", null), isToday ? 'The poller will seed routes when DQ has them.' : 'Pick another day with the arrows above.')) : routes.map(r => /*#__PURE__*/React.createElement(RouteBlock, {
+    key: r.id,
+    route: r,
+    queuedStopIds: queuedStopIds,
+    selectedStopId: selected ? `${selected.routeId}:${selected.stopId}` : null,
+    onSelect: stopId => setSelected({
+      routeId: r.id,
+      stopId
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "dx-meta-foot"
+  }, "Live \u2014 Firebase realtime \xB7 poller refreshes every 2 min")), selStop ? /*#__PURE__*/React.createElement(StopDrawer, {
+    route: selRoute,
+    stop: selStop,
+    isQueued: queuedStopIds.has(selStop.stopId),
+    onClose: () => setSelected(null),
+    onSaveEta: saveEta,
+    onSetStatus: setStatus,
+    onResend: requestResend,
+    onSavePhone: savePhone
+  }) : null, toast.msg ? /*#__PURE__*/React.createElement("div", {
+    className: 'dx-toast' + (toast.error ? ' error' : '')
+  }, toast.msg) : null);
+}
+
+// ══════════════════════════════════════════════════════════
+// SMALL COMPONENTS
+// ══════════════════════════════════════════════════════════
+function Stat({
+  label,
+  value,
+  red
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "dx-stat"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-stat-label"
+  }, label), /*#__PURE__*/React.createElement("span", {
+    className: 'dx-stat-value' + (red ? ' red' : '')
+  }, value));
+}
+function RouteBlock({
+  route,
+  queuedStopIds,
+  selectedStopId,
+  onSelect
+}) {
+  const completed = route.stops.filter(s => s.status === 'complete').length;
+  const total = route.stops.length;
+  const pct = total ? Math.round(completed / total * 100) : 0;
+  return /*#__PURE__*/React.createElement("section", {
+    className: "dx-route"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-route-head"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-route-head-left"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-route-id"
+  }, "Route ", /*#__PURE__*/React.createElement("b", null, route.id)), /*#__PURE__*/React.createElement("span", {
+    className: "dx-route-meta"
+  }, "Driver ", /*#__PURE__*/React.createElement("b", null, route.driverName || '—'), " \xB7 Unit ", /*#__PURE__*/React.createElement("b", null, route.asset || '—'), route.startedAt ? /*#__PURE__*/React.createElement(React.Fragment, null, " \xB7 Started ", /*#__PURE__*/React.createElement("b", null, route.startedAt)) : null)), /*#__PURE__*/React.createElement("div", {
+    className: "dx-route-head-right"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-route-progress"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-route-progress-meta"
+  }, /*#__PURE__*/React.createElement("span", null, "Progress"), /*#__PURE__*/React.createElement("span", null, completed, " of ", total, " stops done")), /*#__PURE__*/React.createElement("div", {
+    className: "dx-route-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-route-fill",
+    style: {
+      width: pct + '%'
+    }
+  }))))), /*#__PURE__*/React.createElement("table", {
+    className: "dx-table"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "#"), /*#__PURE__*/React.createElement("th", null, "Order"), /*#__PURE__*/React.createElement("th", null, "Customer"), /*#__PURE__*/React.createElement("th", null, "Customer ETA"), /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "SMS"), /*#__PURE__*/React.createElement("th", null))), /*#__PURE__*/React.createElement("tbody", null, route.stops.map(s => /*#__PURE__*/React.createElement(StopRow, {
+    key: s.stopId,
+    stop: s,
+    isQueued: queuedStopIds.has(s.stopId),
+    selected: selectedStopId === route.id + ':' + s.stopId,
+    onSelect: () => onSelect(s.stopId)
+  })))));
+}
+function StopRow({
+  stop,
+  isQueued,
+  selected,
+  onSelect
+}) {
+  const cls = ['dx-row', stop.status, selected ? 'selected' : ''].join(' ');
+  return /*#__PURE__*/React.createElement("tr", {
+    className: cls,
+    onClick: onSelect
+  }, /*#__PURE__*/React.createElement("td", {
+    className: "dx-seq"
+  }, stop.sequence), /*#__PURE__*/React.createElement("td", {
+    className: "dx-order"
+  }, stop.orderNumber), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    className: "dx-customer"
+  }, stop.customerName), /*#__PURE__*/React.createElement("div", {
+    className: "dx-customer-sub"
+  }, stop.address)), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement(EtaCell, {
+    eta: stop.customerEta,
+    overridden: stop.etaOverridden
+  })), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement(StatusBadge, {
+    status: stop.status,
+    completedAt: stop.completedAt
+  })), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement(SmsCell, {
+    sms: stop.smsSent,
+    queued: isQueued
+  })), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
+    className: "dx-more-btn",
+    onClick: e => {
+      e.stopPropagation();
+      onSelect();
+    }
+  }, "Edit \u203A")));
+}
+function EtaCell({
+  eta,
+  overridden
+}) {
+  if (!eta || !eta.low || eta.low === '—') return /*#__PURE__*/React.createElement("span", {
+    className: "dx-eta-empty"
+  }, "\u2014");
+  return /*#__PURE__*/React.createElement("div", {
+    className: "dx-eta"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-eta-window"
+  }, /*#__PURE__*/React.createElement("span", null, eta.low), /*#__PURE__*/React.createElement("span", {
+    className: "dx-eta-dash"
+  }, "\u2013"), /*#__PURE__*/React.createElement("span", null, eta.high)), overridden ? /*#__PURE__*/React.createElement("span", {
+    className: "dx-eta-tag",
+    title: "Manually overridden by dispatch"
+  }, "Manual") : null);
+}
+function StatusBadge({
+  status,
+  completedAt
+}) {
+  const ts = completedAt ? new Date(completedAt).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit'
+  }) : '—';
+  if (status === 'complete') return /*#__PURE__*/React.createElement("span", {
+    className: "dx-badge complete"
+  }, "Done \xB7 ", ts);
+  if (status === 'next') return /*#__PURE__*/React.createElement("span", {
+    className: "dx-badge next"
+  }, "Next");
+  if (status === 'skipped') return /*#__PURE__*/React.createElement("span", {
+    className: "dx-badge skipped"
+  }, "Skipped");
+  return /*#__PURE__*/React.createElement("span", {
+    className: "dx-badge pending"
+  }, "Pending");
+}
+function SmsCell({
+  sms,
+  queued
+}) {
+  if (queued) {
+    return /*#__PURE__*/React.createElement("span", {
+      className: "dx-sms-cell queued"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "dx-sms-dot"
+    }), "Queued");
+  }
+  if (sms && sms.at) {
+    const at = typeof sms.at === 'number' ? new Date(sms.at).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit'
+    }) : sms.at;
+    return /*#__PURE__*/React.createElement("span", {
+      className: "dx-sms-cell sent"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "dx-sms-dot"
+    }), at);
+  }
+  // Legacy schema fallback: sms.{3,1,0} booleans
+  if (sms && (sms['0'] || sms['1'] || sms['3'])) {
+    return /*#__PURE__*/React.createElement("span", {
+      className: "dx-sms-cell sent"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "dx-sms-dot"
+    }), "Sent");
+  }
+  return /*#__PURE__*/React.createElement("span", {
+    className: "dx-sms-cell unsent"
+  }, "Not sent");
+}
+
+// ══════════════════════════════════════════════════════════
+// STOP DRAWER (the editor)
+// ══════════════════════════════════════════════════════════
+function StopDrawer({
+  route,
+  stop,
+  isQueued,
+  onClose,
+  onSaveEta,
+  onSetStatus,
+  onResend,
+  onSavePhone
+}) {
+  const initialEta = stop.customerEta || {
+    low: '',
+    high: ''
+  };
+  const [low, setLow] = useState(initialEta.low || '');
+  const [high, setHigh] = useState(initialEta.high || '');
+  const [phone, setPhone] = useState(stop.phone || '');
+  useEffect(() => {
+    const e = stop.customerEta || {
+      low: '',
+      high: ''
+    };
+    setLow(e.low || '');
+    setHigh(e.high || '');
+    setPhone(stop.phone || '');
+  }, [stop.stopId]);
+  const url = `${TRACKER_BASE}/?token=${stop.token}`;
+  const dirty = (initialEta.low || '') !== low || (initialEta.high || '') !== high;
+  const phoneDirty = (stop.phone || '') !== phone;
+  const items = stop.items || [];
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "dx-drawer-scrim",
+    onClick: onClose
+  }), /*#__PURE__*/React.createElement("aside", {
+    className: "dx-drawer",
+    role: "dialog"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-drawer-head"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-seq-big"
+  }, stop.sequence), /*#__PURE__*/React.createElement("div", {
+    className: "dx-drawer-titles"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-drawer-title"
+  }, stop.customerName), /*#__PURE__*/React.createElement("div", {
+    className: "dx-drawer-order"
+  }, stop.orderNumber, " \xB7 Route ", route.id, " \xB7 Unit ", route.asset || '—')), /*#__PURE__*/React.createElement("button", {
+    className: "dx-drawer-close",
+    onClick: onClose
+  }, "\xD7")), /*#__PURE__*/React.createElement("div", {
+    className: "dx-drawer-intro"
+  }, "Edit what the customer sees on their tracker"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-drawer-body"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-block"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-label"
+  }, "Customer ETA Window"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-eta-edit"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "dx-input",
+    value: low,
+    placeholder: "1:30 PM",
+    onChange: e => setLow(e.target.value)
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "dx-eta-edit-dash"
+  }, "to"), /*#__PURE__*/React.createElement("input", {
+    className: "dx-input",
+    value: high,
+    placeholder: "2:15 PM",
+    onChange: e => setHigh(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-help"
+  }, "Shown on the customer's tracking page. ", stop.etaOverridden ? 'Currently overriding the auto-computed window.' : 'Type to override the auto-computed window.'), /*#__PURE__*/React.createElement("button", {
+    className: "dx-action-btn primary full",
+    disabled: !dirty,
+    onClick: () => onSaveEta({
+      low: low.trim() || '—',
+      high: high.trim() || '—'
+    })
+  }, dirty ? 'Save ETA' : 'Saved')), /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-block"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-label"
+  }, "Stop Status"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-status-picker"
+  }, ['pending', 'next', 'complete', 'skipped'].map(s => /*#__PURE__*/React.createElement("button", {
+    key: s,
+    className: 'dx-status-btn' + (stop.status === s ? ' active' : ''),
+    onClick: () => onSetStatus(s)
+  }, s))), /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-help"
+  }, "Drives the headline on the customer's tracker (e.g. ", /*#__PURE__*/React.createElement("em", null, "Delivered \u2713"), ", ", /*#__PURE__*/React.createElement("em", null, "You're next"), ").")), /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-block"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-label"
+  }, "Tracking SMS"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-phone-edit"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "tel",
+    className: "dx-input dx-input-phone",
+    value: phone,
+    placeholder: "+19895551234",
+    onChange: e => setPhone(e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "dx-action-btn",
+    disabled: !phoneDirty,
+    onClick: () => onSavePhone(phone.trim())
+  }, phoneDirty ? 'Save Phone' : 'Saved')), /*#__PURE__*/React.createElement("div", null, isQueued ? /*#__PURE__*/React.createElement("span", {
+    className: "dx-sms-cell queued"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-sms-dot"
+  }), "Queued \u2014 sends on next poll") : stop.smsSent && stop.smsSent.at ? /*#__PURE__*/React.createElement("span", {
+    className: "dx-sms-cell sent"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-sms-dot"
+  }), "Sent at ", typeof stop.smsSent.at === 'number' ? new Date(stop.smsSent.at).toLocaleString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+    day: 'numeric'
+  }) : stop.smsSent.at) : /*#__PURE__*/React.createElement("span", {
+    className: "dx-sms-cell unsent"
+  }, "Not yet sent \u2014 will fire on next poll")), /*#__PURE__*/React.createElement("button", {
+    className: "dx-action-btn",
+    onClick: onResend,
+    disabled: isQueued || phoneDirty,
+    title: phoneDirty ? 'Save the phone change first' : ''
+  }, isQueued ? 'Queued ✓' : stop.smsSent && stop.smsSent.at ? 'Resend Tracking Link' : 'Send Now'), /*#__PURE__*/React.createElement("div", {
+    className: "dx-edit-help"
+  }, "SMS sends once when the route departs. Edit the phone above before resending if the wrong number is on file. Up to 2-minute delay.")), /*#__PURE__*/React.createElement("div", {
+    className: "dx-readonly-block"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dx-field"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-field-label"
+  }, "Delivery Address"), /*#__PURE__*/React.createElement("span", {
+    className: "dx-field-value"
+  }, stop.address)), /*#__PURE__*/React.createElement("div", {
+    className: "dx-field"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-field-label"
+  }, "Tracking URL"), /*#__PURE__*/React.createElement("span", {
+    className: "dx-field-value mono"
+  }, url)), items.length ? /*#__PURE__*/React.createElement("div", {
+    className: "dx-field"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-field-label"
+  }, "Items"), /*#__PURE__*/React.createElement("div", {
+    className: "dx-items-list"
+  }, items.map((it, i) => /*#__PURE__*/React.createElement("div", {
+    className: "dx-item",
+    key: i
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dx-item-qty"
+  }, it.qty), /*#__PURE__*/React.createElement("span", null, it.description))))) : null))));
+}
+
+// ══════════════════════════════════════════════════════════
+// ROOT — PIN gate
+// ══════════════════════════════════════════════════════════
+function Root() {
+  const [authed, setAuthed] = useState(false);
+  if (!authed) return React.createElement(PinScreen, { onSuccess: () => setAuthed(true) });
+  return React.createElement(App, { user: { email: 'dispatcher' } });
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Root, null));
+</script>
+</body>
+</html>
