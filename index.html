@@ -633,7 +633,7 @@ function smsCellHTML(sms, queued) {
     const at = typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at;
     return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>${esc(at)}</span>`;
   }
-  if (sms && (sms['0'] || sms['1'] || sms['3'])) {
+  if (sms && (sms.departed === true || sms['0'] || sms['1'] || sms['3'])) {
     return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent</span>`;
   }
   return `<span class="dx-sms-cell unsent">Not sent</span>`;
@@ -711,11 +711,13 @@ function renderDrawer() {
               ? '<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued &mdash; sends on next poll</span>'
               : stop.smsSent && stop.smsSent.at
                 ? `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent at ${typeof stop.smsSent.at==='number' ? esc(fmtTime(stop.smsSent.at)) : esc(stop.smsSent.at)}</span>`
-                : '<span class="dx-sms-cell unsent">Not yet sent &mdash; will fire on next poll</span>'
+                : stop.smsSent && stop.smsSent.departed === true
+                  ? '<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent</span>'
+                  : '<span class="dx-sms-cell unsent">Not yet sent &mdash; will fire on next poll</span>'
             }
           </div>
           <button class="dx-action-btn" id="dx-resend-btn" ${queued ? 'disabled' : ''}>
-            ${queued ? 'Queued ✓' : stop.smsSent && stop.smsSent.at ? 'Resend Tracking Link' : 'Send Now'}
+            ${queued ? 'Queued ✓' : (stop.smsSent && (stop.smsSent.at || stop.smsSent.departed === true)) ? 'Resend Tracking Link' : 'Send Now'}
           </button>
           <div class="dx-edit-help">SMS sends once when the route departs. Up to 2-minute delay.</div>
         </div>
