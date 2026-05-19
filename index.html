@@ -223,6 +223,13 @@ html, body {
 .dx-items-list .dx-item-qty { font-family: 'Oswald', sans-serif; font-weight: 700;
   font-size: 18px; color: #cc0000; min-width: 32px; }
 
+.dx-timing { display: inline-block; font-family: 'Oswald', sans-serif;
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  font-weight: 700; padding: 3px 8px; }
+.dx-timing.early  { color: #2e8a3e; border: 1px solid #2e8a3e; }
+.dx-timing.ontime { color: #111; border: 1px solid #111; }
+.dx-timing.late   { color: #cc0000; border: 1px solid #cc0000; }
+
 /* ── TOAST ── */
 .dx-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   background: #111; border-top: 3px solid #cc0000; color: #fff;
@@ -595,12 +602,13 @@ function routeBlockHTML(r, queued, sel) {
           <col>
           <col style="width:160px">
           <col style="width:220px">
+          <col style="width:90px">
           <col style="width:110px">
           <col style="width:60px">
         </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
-          <th>Customer ETA</th><th>Status</th><th>SMS</th><th></th>
+          <th>Customer ETA</th><th>Status</th><th>Timing</th><th>SMS</th><th></th>
         </tr></thead>
         <tbody>
           ${r.stops.map(s => stopRowHTML(r.id, s, queued.has(s.stopId), sel && sel.routeId===r.id && sel.stopId===s.stopId)).join('')}
@@ -621,6 +629,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.arrivalTime, s.calculatedEta)}</td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus)}</td>
+      <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
       <td>${smsCellHTML(s.smsSent, isQueued)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>`;
@@ -698,7 +707,25 @@ function smsCellHTML(sms, queued) {
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
-function getSelectedStop() {
+function timingBadgeHTML(timing) {
+  if (!timing) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+  if (timing === 'early')  return '<span class="dx-timing early">Early</span>';
+  if (timing === 'ontime') return '<span class="dx-timing ontime">On Time</span>';
+  if (timing === 'late')   return '<span class="dx-timing late">Late</span>';
+  return '';
+}
+
+function getDeliveryTiming(s) {
+  if (s.status !== 'complete' || !s.deliveryTime || !s.arrivalTime) return null;
+  const deliveredMs = new Date(s.deliveryTime).getTime();
+  const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
+  const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
+  if (deliveredMs < etaLow)        return 'early';
+  if (deliveredMs <= etaHigh)      return 'ontime';
+  return 'late';
+}
+
+
   if (!S.selected) return { route: null, stop: null };
   const route = getRoutes().find(r => r.id === S.selected.routeId);
   const stop  = route ? route.stops.find(s => s.stopId === S.selected.stopId) : null;
