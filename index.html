@@ -725,7 +725,8 @@ function getDeliveryTiming(s) {
   return 'late';
 }
 
-
+// ── Stop Drawer ───────────────────────────────────────────────────────────────
+function getSelectedStop() {
   if (!S.selected) return { route: null, stop: null };
   const route = getRoutes().find(r => r.id === S.selected.routeId);
   const stop  = route ? route.stops.find(s => s.stopId === S.selected.stopId) : null;
