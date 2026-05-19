@@ -116,8 +116,9 @@ html, body {
   font-weight: 600; color: #cc0000; border: 1px solid #cc0000; padding: 1px 5px; }
 .dx-eta-empty { color: #ccc; font-family: 'Oswald', sans-serif; font-size: 14px; }
 .dx-badge { display: inline-block; font-family: 'Oswald', sans-serif;
-  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
-  padding: 3px 10px; font-weight: 600; white-space: nowrap; }
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 8px; font-weight: 600; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .dx-badge.pending  { background: #fff; color: #888; border: 1px solid #ddd; }
 .dx-badge.next     { background: #cc0000; color: #fff; }
 .dx-badge.enroute  { background: #1a6fb5; color: #fff; }
@@ -584,11 +585,11 @@ function routeBlockHTML(r, queued, sel) {
         <colgroup>
           <col style="width:44px">
           <col style="width:140px">
-          <col style="width:auto">
-          <col style="width:170px">
-          <col style="width:200px">
-          <col style="width:120px">
-          <col style="width:70px">
+          <col>
+          <col style="width:160px">
+          <col style="width:220px">
+          <col style="width:110px">
+          <col style="width:60px">
         </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
@@ -652,22 +653,28 @@ function etaCellHTML(eta, overridden, arrivalTime, calculatedEta) {
 function statusBadgeHTML(status, completedAt, deliveryStatus) {
   const ts = completedAt ? fmtTime(completedAt) : '—';
   if (status === 'complete') {
-    const label = deliveryStatus || 'Delivered';
-    return `<span class="dx-badge complete">${esc(label)} &middot; ${esc(ts)}</span>`;
+    const ds = (deliveryStatus || '').toLowerCase();
+    let label = 'Delivered';
+    if (ds.includes('no/sig') || ds.includes('no sig')) label = 'Delivered No/Sig';
+    else if (ds.includes('w/sig') || ds.includes('with sig')) label = 'Delivered W/Sig';
+    else if (ds.includes('partial')) label = 'Partial';
+    else if (ds === 'not delivered') label = 'Not Delivered';
+    else if (ds === 'delivery complete') label = 'Complete';
+    return `<span class="dx-badge complete">${label} &middot; ${esc(ts)}</span>`;
   }
   if (deliveryStatus) {
     const ds = deliveryStatus.toLowerCase();
-    if (ds === 'next stop')    return `<span class="dx-badge next">Next Stop</span>`;
-    if (ds === 'arrived')      return `<span class="dx-badge next">Arrived</span>`;
-    if (ds === 'enroute')      return `<span class="dx-badge enroute">En Route</span>`;
-    if (ds === 'ready to depart') return `<span class="dx-badge enroute">Ready</span>`;
-    if (ds === 'job not ready') return `<span class="dx-badge skipped">Not Ready</span>`;
-    if (ds === 'returning')    return `<span class="dx-badge skipped">Returning</span>`;
+    if (ds === 'next stop')        return `<span class="dx-badge next">Next Stop</span>`;
+    if (ds === 'arrived')          return `<span class="dx-badge next">Arrived</span>`;
+    if (ds === 'enroute')          return `<span class="dx-badge enroute">En Route</span>`;
+    if (ds === 'ready to depart')  return `<span class="dx-badge enroute">Ready</span>`;
+    if (ds === 'job not ready')    return `<span class="dx-badge skipped">Not Ready</span>`;
+    if (ds === 'returning')        return `<span class="dx-badge skipped">Returning</span>`;
     if (ds === 'delivery w/issue') return `<span class="dx-badge skipped">Issue</span>`;
-    if (ds === 'cancelled')    return `<span class="dx-badge skipped">Cancelled</span>`;
+    if (ds === 'cancelled')        return `<span class="dx-badge skipped">Cancelled</span>`;
   }
-  if (status === 'next')     return `<span class="dx-badge next">Next</span>`;
-  if (status === 'skipped')  return `<span class="dx-badge skipped">Skipped</span>`;
+  if (status === 'next')    return `<span class="dx-badge next">Next</span>`;
+  if (status === 'skipped') return `<span class="dx-badge skipped">Skipped</span>`;
   return `<span class="dx-badge pending">Pending</span>`;
 }
 
