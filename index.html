@@ -401,13 +401,16 @@ function getStats() {
     stops++;
     if (s.status === 'complete') {
       delivered++;
-      if (s.deliveryTime && s.arrivalTime) {
-        const deliveredMs = new Date(s.deliveryTime).getTime();
-        const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
-        const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
-        if (deliveredMs < etaLow)       early++;
-        else if (deliveredMs <= etaHigh) onTime++;
-        else                             late++;
+      if (s.deliveryTime) {
+        const scheduled = s.calculatedEta || s.arrivalTime;
+        if (scheduled) {
+          const deliveredMs = new Date(s.deliveryTime).getTime();
+          const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
+          const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
+          if (deliveredMs < etaLow)       early++;
+          else if (deliveredMs <= etaHigh) onTime++;
+          else                             late++;
+        }
       }
     }
     if (s.smsSent && (s.smsSent.at || s.smsSent.departed === true || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
@@ -716,12 +719,16 @@ function timingBadgeHTML(timing) {
 }
 
 function getDeliveryTiming(s) {
-  if (s.status !== 'complete' || !s.deliveryTime || !s.arrivalTime) return null;
+  if (s.status !== 'complete' || !s.deliveryTime) return null;
+  // Use calculatedEta as the scheduled window baseline (what we predicted)
+  // Fall back to arrivalTime only if no calculatedEta
+  const scheduled = s.calculatedEta || s.arrivalTime;
+  if (!scheduled) return null;
   const deliveredMs = new Date(s.deliveryTime).getTime();
-  const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
-  const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
-  if (deliveredMs < etaLow)        return 'early';
-  if (deliveredMs <= etaHigh)      return 'ontime';
+  const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
+  const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
+  if (deliveredMs < etaLow)    return 'early';
+  if (deliveredMs <= etaHigh)  return 'ontime';
   return 'late';
 }
 
