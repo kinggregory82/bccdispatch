@@ -402,7 +402,7 @@ function getStats() {
     if (s.status === 'complete') {
       delivered++;
       if (s.deliveryTime) {
-        const scheduled = s.calculatedEta || s.arrivalTime;
+        const scheduled = s.seedEta || s.calculatedEta || s.arrivalTime;
         if (scheduled) {
           const deliveredMs = new Date(s.deliveryTime).getTime();
           const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
@@ -720,9 +720,9 @@ function timingBadgeHTML(timing) {
 
 function getDeliveryTiming(s) {
   if (s.status !== 'complete' || !s.deliveryTime) return null;
-  // Use calculatedEta as the scheduled window baseline (what we predicted)
-  // Fall back to arrivalTime only if no calculatedEta
-  const scheduled = s.calculatedEta || s.arrivalTime;
+  // seedEta = original predicted ETA at seed time, never overwritten by recalculator
+  // Fall back to calculatedEta then arrivalTime
+  const scheduled = s.seedEta || s.calculatedEta || s.arrivalTime;
   if (!scheduled) return null;
   const deliveredMs = new Date(s.deliveryTime).getTime();
   const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
