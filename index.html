@@ -389,23 +389,27 @@ function queuedStopIds() {
 }
 function getStats() {
   const routes = getRoutes();
-  let stops=0, delivered=0, smsSent=0, onTime=0, onTimeEligible=0;
+  let stops=0, delivered=0, smsSent=0, onTime=0, early=0, late=0;
   routes.forEach(r => r.stops.forEach(s => {
     stops++;
     if (s.status === 'complete') {
       delivered++;
-      // On-time: deliveryTime within the ETA window (arrivalTime ± 30min)
       if (s.deliveryTime && s.arrivalTime) {
-        onTimeEligible++;
-        const delivered = new Date(s.deliveryTime).getTime();
-        const etaHigh   = new Date(s.arrivalTime).getTime() + 30*60*1000;
-        if (delivered <= etaHigh) onTime++;
+        const deliveredMs = new Date(s.deliveryTime).getTime();
+        const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
+        const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
+        if (deliveredMs < etaLow)       early++;
+        else if (deliveredMs <= etaHigh) onTime++;
+        else                             late++;
       }
     }
     if (s.smsSent && (s.smsSent.at || s.smsSent.departed === true || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
   }));
-  const onTimePct = onTimeEligible > 0 ? Math.round((onTime/onTimeEligible)*100) : null;
-  return { routes: routes.length, stops, delivered, smsSent, onTime, onTimeEligible, onTimePct };
+  const eligible = early + onTime + late;
+  const pctOf = n => eligible > 0 ? Math.round((n/eligible)*100) : null;
+  return { routes: routes.length, stops, delivered, smsSent,
+           early, onTime, late, eligible,
+           earlyPct: pctOf(early), onTimePct: pctOf(onTime), latePct: pctOf(late) };
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -517,12 +521,15 @@ function renderStats() {
   const el = document.getElementById('dx-stats');
   if (!el) return;
   const s = getStats();
+  const fmt = pct => pct !== null ? pct + '%' : '—';
   el.innerHTML = `
     <div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">${s.routes}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Stops</span><span class="dx-stat-value">${s.stops}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Delivered</span><span class="dx-stat-value">${s.delivered}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">SMS Sent</span><span class="dx-stat-value red">${s.smsSent}</span></div>
-    <div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value${s.onTimePct !== null && s.onTimePct < 80 ? ' red' : ''}">${s.onTimePct !== null ? s.onTimePct+'%' : '—'}</span></div>`;
+    <div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value" style="color:#2e8a3e">${fmt(s.earlyPct)}</span></div>
+    <div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">${fmt(s.onTimePct)}</span></div>
+    <div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value${s.latePct !== null && s.latePct > 20 ? ' red' : ''}">${fmt(s.latePct)}</span></div>`;
 }
 
 // ── Route blocks ─────────────────────────────────────────────────────────────
