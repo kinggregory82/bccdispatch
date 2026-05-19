@@ -518,7 +518,7 @@ function renderRoutes() {
   }
 
   el.innerHTML = routes.map(r => routeBlockHTML(r, queued, sel)).join('') +
-    '<div class="dx-meta-foot">Live &mdash; Firebase REST &middot; polls every 5s</div>';
+    '<div class="dx-meta-foot">Live &mdash; Firebase REST &middot; polls every 2 min</div>';
 
   // Attach click handlers to all Edit buttons and rows
   el.querySelectorAll('[data-stop]').forEach(btn => {
