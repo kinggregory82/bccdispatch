@@ -120,6 +120,7 @@ html, body {
   padding: 3px 10px; font-weight: 600; white-space: nowrap; }
 .dx-badge.pending  { background: #fff; color: #888; border: 1px solid #ddd; }
 .dx-badge.next     { background: #cc0000; color: #fff; }
+.dx-badge.enroute  { background: #1a6fb5; color: #fff; }
 .dx-badge.complete { background: #111; color: #fff; }
 .dx-badge.skipped  { background: #fff; color: #aaa; border: 1px solid #ddd; text-decoration: line-through; }
 .dx-sms-cell { display: inline-flex; align-items: center; gap: 6px;
@@ -361,7 +362,13 @@ function getRoutes() {
     .map(([id, r]) => ({
       id, ...r,
       stops: r.stops
-        ? Object.entries(r.stops).map(([stopId, s]) => ({ stopId, ...s })).sort((a,b) => (a.sequence||0)-(b.sequence||0))
+        ? Object.entries(r.stops).map(([stopId, s]) => ({ stopId, ...s })).sort((a,b) => {
+            // Sort by arrivalTime if available, fall back to sequence
+            if (a.arrivalTime && b.arrivalTime) return a.arrivalTime.localeCompare(b.arrivalTime);
+            if (a.arrivalTime) return -1;
+            if (b.arrivalTime) return 1;
+            return (a.sequence||0)-(b.sequence||0);
+          })
         : [],
     }))
     .sort((a,b) => a.id.localeCompare(b.id));
@@ -373,13 +380,23 @@ function queuedStopIds() {
 }
 function getStats() {
   const routes = getRoutes();
-  let stops=0, delivered=0, smsSent=0;
+  let stops=0, delivered=0, smsSent=0, onTime=0, onTimeEligible=0;
   routes.forEach(r => r.stops.forEach(s => {
     stops++;
-    if (s.status === 'complete') delivered++;
+    if (s.status === 'complete') {
+      delivered++;
+      // On-time: deliveryTime within the ETA window (arrivalTime ± 30min)
+      if (s.deliveryTime && s.arrivalTime) {
+        onTimeEligible++;
+        const delivered = new Date(s.deliveryTime).getTime();
+        const etaHigh   = new Date(s.arrivalTime).getTime() + 30*60*1000;
+        if (delivered <= etaHigh) onTime++;
+      }
+    }
     if (s.smsSent && (s.smsSent.at || s.smsSent.departed === true || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
   }));
-  return { routes: routes.length, stops, delivered, smsSent };
+  const onTimePct = onTimeEligible > 0 ? Math.round((onTime/onTimeEligible)*100) : null;
+  return { routes: routes.length, stops, delivered, smsSent, onTime, onTimeEligible, onTimePct };
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -495,7 +512,8 @@ function renderStats() {
     <div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">${s.routes}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Stops</span><span class="dx-stat-value">${s.stops}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Delivered</span><span class="dx-stat-value">${s.delivered}</span></div>
-    <div class="dx-stat"><span class="dx-stat-label">SMS Sent</span><span class="dx-stat-value red">${s.smsSent}</span></div>`;
+    <div class="dx-stat"><span class="dx-stat-label">SMS Sent</span><span class="dx-stat-value red">${s.smsSent}</span></div>
+    <div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value${s.onTimePct !== null && s.onTimePct < 80 ? ' red' : ''}">${s.onTimePct !== null ? s.onTimePct+'%' : '—'}</span></div>`;
 }
 
 // ── Route blocks ─────────────────────────────────────────────────────────────
@@ -577,7 +595,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
         <div class="dx-customer-sub">${esc(s.address||'')}</div>
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.arrivalTime)}</td>
-      <td>${statusBadgeHTML(s.status, s.completedAt)}</td>
+      <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus)}</td>
       <td>${smsCellHTML(s.smsSent, isQueued)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>`;
@@ -613,9 +631,23 @@ function etaCellHTML(eta, overridden, arrivalTime) {
   return '<span class="dx-eta-empty">&mdash;</span>';
 }
 
-function statusBadgeHTML(status, completedAt) {
+function statusBadgeHTML(status, completedAt, deliveryStatus) {
   const ts = completedAt ? fmtTime(completedAt) : '—';
-  if (status === 'complete') return `<span class="dx-badge complete">Done &middot; ${esc(ts)}</span>`;
+  if (status === 'complete') {
+    const label = deliveryStatus || 'Delivered';
+    return `<span class="dx-badge complete">${esc(label)} &middot; ${esc(ts)}</span>`;
+  }
+  if (deliveryStatus) {
+    const ds = deliveryStatus.toLowerCase();
+    if (ds === 'next stop')    return `<span class="dx-badge next">Next Stop</span>`;
+    if (ds === 'arrived')      return `<span class="dx-badge next">Arrived</span>`;
+    if (ds === 'enroute')      return `<span class="dx-badge enroute">En Route</span>`;
+    if (ds === 'ready to depart') return `<span class="dx-badge enroute">Ready</span>`;
+    if (ds === 'job not ready') return `<span class="dx-badge skipped">Not Ready</span>`;
+    if (ds === 'returning')    return `<span class="dx-badge skipped">Returning</span>`;
+    if (ds === 'delivery w/issue') return `<span class="dx-badge skipped">Issue</span>`;
+    if (ds === 'cancelled')    return `<span class="dx-badge skipped">Cancelled</span>`;
+  }
   if (status === 'next')     return `<span class="dx-badge next">Next</span>`;
   if (status === 'skipped')  return `<span class="dx-badge skipped">Skipped</span>`;
   return `<span class="dx-badge pending">Pending</span>`;
