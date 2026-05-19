@@ -358,19 +358,27 @@ function isToday()  { return S.dateOffset === 0; }
 function getRoutes() {
   const dk = dateKey();
   return Object.entries(S.routes)
-    .filter(([, r]) => r && r.date === dk)
+    .filter(([id, r]) => r && r.date === dk && id !== 'UNASSIGNED')
     .map(([id, r]) => ({
       id, ...r,
       stops: r.stops
-        ? Object.entries(r.stops).map(([stopId, s]) => ({ stopId, ...s })).sort((a,b) => {
-            // Sort by arrivalTime if available, fall back to sequence
-            if (a.arrivalTime && b.arrivalTime) return a.arrivalTime.localeCompare(b.arrivalTime);
-            if (a.arrivalTime) return -1;
-            if (b.arrivalTime) return 1;
-            return (a.sequence||0)-(b.sequence||0);
-          })
+        ? Object.entries(r.stops)
+            .map(([stopId, s]) => ({ stopId, ...s }))
+            .filter(s => {
+              // Hide stops with no scheduling info at all
+              const hasEta = s.arrivalTime || s.calculatedEta || (s.customerEta && s.customerEta.low);
+              const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order';
+              return hasEta || hasStatus || s.status === 'complete';
+            })
+            .sort((a,b) => {
+              if (a.arrivalTime && b.arrivalTime) return a.arrivalTime.localeCompare(b.arrivalTime);
+              if (a.arrivalTime) return -1;
+              if (b.arrivalTime) return 1;
+              return (a.sequence||0)-(b.sequence||0);
+            })
         : [],
     }))
+    .filter(r => r.stops.length > 0)
     .sort((a,b) => a.id.localeCompare(b.id));
 }
 function queuedStopIds() {
@@ -573,6 +581,15 @@ function routeBlockHTML(r, queued, sel) {
         </div>
       </div>
       <table class="dx-table">
+        <colgroup>
+          <col style="width:44px">
+          <col style="width:140px">
+          <col style="width:auto">
+          <col style="width:170px">
+          <col style="width:200px">
+          <col style="width:120px">
+          <col style="width:70px">
+        </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
           <th>Customer ETA</th><th>Status</th><th>SMS</th><th></th>
@@ -594,14 +611,14 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
         <div class="dx-customer">${esc(s.customerName||'')}</div>
         <div class="dx-customer-sub">${esc(s.address||'')}</div>
       </td>
-      <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.arrivalTime)}</td>
+      <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.arrivalTime, s.calculatedEta)}</td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus)}</td>
       <td>${smsCellHTML(s.smsSent, isQueued)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>`;
 }
 
-function etaCellHTML(eta, overridden, arrivalTime) {
+function etaCellHTML(eta, overridden, arrivalTime, calculatedEta) {
   // Prefer manual customerEta override
   if (eta && eta.low && eta.low !== '—') {
     return `<div class="dx-eta">
@@ -613,9 +630,10 @@ function etaCellHTML(eta, overridden, arrivalTime) {
       ${overridden ? '<span class="dx-eta-tag">Manual</span>' : ''}
     </div>`;
   }
-  // Fall back to arrivalTime from poller
-  if (arrivalTime) {
-    const d = new Date(arrivalTime);
+  // Use arrivalTime or calculatedEta from poller — whichever is available
+  const etaSource = arrivalTime || calculatedEta;
+  if (etaSource) {
+    const d = new Date(etaSource);
     if (!isNaN(d)) {
       const low  = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
       const high = new Date(d.getTime() + 30*60000).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
