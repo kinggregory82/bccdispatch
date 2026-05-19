@@ -373,10 +373,10 @@ function getRoutes() {
         ? Object.entries(r.stops)
             .map(([stopId, s]) => ({ stopId, ...s }))
             .filter(s => {
-              // Hide stops with no scheduling info at all
+              if (s.status === 'complete') return true;
               const hasEta = s.arrivalTime || s.calculatedEta || (s.customerEta && s.customerEta.low);
-              const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order';
-              return hasEta || hasStatus || s.status === 'complete';
+              const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order' && s.deliveryStatus !== 'Scheduled' && s.deliveryStatus !== 'Printed';
+              return hasEta || hasStatus;
             })
             .sort((a,b) => {
               if (a.arrivalTime && b.arrivalTime) return a.arrivalTime.localeCompare(b.arrivalTime);
