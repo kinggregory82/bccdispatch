@@ -427,7 +427,7 @@ function getStats() {
         }
         if (!etaLowMs) {
           const anchor = s.seedEta || s.calculatedEta;
-          if (anchor) { const mid = new Date(anchor).getTime(); etaLowMs = mid - 30*60*1000; etaHighMs = mid + 30*60*1000; }
+          if (anchor) { const anchorMs = new Date(anchor).getTime(); etaLowMs = anchorMs; etaHighMs = anchorMs + 30*60*1000; }
         }
         if (etaLowMs) {
           const actualMs = new Date(actualTs).getTime();
@@ -793,9 +793,9 @@ function getDeliveryTiming(s) {
   if (!etaLowMs) {
     const anchor = s.seedEta || s.calculatedEta;
     if (!anchor) return null;
-    const mid = new Date(anchor).getTime();
-    etaLowMs  = mid - 30*60*1000;
-    etaHighMs = mid + 30*60*1000;
+    const anchorMs = new Date(anchor).getTime();
+    etaLowMs  = anchorMs;               // on time starts at scheduled arrival
+    etaHighMs = anchorMs + 30*60*1000;  // 30 min grace period after
   }
 
   const actualMs = new Date(actualTs).getTime();
