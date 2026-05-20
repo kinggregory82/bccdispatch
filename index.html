@@ -406,10 +406,11 @@ function getStats() {
     stops++;
     if (s.status === 'complete') {
       delivered++;
-      if (s.deliveryTime) {
+      if (s.deliveryTime || s.completedAt) {
+        const deliveryTs = s.deliveryTime || s.completedAt;
         const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
         if (scheduled) {
-          const deliveredMs = new Date(s.deliveryTime).getTime();
+          const deliveredMs = new Date(deliveryTs).getTime();
           const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
           const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
           if (deliveredMs < etaLow)       early++;
@@ -724,12 +725,12 @@ function timingBadgeHTML(timing) {
 }
 
 function getDeliveryTiming(s) {
-  if (s.status !== 'complete' || !s.deliveryTime) return null;
-  // Use the same anchor the ETA display uses — arrivalTime first, then calculatedEta, then seedEta
-  // This ensures timing matches what was shown to the dispatcher
+  if (s.status !== 'complete') return null;
+  const deliveryTs = s.deliveryTime || s.completedAt;
+  if (!deliveryTs) return null;
   const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
   if (!scheduled) return null;
-  const deliveredMs = new Date(s.deliveryTime).getTime();
+  const deliveredMs = new Date(deliveryTs).getTime();
   const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
   const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
   if (deliveredMs < etaLow)    return 'early';
