@@ -43,7 +43,7 @@ html, body {
 /* ── DATE / STAT BAR ── */
 .dx-subbar { display: flex; align-items: stretch; justify-content: flex-start;
   background: #fff; border-bottom: 1px solid #e0e0e0; padding: 0 28px; }
-.dx-datenav { display: flex; align-items: center; gap: 0; border-right: 1px solid #e0e0e0; }
+.dx-datenav { display: flex; align-items: center; gap: 0; }
 .dx-datenav button { background: #fff; border: 0; width: 36px; height: 64px;
   cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 18px;
   color: #888; border-right: 1px solid #e0e0e0; }
@@ -55,9 +55,11 @@ html, body {
   text-transform: uppercase; color: #888; }
 .dx-date-value { font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600;
   color: #111; margin-top: 1px; }
-.dx-today-btn { width: auto; padding: 0 16px; font-size: 11px; letter-spacing: 0.16em;
-  text-transform: uppercase; font-weight: 600; color: #cc0000;
-  border: 0; background: #fff; height: 64px; cursor: pointer; }
+.dx-today-wrap { display: flex; align-items: stretch; border-right: 1px solid #e0e0e0; }
+.dx-today-btn { padding: 0 20px; font-family: 'Oswald', sans-serif; font-size: 11px;
+  letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; color: #cc0000;
+  border: 0; background: #fff; height: 64px; cursor: pointer; white-space: nowrap; }
+.dx-today-btn:hover { background: #fafafa; }
 .dx-stats { display: flex; align-items: stretch; }
 .dx-stat { padding: 12px 22px; border-left: 1px solid #e0e0e0;
   display: flex; flex-direction: column; justify-content: center; min-width: 110px; }
@@ -372,8 +374,8 @@ function isToday()  { return S.dateOffset === 0; }
 function refreshDate() {
   const el = document.getElementById('dx-date-value');
   if (el) el.textContent = fmtDate(targetDate());
-  const todayBtn = document.getElementById('dx-today');
-  if (todayBtn) todayBtn.style.display = isToday() ? 'none' : '';
+  const todayBtn = document.getElementById('dx-today-wrap');
+  if (todayBtn) todayBtn.style.display = isToday() ? 'none' : 'flex';
   renderRoutes();
   renderStats();
 }
@@ -533,7 +535,9 @@ function renderApp() {
           <span class="dx-date-value" id="dx-date-value"></span>
         </div>
         <button id="dx-next" title="Next day">&#8250;</button>
-        <button class="dx-today-btn" id="dx-today" style="display:none">Today</button>
+      </div>
+      <div class="dx-today-wrap" id="dx-today-wrap" style="display:none">
+        <button class="dx-today-btn" id="dx-today">Today</button>
       </div>
       <div class="dx-stats" id="dx-stats"></div>
     </div>
