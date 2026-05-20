@@ -431,7 +431,7 @@ function getStats() {
           if (!isNaN(low) && !isNaN(high)) { etaLowMs = low.getTime(); etaHighMs = high.getTime(); }
         }
         if (!etaLowMs) {
-          const anchor = s.seedEta || s.calculatedEta;
+          const anchor = s.calculatedEta || s.seedEta;
           if (anchor) { const anchorMs = new Date(anchor).getTime(); etaLowMs = anchorMs; etaHighMs = anchorMs + 30*60*1000; }
         }
         if (etaLowMs) {
@@ -798,7 +798,7 @@ function getDeliveryTiming(s) {
     }
   }
   if (!etaLowMs) {
-    const anchor = s.seedEta || s.calculatedEta;
+    const anchor = s.calculatedEta || s.seedEta;
     if (!anchor) return null;
     const anchorMs = new Date(anchor).getTime();
     etaLowMs  = anchorMs;               // on time starts at scheduled arrival
