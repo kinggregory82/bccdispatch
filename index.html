@@ -675,7 +675,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
       <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
-      <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus)}</td>
+      <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
       <td>${smsCellHTML(s.smsSent, isQueued)}</td>
@@ -713,8 +713,8 @@ function etaCellHTML(eta, overridden, calculatedEta) {
   return '<span class="dx-eta-empty">&mdash;</span>';
 }
 
-function statusBadgeHTML(status, completedAt, deliveryStatus) {
-  const ts = completedAt ? fmtTime(completedAt) : '—';
+function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
+  const ts = deliveryTime ? fmtTime(deliveryTime) : completedAt ? fmtTime(completedAt) : '—';
   if (status === 'complete') {
     const ds = (deliveryStatus || '').toLowerCase();
     let label = 'Delivered';
