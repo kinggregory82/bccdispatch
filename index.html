@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -406,11 +407,11 @@ function getStats() {
     stops++;
     if (s.status === 'complete') {
       delivered++;
-      if (s.deliveryTime || s.completedAt) {
-        const deliveryTs = s.deliveryTime || s.completedAt;
-        const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
+      if (s.arrivalTime || s.deliveryTime || s.completedAt) {
+        const actualTs  = s.arrivalTime || s.deliveryTime || s.completedAt;
+        const scheduled = s.calculatedEta || s.seedEta;
         if (scheduled) {
-          const deliveredMs = new Date(deliveryTs).getTime();
+          const deliveredMs = new Date(actualTs).getTime();
           const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
           const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
           if (deliveredMs < etaLow)       early++;
@@ -611,13 +612,14 @@ function routeBlockHTML(r, queued, sel) {
           <col>
           <col style="width:160px">
           <col style="width:220px">
+          <col style="width:80px">
           <col style="width:90px">
           <col style="width:110px">
           <col style="width:60px">
         </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
-          <th>Customer ETA</th><th>Status</th><th>Timing</th><th>SMS</th><th></th>
+          <th>Customer ETA</th><th>Status</th><th>On Site</th><th>Timing</th><th>SMS</th><th></th>
         </tr></thead>
         <tbody>
           ${r.stops.map(s => stopRowHTML(r.id, s, queued.has(s.stopId), sel && sel.routeId===r.id && sel.stopId===s.stopId)).join('')}
@@ -638,6 +640,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.arrivalTime, s.calculatedEta)}</td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus)}</td>
+      <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
       <td>${smsCellHTML(s.smsSent, isQueued)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
@@ -716,6 +719,17 @@ function smsCellHTML(sms, queued) {
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
+function serviceElapsedHTML(s) {
+  if (s.status !== 'complete') return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+  const start = s.arrivalTime;
+  const end   = s.deliveryTime || s.completedAt;
+  if (!start || !end) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+  const mins = Math.round((new Date(end) - new Date(start)) / 60000);
+  if (mins < 0 || mins > 480) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+  const color = '#111';
+  return `<span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:${color}">${mins}m</span>`;
+}
+
 function timingBadgeHTML(timing) {
   if (!timing) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
   if (timing === 'early')  return '<span class="dx-timing early">Early</span>';
@@ -726,15 +740,18 @@ function timingBadgeHTML(timing) {
 
 function getDeliveryTiming(s) {
   if (s.status !== 'complete') return null;
-  const deliveryTs = s.deliveryTime || s.completedAt;
-  if (!deliveryTs) return null;
-  const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
+  // Use arrivalTime (when driver arrived) as the timing indicator
+  // Fall back to deliveryTime, then completedAt
+  const actualTs   = s.arrivalTime || s.deliveryTime || s.completedAt;
+  if (!actualTs) return null;
+  // Compare against calculatedEta (scheduled window) — seedEta as last resort
+  const scheduled  = s.calculatedEta || s.seedEta;
   if (!scheduled) return null;
-  const deliveredMs = new Date(deliveryTs).getTime();
-  const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
-  const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
-  if (deliveredMs < etaLow)    return 'early';
-  if (deliveredMs <= etaHigh)  return 'ontime';
+  const actualMs   = new Date(actualTs).getTime();
+  const etaLow     = new Date(scheduled).getTime() - 30*60*1000;
+  const etaHigh    = new Date(scheduled).getTime() + 30*60*1000;
+  if (actualMs < etaLow)    return 'early';
+  if (actualMs <= etaHigh)  return 'ontime';
   return 'late';
 }
 
