@@ -373,10 +373,10 @@ function getRoutes() {
         ? Object.entries(r.stops)
             .map(([stopId, s]) => ({ stopId, ...s }))
             .filter(s => {
-              if (s.status === 'complete') return true;
+              // Hide stops with no scheduling info at all
               const hasEta = s.arrivalTime || s.calculatedEta || (s.customerEta && s.customerEta.low);
-              const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order' && s.deliveryStatus !== 'Scheduled' && s.deliveryStatus !== 'Printed';
-              return hasEta || hasStatus;
+              const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order';
+              return hasEta || hasStatus || s.status === 'complete';
             })
             .sort((a,b) => {
               if (a.arrivalTime && b.arrivalTime) return a.arrivalTime.localeCompare(b.arrivalTime);
@@ -401,16 +401,13 @@ function getStats() {
     stops++;
     if (s.status === 'complete') {
       delivered++;
-      if (s.deliveryTime) {
-        const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
-        if (scheduled) {
-          const deliveredMs = new Date(s.deliveryTime).getTime();
-          const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
-          const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
-          if (deliveredMs < etaLow)       early++;
-          else if (deliveredMs <= etaHigh) onTime++;
-          else                             late++;
-        }
+      if (s.deliveryTime && s.arrivalTime) {
+        const deliveredMs = new Date(s.deliveryTime).getTime();
+        const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
+        const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
+        if (deliveredMs < etaLow)       early++;
+        else if (deliveredMs <= etaHigh) onTime++;
+        else                             late++;
       }
     }
     if (s.smsSent && (s.smsSent.at || s.smsSent.departed === true || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
@@ -719,16 +716,12 @@ function timingBadgeHTML(timing) {
 }
 
 function getDeliveryTiming(s) {
-  if (s.status !== 'complete' || !s.deliveryTime) return null;
-  // Use the same anchor the ETA display uses — arrivalTime first, then calculatedEta, then seedEta
-  // This ensures timing matches what was shown to the dispatcher
-  const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
-  if (!scheduled) return null;
+  if (s.status !== 'complete' || !s.deliveryTime || !s.arrivalTime) return null;
   const deliveredMs = new Date(s.deliveryTime).getTime();
-  const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
-  const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
-  if (deliveredMs < etaLow)    return 'early';
-  if (deliveredMs <= etaHigh)  return 'ontime';
+  const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
+  const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
+  if (deliveredMs < etaLow)        return 'early';
+  if (deliveredMs <= etaHigh)      return 'ontime';
   return 'late';
 }
 
