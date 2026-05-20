@@ -352,7 +352,12 @@ function stopPolling() {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const ymd   = d => d.toISOString().slice(0, 10);
 const fmtDate = d => d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-const fmtTime = ts => new Date(ts).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+const fmtTime = ts => {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (isNaN(d)) return '—';
+  return d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+};
 const esc   = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 function targetDate() {
@@ -364,19 +369,19 @@ function dateKey() { return ymd(targetDate()); }
 function isToday()  { return S.dateOffset === 0; }
 
 function getRoutes() {
-  const dk = dateKey();
+  const today = new Date().toISOString().slice(0, 10);
   return Object.entries(S.routes)
-    .filter(([id, r]) => r && r.date === dk && id !== 'UNASSIGNED')
+    .filter(([id, r]) => r && r.date === today && id !== 'UNASSIGNED')
     .map(([id, r]) => ({
       id, ...r,
       stops: r.stops
         ? Object.entries(r.stops)
             .map(([stopId, s]) => ({ stopId, ...s }))
             .filter(s => {
-              // Hide stops with no scheduling info at all
+              if (s.status === 'complete') return true;
               const hasEta = s.arrivalTime || s.calculatedEta || (s.customerEta && s.customerEta.low);
-              const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order';
-              return hasEta || hasStatus || s.status === 'complete';
+              const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order' && s.deliveryStatus !== 'Scheduled' && s.deliveryStatus !== 'Printed';
+              return hasEta || hasStatus;
             })
             .sort((a,b) => {
               if (a.arrivalTime && b.arrivalTime) return a.arrivalTime.localeCompare(b.arrivalTime);
@@ -401,13 +406,16 @@ function getStats() {
     stops++;
     if (s.status === 'complete') {
       delivered++;
-      if (s.deliveryTime && s.arrivalTime) {
-        const deliveredMs = new Date(s.deliveryTime).getTime();
-        const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
-        const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
-        if (deliveredMs < etaLow)       early++;
-        else if (deliveredMs <= etaHigh) onTime++;
-        else                             late++;
+      if (s.deliveryTime) {
+        const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
+        if (scheduled) {
+          const deliveredMs = new Date(s.deliveryTime).getTime();
+          const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
+          const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
+          if (deliveredMs < etaLow)       early++;
+          else if (deliveredMs <= etaHigh) onTime++;
+          else                             late++;
+        }
       }
     }
     if (s.smsSent && (s.smsSent.at || s.smsSent.departed === true || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
@@ -582,7 +590,7 @@ function routeBlockHTML(r, queued, sel) {
         <div class="dx-route-head-left">
           <span class="dx-route-id">Route <b>${esc(r.id)}</b></span>
           <span class="dx-route-meta">
-            ${r.driverName ? `Driver <b>${esc(r.driverName)}</b> &middot; ` : ''}Unit <b>${esc(r.asset||'—')}</b>
+            ${r.driverName ? `Driver <b>${esc(r.driverName)}</b> &middot; ` : ''}Unit <b>${esc(r.assetDescription || r.asset||'—')}</b>
             ${r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
           </span>
         </div>
@@ -716,12 +724,16 @@ function timingBadgeHTML(timing) {
 }
 
 function getDeliveryTiming(s) {
-  if (s.status !== 'complete' || !s.deliveryTime || !s.arrivalTime) return null;
+  if (s.status !== 'complete' || !s.deliveryTime) return null;
+  // Use the same anchor the ETA display uses — arrivalTime first, then calculatedEta, then seedEta
+  // This ensures timing matches what was shown to the dispatcher
+  const scheduled = s.arrivalTime || s.calculatedEta || s.seedEta;
+  if (!scheduled) return null;
   const deliveredMs = new Date(s.deliveryTime).getTime();
-  const etaLow      = new Date(s.arrivalTime).getTime() - 30*60*1000;
-  const etaHigh     = new Date(s.arrivalTime).getTime() + 30*60*1000;
-  if (deliveredMs < etaLow)        return 'early';
-  if (deliveredMs <= etaHigh)      return 'ontime';
+  const etaLow      = new Date(scheduled).getTime() - 30*60*1000;
+  const etaHigh     = new Date(scheduled).getTime() + 30*60*1000;
+  if (deliveredMs < etaLow)    return 'early';
+  if (deliveredMs <= etaHigh)  return 'ontime';
   return 'late';
 }
 
