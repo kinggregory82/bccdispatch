@@ -426,7 +426,7 @@ function getStats() {
           if (!isNaN(low) && !isNaN(high)) { etaLowMs = low.getTime(); etaHighMs = high.getTime(); }
         }
         if (!etaLowMs) {
-          const anchor = s.calculatedEta || s.seedEta;
+          const anchor = s.seedEta || s.calculatedEta;
           if (anchor) { const mid = new Date(anchor).getTime(); etaLowMs = mid - 30*60*1000; etaHighMs = mid + 30*60*1000; }
         }
         if (etaLowMs) {
@@ -670,7 +670,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
         <div class="dx-customer">${esc(s.customerName||'')}</div>
         <div class="dx-customer-sub">${esc(s.address||'')}</div>
       </td>
-      <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.arrivalTime, s.calculatedEta)}</td>
+      <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
       <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus)}</td>
       <td>${serviceElapsedHTML(s)}</td>
@@ -680,7 +680,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
     </tr>`;
 }
 
-function etaCellHTML(eta, overridden, arrivalTime, calculatedEta) {
+function etaCellHTML(eta, overridden, calculatedEta) {
   // Prefer manual customerEta override
   if (eta && eta.low && eta.low !== '—') {
     return `<div class="dx-eta">
@@ -692,10 +692,9 @@ function etaCellHTML(eta, overridden, arrivalTime, calculatedEta) {
       ${overridden ? '<span class="dx-eta-tag">Manual</span>' : ''}
     </div>`;
   }
-  // Use arrivalTime or calculatedEta from poller — whichever is available
-  const etaSource = arrivalTime || calculatedEta;
-  if (etaSource) {
-    const d = new Date(etaSource);
+  // Use calculatedEta only — never arrivalTime (that is the actual arrival, not the schedule)
+  if (calculatedEta) {
+    const d = new Date(calculatedEta);
     if (!isNaN(d)) {
       const low  = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
       const high = new Date(d.getTime() + 30*60000).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
@@ -778,7 +777,8 @@ function getDeliveryTiming(s) {
   if (!actualTs) return null;
 
   // Use the SAME source as the Customer ETA column for the schedule anchor
-  // Priority: manual customerEta → calculatedEta → seedEta
+  // Priority: manual customerEta → seedEta (original prediction) → calculatedEta
+  // seedEta is frozen at seed time and never overwritten — most accurate for timing
   let etaLowMs, etaHighMs;
   if (s.customerEta && s.customerEta.low && s.customerEta.low !== '—') {
     // Parse the manual override time strings (e.g. "7:30 AM") against today's date
@@ -791,7 +791,7 @@ function getDeliveryTiming(s) {
     }
   }
   if (!etaLowMs) {
-    const anchor = s.calculatedEta || s.seedEta;
+    const anchor = s.seedEta || s.calculatedEta;
     if (!anchor) return null;
     const mid = new Date(anchor).getTime();
     etaLowMs  = mid - 30*60*1000;
