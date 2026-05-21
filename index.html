@@ -428,8 +428,8 @@ function getStats() {
       const completedToday = (s.completedAt || s.deliveryTime || '').slice(0,10) === todayYMD;
       if (completedToday) {
         sameDayTotal++;
-        // Same-day = order received and confirmed same day (sameday_sms_sent flag set by poller)
-        if (s.smsSent && s.smsSent.sameDay) sameDay++;
+        // Same-day = orderDate matches reqDate (customer ordered and requested delivery same day)
+        if (s.orderDate && s.orderDate === todayYMD) sameDay++;
       }
       if (s.arrivalTime || s.deliveryTime || s.completedAt) {
         const actualTs = s.arrivalTime || s.deliveryTime || s.completedAt;
