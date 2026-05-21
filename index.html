@@ -457,7 +457,7 @@ function getStats() {
   const eligible    = early + onTime + late;
   const pctOf       = n => eligible > 0 ? Math.round((n/eligible)*100) : null;
   const sameDayPct  = sameDayTotal > 0 ? Math.round((sameDay/sameDayTotal)*100) : null;
-  // Mileage comes from /mileage node (GPS-tracked actual miles)
+  // Mileage — from /mileage node (updated each poll from totalDeliveryMiles)
   const milesByAsset = S.mileage && S.mileage.byAsset ? S.mileage.byAsset : {};
   const totalMiles   = S.mileage && S.mileage.total   ? S.mileage.total   : 0;
   return { routes: routes.length, stops, delivered, smsSent,
@@ -592,7 +592,7 @@ function renderStats() {
   if (!el) return;
   const s = getStats();
   const fmt = pct => pct !== null ? pct + '%' : '—';
-  const vehicleTip = Object.entries(s.milesByAsset).map(([k,v]) => `${k}: ${v}mi`).join(' | ') || '—';
+  const vehicleTip = Object.entries(s.milesByAsset).map(([k,v]) => `${k.replace(/_/g,' ')}: ${v}mi`).join(' | ') || '—';
   el.innerHTML = `
     <div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">${s.routes}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Stops</span><span class="dx-stat-value">${s.stops}</span></div>
