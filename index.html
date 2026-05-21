@@ -424,11 +424,17 @@ function getStats() {
   const routes  = getRoutes();
   const todayYMD = new Date().toISOString().slice(0, 10);
   let stops=0, delivered=0, smsSent=0, onTime=0, early=0, late=0, sameDay=0, sameDayTotal=0;
+  // Same-day: count ALL stops in today's routes regardless of visibility
+  const todayRoutes = Object.values(S.routes).filter(r => r && r.date === todayYMD);
+  todayRoutes.forEach(r => {
+    Object.values(r.stops || {}).forEach(s => {
+      sameDayTotal++;
+      if (s.orderDate && s.orderDate === todayYMD) sameDay++;
+    });
+  });
+
   routes.forEach(r => r.stops.forEach(s => {
     stops++;
-    // Same-day: orderDate matches today (ordered and requested delivery same day) — all stops
-    sameDayTotal++;
-    if (s.orderDate && s.orderDate === todayYMD) sameDay++;
     if (s.status === 'complete') {
       delivered++;
       if (s.arrivalTime || s.deliveryTime || s.completedAt) {
