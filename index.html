@@ -424,14 +424,16 @@ function getStats() {
   const routes  = getRoutes();
   const todayYMD = new Date().toISOString().slice(0, 10);
   let stops=0, delivered=0, smsSent=0, onTime=0, early=0, late=0, sameDay=0, sameDayTotal=0;
-  // Same-day: count ALL stops in today's routes regardless of visibility
-  const todayRoutes = Object.values(S.routes).filter(r => r && r.date === todayYMD);
-  todayRoutes.forEach(r => {
-    Object.values(r.stops || {}).forEach(s => {
-      sameDayTotal++;
-      if (s.orderDate && s.orderDate === todayYMD) sameDay++;
+  // Same-day: only meaningful for today
+  if (isToday()) {
+    const todayRoutes = Object.values(S.routes).filter(r => r && r.date === todayYMD);
+    todayRoutes.forEach(r => {
+      Object.values(r.stops || {}).forEach(s => {
+        sameDayTotal++;
+        if (s.orderDate && s.orderDate === todayYMD) sameDay++;
+      });
     });
-  });
+  }
 
   routes.forEach(r => r.stops.forEach(s => {
     stops++;
@@ -463,9 +465,9 @@ function getStats() {
   const eligible    = early + onTime + late;
   const pctOf       = n => eligible > 0 ? Math.round((n/eligible)*100) : null;
   const sameDayPct  = sameDayTotal > 0 ? Math.round((sameDay/sameDayTotal)*100) : null;
-  // Mileage — from /mileage node (updated each poll from totalDeliveryMiles)
-  const milesByAsset = S.mileage && S.mileage.byAsset ? S.mileage.byAsset : {};
-  const totalMiles   = S.mileage && S.mileage.total   ? S.mileage.total   : 0;
+  // Mileage — only meaningful for today
+  const milesByAsset = (isToday() && S.mileage && S.mileage.byAsset) ? S.mileage.byAsset : {};
+  const totalMiles   = (isToday() && S.mileage && S.mileage.total)   ? S.mileage.total   : 0;
   return { routes: routes.length, stops, delivered, smsSent,
            early, onTime, late, eligible, sameDayPct,
            earlyPct: pctOf(early), onTimePct: pctOf(onTime), latePct: pctOf(late),
