@@ -300,6 +300,7 @@ const S = {
   authed:      false,
   routes:      {},
   queue:       {},
+  mileage:     {},
   dateOffset:  0,
   selected:    null,   // { routeId, stopId }
   drawerDirty: false,
@@ -335,9 +336,12 @@ async function dbPush(path, data) {
 // ── Poll ─────────────────────────────────────────────────────────────────────
 async function poll() {
   try {
-    const [routes, queue] = await Promise.all([dbGet('routes'), dbGet('resend_queue')]);
-    S.routes = routes || {};
-    S.queue  = queue  || {};
+    const [routes, queue, mileage] = await Promise.all([
+      dbGet('routes'), dbGet('resend_queue'), dbGet('mileage')
+    ]);
+    S.routes  = routes  || {};
+    S.queue   = queue   || {};
+    S.mileage = mileage || {};
     renderRoutes();
     renderStats();
     renderDrawerIfOpen();
@@ -453,16 +457,9 @@ function getStats() {
   const eligible    = early + onTime + late;
   const pctOf       = n => eligible > 0 ? Math.round((n/eligible)*100) : null;
   const sameDayPct  = sameDayTotal > 0 ? Math.round((sameDay/sameDayTotal)*100) : null;
-  const milesByAsset = {};
-  let totalMiles = 0;
-  routes.forEach(r => {
-    if (r.distanceOut) {
-      const miles = Math.round(r.distanceOut / 1609.34);
-      const key   = r.assetDescription || r.asset || 'Unknown';
-      milesByAsset[key] = (milesByAsset[key] || 0) + miles;
-      totalMiles += miles;
-    }
-  });
+  // Mileage comes from /mileage node (GPS-tracked actual miles)
+  const milesByAsset = S.mileage && S.mileage.byAsset ? S.mileage.byAsset : {};
+  const totalMiles   = S.mileage && S.mileage.total   ? S.mileage.total   : 0;
   return { routes: routes.length, stops, delivered, smsSent,
            early, onTime, late, eligible, sameDayPct,
            earlyPct: pctOf(early), onTimePct: pctOf(onTime), latePct: pctOf(late),
