@@ -428,9 +428,8 @@ function getStats() {
       const completedToday = (s.completedAt || s.deliveryTime || '').slice(0,10) === todayYMD;
       if (completedToday) {
         sameDayTotal++;
-        const yy  = todayYMD.slice(2,4);
-        const mm  = todayYMD.slice(5,7);
-        if ((s.orderNumber || '').startsWith(`26${mm}-`)) sameDay++;
+        // Same-day = order received and confirmed same day (sameday_sms_sent flag set by poller)
+        if (s.smsSent && s.smsSent.sameDay) sameDay++;
       }
       if (s.arrivalTime || s.deliveryTime || s.completedAt) {
         const actualTs = s.arrivalTime || s.deliveryTime || s.completedAt;
