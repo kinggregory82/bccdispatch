@@ -422,15 +422,11 @@ function getStats() {
   let stops=0, delivered=0, smsSent=0, onTime=0, early=0, late=0, sameDay=0, sameDayTotal=0;
   routes.forEach(r => r.stops.forEach(s => {
     stops++;
+    // Same-day: orderDate matches today (ordered and requested delivery same day) — all stops
+    sameDayTotal++;
+    if (s.orderDate && s.orderDate === todayYMD) sameDay++;
     if (s.status === 'complete') {
       delivered++;
-      // Same-day: order number month matches today AND completed today
-      const completedToday = (s.completedAt || s.deliveryTime || '').slice(0,10) === todayYMD;
-      if (completedToday) {
-        sameDayTotal++;
-        // Same-day = orderDate matches reqDate (customer ordered and requested delivery same day)
-        if (s.orderDate && s.orderDate === todayYMD) sameDay++;
-      }
       if (s.arrivalTime || s.deliveryTime || s.completedAt) {
         const actualTs = s.arrivalTime || s.deliveryTime || s.completedAt;
         let etaLowMs, etaHighMs;
