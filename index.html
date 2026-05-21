@@ -724,7 +724,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>${smsCellHTML(s.smsSent, isQueued)}</td>
+      <td>${smsCellHTML(s.smsSent, isQueued, S.dateOffset > 0)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>`;
 }
@@ -787,8 +787,21 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   return `<span class="dx-badge pending">Pending</span>`;
 }
 
-function smsCellHTML(sms, queued) {
+function smsCellHTML(sms, queued, isTomorrow) {
   if (queued) return `<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued</span>`;
+
+  if (isTomorrow) {
+    // Tomorrow view: advance SMS or tracker SMS
+    const advanceSent  = sms && sms.advance === true;
+    const trackerSent  = sms && (sms.departed === true || sms.at);
+    const fail         = sms && sms.fail === true;
+    if (trackerSent) return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Tracker Sent</span>`;
+    if (advanceSent)  return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>`;
+    if (fail)         return `<span class="dx-sms-fail">SMS FAIL</span>`;
+    return `<span class="dx-sms-fail">SMS FAIL</span>`;
+  }
+
+  // Today view
   if (sms && (sms.departed === true || sms.at || sms['0'] || sms['1'] || sms['3'])) {
     const at = sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
     return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
