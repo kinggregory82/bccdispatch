@@ -780,7 +780,7 @@ function smsCellHTML(sms, queued) {
   if (sms && (sms.departed === true || sms['0'] || sms['1'] || sms['3'])) {
     return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent</span>`;
   }
-  return `<span class="dx-sms-cell unsent">Not sent</span>`;
+  return `<span class="dx-sms-cell unsent">SMS Fail</span>`;
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
