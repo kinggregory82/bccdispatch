@@ -131,7 +131,17 @@ html, body {
   font-family: 'Oswald', sans-serif; font-size: 12px;
   letter-spacing: 0.14em; text-transform: uppercase; }
 .dx-sms-cell.sent   { color: #111; font-weight: 600; }
-.dx-sms-cell.unsent { color: #aaa; font-weight: 500; }
+@keyframes sms-fail-blink {
+  0%, 100% { color: #cc0000; }
+  50%       { color: #111; }
+}
+.dx-sms-fail {
+  font-family: 'Oswald', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  animation: sms-fail-blink 1.6s ease-in-out infinite;
+} color: #aaa; font-weight: 500; }
 .dx-sms-cell.queued { color: #cc0000; font-weight: 600; }
 .dx-sms-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #2e8a3e; }
 .dx-sms-cell.queued .dx-sms-dot { background: #cc0000; animation: dx-blink 1.5s ease infinite; }
@@ -409,10 +419,11 @@ function getRoutes() {
             })
         : [],
     }))
-    .filter(r => r.stops.length > 0 && r.stops.some(s =>
-      s.status === 'complete' ||
-      s.calculatedEta || s.seedEta || (s.customerEta && s.customerEta.low) || s.status !== 'complete'
-    ))
+    .filter(r => {
+      const hasActivePending = r.stops.some(s => s.status !== 'complete');
+      const hasActiveComplete = r.stops.some(s => s.status === 'complete' && (s.calculatedEta || s.seedEta || s.arrivalTime));
+      return hasActivePending || hasActiveComplete;
+    })
     .sort((a,b) => a.id.localeCompare(b.id));
 }
 function queuedStopIds() {
@@ -773,14 +784,14 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
 
 function smsCellHTML(sms, queued) {
   if (queued) return `<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued</span>`;
-  if (sms && sms.at) {
-    const at = typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at;
-    return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>${esc(at)}</span>`;
+  if (sms && (sms.departed === true || sms.at || sms['0'] || sms['1'] || sms['3'])) {
+    const at = sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
+    return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
   }
-  if (sms && (sms.departed === true || sms['0'] || sms['1'] || sms['3'])) {
-    return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent</span>`;
+  if (sms && sms.fail === true) {
+    return `<span class="dx-sms-fail">SMS FAIL</span>`;
   }
-  return `<span class="dx-sms-cell unsent">SMS Fail</span>`;
+  return `<span class="dx-sms-cell unsent">Not sent</span>`;
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
