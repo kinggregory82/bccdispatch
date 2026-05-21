@@ -791,7 +791,7 @@ function smsCellHTML(sms, queued) {
   if (sms && sms.fail === true) {
     return `<span class="dx-sms-fail">SMS FAIL</span>`;
   }
-  return `<span class="dx-sms-cell unsent">Not sent</span>`;
+  return `<span class="dx-sms-fail">SMS FAIL</span>`;
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
