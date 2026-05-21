@@ -417,12 +417,21 @@ function queuedStopIds() {
   return ids;
 }
 function getStats() {
-  const routes = getRoutes();
-  let stops=0, delivered=0, smsSent=0, onTime=0, early=0, late=0;
+  const routes  = getRoutes();
+  const todayYMD = new Date().toISOString().slice(0, 10);
+  let stops=0, delivered=0, smsSent=0, onTime=0, early=0, late=0, sameDay=0, sameDayTotal=0;
   routes.forEach(r => r.stops.forEach(s => {
     stops++;
     if (s.status === 'complete') {
       delivered++;
+      // Same-day: order number month matches today AND completed today
+      const completedToday = (s.completedAt || s.deliveryTime || '').slice(0,10) === todayYMD;
+      if (completedToday) {
+        sameDayTotal++;
+        const yy  = todayYMD.slice(2,4);
+        const mm  = todayYMD.slice(5,7);
+        if ((s.orderNumber || '').startsWith(`26${mm}-`)) sameDay++;
+      }
       if (s.arrivalTime || s.deliveryTime || s.completedAt) {
         const actualTs = s.arrivalTime || s.deliveryTime || s.completedAt;
         let etaLowMs, etaHighMs;
@@ -446,11 +455,23 @@ function getStats() {
     }
     if (s.smsSent && (s.smsSent.at || s.smsSent.departed === true || s.smsSent['0'] || s.smsSent['1'])) smsSent++;
   }));
-  const eligible = early + onTime + late;
-  const pctOf = n => eligible > 0 ? Math.round((n/eligible)*100) : null;
+  const eligible    = early + onTime + late;
+  const pctOf       = n => eligible > 0 ? Math.round((n/eligible)*100) : null;
+  const sameDayPct  = sameDayTotal > 0 ? Math.round((sameDay/sameDayTotal)*100) : null;
+  const milesByAsset = {};
+  let totalMiles = 0;
+  routes.forEach(r => {
+    if (r.distanceOut) {
+      const miles = Math.round(r.distanceOut / 1609.34);
+      const key   = r.assetDescription || r.asset || 'Unknown';
+      milesByAsset[key] = (milesByAsset[key] || 0) + miles;
+      totalMiles += miles;
+    }
+  });
   return { routes: routes.length, stops, delivered, smsSent,
-           early, onTime, late, eligible,
-           earlyPct: pctOf(early), onTimePct: pctOf(onTime), latePct: pctOf(late) };
+           early, onTime, late, eligible, sameDayPct,
+           earlyPct: pctOf(early), onTimePct: pctOf(onTime), latePct: pctOf(late),
+           totalMiles, milesByAsset };
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -579,6 +600,7 @@ function renderStats() {
   if (!el) return;
   const s = getStats();
   const fmt = pct => pct !== null ? pct + '%' : '—';
+  const vehicleTip = Object.entries(s.milesByAsset).map(([k,v]) => `${k}: ${v}mi`).join(' | ') || '—';
   el.innerHTML = `
     <div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">${s.routes}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Stops</span><span class="dx-stat-value">${s.stops}</span></div>
@@ -586,7 +608,9 @@ function renderStats() {
     <div class="dx-stat"><span class="dx-stat-label">SMS Sent</span><span class="dx-stat-value red">${s.smsSent}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value" style="color:#2e8a3e">${fmt(s.earlyPct)}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">${fmt(s.onTimePct)}</span></div>
-    <div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value${s.latePct !== null && s.latePct > 20 ? ' red' : ''}">${fmt(s.latePct)}</span></div>`;
+    <div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value${s.latePct !== null && s.latePct > 20 ? ' red' : ''}">${fmt(s.latePct)}</span></div>
+    <div class="dx-stat"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">${fmt(s.sameDayPct)}</span></div>
+    <div class="dx-stat" title="${esc(vehicleTip)}" style="cursor:help"><span class="dx-stat-label">Miles</span><span class="dx-stat-value">${s.totalMiles || '—'}</span></div>`;
 }
 
 // ── Route blocks ─────────────────────────────────────────────────────────────
