@@ -405,7 +405,8 @@ function getRoutes() {
             })
         : [],
     }))
-    .filter(r => r.stops.length > 0 && r.stops.some(s => 
+    .filter(r => r.stops.length > 0 && r.stops.some(s =>
+      s.status === 'complete' ||
       s.calculatedEta || s.seedEta || (s.customerEta && s.customerEta.low) || s.status !== 'complete'
     ))
     .sort((a,b) => a.id.localeCompare(b.id));
