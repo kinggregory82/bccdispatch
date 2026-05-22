@@ -121,6 +121,23 @@ input[type=date]#datePicker::-webkit-calendar-picker-indicator{filter:invert(.5)
 
 <script>
 const FIREBASE = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
+
+const DRIVER_MAP = {
+  '460':'Tyler Begley','985':'Mitch Warczinsky','392':'Tim Bailey',
+  '537':'Gary Rogers','320':'Larry Reid','396':'Mike Desutter',
+  '788':'Chad Billot','750':'Tim Bailey','481':'(Backup Boom)',
+  '627':'(Conveyor)',
+};
+
+function resolveDriver(route) {
+  const name = (route.driverName||'').trim();
+  if (name) return name;
+  const asset = (route.asset||'').trim();
+  for (const [num, drv] of Object.entries(DRIVER_MAP)) {
+    if (asset === num || asset.startsWith(num+' ') || asset.startsWith(num+' ')) return drv;
+  }
+  return '';
+}
 let trendChart = null;
 let cachedRoutes = null;
 let cachedHistorical = null;
@@ -163,7 +180,7 @@ function getStops(route, routeId) {
     ...s,
     _key: k,
     _routeId: routeId,
-    _driver: (route.driverName||'').trim(),
+    _driver: resolveDriver(route),
     _asset: (route.assetDescription || route.asset || '').trim(),
     _date: route.date || '',
   }));
@@ -288,7 +305,7 @@ function render() {
   const fleetMap = {};
   dayRoutes.forEach(([id,r]) => {
     const asset = (r.assetDescription||r.asset||id).trim();
-    const driver = (r.driverName||'').trim();
+    const driver = resolveDriver(r);
     if (!fleetMap[asset]) fleetMap[asset] = { asset, driver, done:0, total:0 };
     const stops = Object.values(r.stops||{});
     fleetMap[asset].total += stops.length;
