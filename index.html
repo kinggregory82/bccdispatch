@@ -482,8 +482,8 @@ function getStats() {
   const pctOf       = n => eligible > 0 ? Math.round((n/eligible)*100) : null;
   const sameDayPct  = sameDayTotal > 0 ? Math.round((sameDay/sameDayTotal)*100) : null;
   // Mileage — only meaningful for today
-  const milesByAsset = (isToday() && S.mileage && S.mileage.byAsset) ? S.mileage.byAsset : {};
-  const totalMiles   = (isToday() && S.mileage && S.mileage.total && S.mileage.total > 0) ? S.mileage.total : null;
+  const milesByAsset = (isToday() && S.mileage && S.mileage.byAsset && S.mileage.date === todayYMD) ? S.mileage.byAsset : {};
+  const totalMiles   = (isToday() && S.mileage && S.mileage.total && S.mileage.total > 0 && S.mileage.date === todayYMD) ? S.mileage.total : null;
   return { routes: routes.length, stops, delivered, smsSent,
            early, onTime, late, eligible, sameDayPct,
            earlyPct: pctOf(early), onTimePct: pctOf(onTime), latePct: pctOf(late),
@@ -803,7 +803,7 @@ function smsCellHTML(sms, queued, isTomorrow, isPending) {
   // Pre-departure (pending or tomorrow)
   if (fail)         return `<span class="dx-sms-fail">SMS FAIL</span>`;
   if (advanceSent)  return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>`;
-  return `<span style="color:#555;font-family:'Oswald',sans-serif;font-size:11px">—</span>`;
+  return `<span class="dx-sms-fail">SMS FAIL</span>`;
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
