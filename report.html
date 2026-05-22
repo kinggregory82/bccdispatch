@@ -193,6 +193,8 @@ function driverFromAsset(a){
 }
 
 function getTiming(s){
+  // Historical data stores pre-computed timing field
+  if(s.timing) return s.timing;
   if(s.status!=='complete') return null;
   const actual=s.arrivalTime||s.deliveryTime||s.completedAt;
   if(!actual) return null;
