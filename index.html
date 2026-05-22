@@ -762,6 +762,13 @@ function routeBlockHTML(r, queued, sel) {
 
 function stopRowHTML(routeId, s, isQueued, isSelected) {
   const cls = ['dx-row', s.status||'', isSelected?'selected':'', s.status==='skipped'?'skipped':''].join(' ');
+  const pics = (s.pictures||[]).concat(s.signatures||[]);
+  const photoRow = pics.length > 0 ? `
+    <tr class="dx-photo-row" data-route="${esc(routeId)}">
+      <td colspan="10" style="padding:3px 8px 8px 44px;border-top:none">
+        ${pics.map((url,i) => `<button onclick='lbOpen(${JSON.stringify(pics)},${i})' style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:#cc0000;color:#fff;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;border-radius:3px;border:none;cursor:pointer">PHOTO ${i+1}</button>`).join('')}
+      </td>
+    </tr>` : '';
   return `
     <tr class="${esc(cls)}" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">
       <td class="dx-seq">${s.sequence||''}</td>
@@ -777,7 +784,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
       <td>${smsCellHTML(s.smsSent, isQueued, s.status === 'pending')}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
-    </tr>`;
+    </tr>${photoRow}`;
 }
 
 function etaCellHTML(eta, overridden, calculatedEta) {
