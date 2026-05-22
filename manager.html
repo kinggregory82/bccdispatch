@@ -10,195 +10,271 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#0c0e14;color:#e8eaf2;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
 
-.header{background:#13151f;border-bottom:1px solid #1e2235;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.brand{font-size:17px;font-weight:600;letter-spacing:-.3px;color:#fff}
+.header{background:#13151f;border-bottom:1px solid #1e2235;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap}
+.brand{font-size:17px;font-weight:600;letter-spacing:-.3px;color:#fff;white-space:nowrap}
 .brand span{color:#f59e0b}
-.date-badge{background:#1e2235;color:#9096b4;font-size:12px;padding:4px 10px;border-radius:4px;font-family:'IBM Plex Mono',monospace;margin-left:16px}
-.sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.sync-info{font-size:11px;color:#5a6080;font-family:'IBM Plex Mono',monospace}
-.refresh-btn{background:#1e2235;border:1px solid #2a2d3a;color:#9096b4;font-size:12px;padding:5px 12px;border-radius:4px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif}
+
+.date-nav{display:flex;align-items:center;gap:6px}
+.nav-btn{background:#1e2235;border:1px solid #2a2d3a;color:#9096b4;width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.nav-btn:hover{background:#252840;color:#e8eaf2}
+.nav-btn:disabled{opacity:.3;cursor:default}
+input[type=date]#datePicker{background:#1e2235;border:1px solid #2a2d3a;color:#e8eaf2;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:4px 8px;border-radius:4px;height:28px;cursor:pointer;width:140px}
+input[type=date]#datePicker::-webkit-calendar-picker-indicator{filter:invert(.5)}
+.today-btn{background:transparent;border:1px solid #2a2d3a;color:#f59e0b;font-size:11px;padding:4px 8px;border-radius:4px;cursor:pointer;height:28px}
+.today-btn:hover{background:#1e2235}
+
+.header-right{display:flex;align-items:center;gap:10px}
+.sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:4px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-info{font-size:11px;color:#5a6080;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.refresh-btn{background:#1e2235;border:1px solid #2a2d3a;color:#9096b4;font-size:12px;padding:4px 10px;border-radius:4px;cursor:pointer}
 .refresh-btn:hover{background:#252840;color:#e8eaf2}
 
-.main{padding:24px;max-width:1400px;margin:0 auto}
+.main{padding:20px 24px;max-width:1400px;margin:0 auto}
 
-.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
-.kpi-card{background:#13151f;border:1px solid #1e2235;border-radius:8px;padding:16px 18px}
+.kpi-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:18px}
+.kpi-card{background:#13151f;border:1px solid #1e2235;border-radius:8px;padding:14px 16px}
 .kpi-card.top-amber{border-top:2px solid #f59e0b}
 .kpi-card.top-green{border-top:2px solid #10b981}
-.kpi-card.top-red{border-top:2px solid #ef4444}
 .kpi-card.top-blue{border-top:2px solid #3b82f6}
-.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:#5a6080;margin-bottom:8px;font-weight:500}
-.kpi-value{font-size:30px;font-weight:600;font-family:'IBM Plex Mono',monospace;line-height:1;color:#fff}
-.kpi-sub{font-size:11px;color:#5a6080;margin-top:5px}
+.kpi-card.top-purple{border-top:2px solid #a78bfa}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:#5a6080;margin-bottom:7px;font-weight:500}
+.kpi-value{font-size:26px;font-weight:600;font-family:'IBM Plex Mono',monospace;line-height:1;color:#fff}
+.kpi-sub{font-size:11px;color:#5a6080;margin-top:4px}
 
-.row{display:grid;gap:16px;margin-bottom:16px}
-.row-3{grid-template-columns:1fr 1fr 300px}
+.row{display:grid;gap:14px;margin-bottom:14px}
+.row-3{grid-template-columns:1fr 1fr 290px}
 .row-2{grid-template-columns:1fr 1fr}
 
 .panel{background:#13151f;border:1px solid #1e2235;border-radius:8px;overflow:hidden}
-.panel-header{padding:11px 16px;border-bottom:1px solid #1e2235;display:flex;align-items:center;justify-content:space-between}
+.panel-header{padding:10px 14px;border-bottom:1px solid #1e2235;display:flex;align-items:center;justify-content:space-between}
 .panel-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.9px;color:#9096b4}
 .panel-note{font-size:11px;color:#5a6080}
-.panel-body{padding:0 16px}
+.panel-body{padding:0 14px}
 
 .dt{width:100%;border-collapse:collapse}
-.dt th{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#5a6080;padding:0 8px 9px;text-align:right;font-weight:500;white-space:nowrap}
+.dt th{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#5a6080;padding:0 6px 8px;text-align:right;font-weight:500;white-space:nowrap}
 .dt th:first-child{text-align:left}
-.dt td{padding:7px 8px;font-size:13px;border-top:1px solid #191c2b;vertical-align:middle}
+.dt td{padding:6px;font-size:13px;border-top:1px solid #191c2b;vertical-align:middle}
 .dt td:not(:first-child){text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px}
 .dt-name{font-weight:500;color:#e8eaf2}
-.dt-sub{font-size:11px;color:#5a6080}
+.dt-sub{font-size:11px;color:#5a6080;margin-top:1px}
 
-.bar-wrap{display:flex;align-items:center;gap:6px;justify-content:flex-end}
-.bar-track{width:44px;height:4px;background:#1e2235;border-radius:2px;overflow:hidden;flex-shrink:0}
+.bar-wrap{display:flex;align-items:center;gap:5px;justify-content:flex-end}
+.bar-track{width:40px;height:4px;background:#1e2235;border-radius:2px;overflow:hidden;flex-shrink:0}
 .bar-fill{height:100%;border-radius:2px}
 
-.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500}
+.badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:500}
 .badge-done{background:#0d2b22;color:#34d399}
 .badge-active{background:#2b2211;color:#fbbf24}
 .badge-pending{background:#2b2211;color:#fbbf24}
 .badge-nophoto{background:#2b1111;color:#f87171}
+.badge-hist{background:#1a1d2b;color:#9096b4}
 
-.issue-item{padding:9px 0;border-bottom:1px solid #191c2b}
+.issue-section{padding:8px 0 4px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#5a6080;font-weight:500}
+.issue-item{padding:8px 0;border-bottom:1px solid #191c2b}
 .issue-item:last-child{border-bottom:none}
 .issue-order{font-size:11px;font-family:'IBM Plex Mono',monospace;color:#f59e0b}
-.issue-customer{font-size:13px;color:#e8eaf2;font-weight:500;margin:2px 0}
+.issue-customer{font-size:13px;color:#e8eaf2;font-weight:500;margin:1px 0}
 .issue-detail{font-size:11px;color:#5a6080}
 
-.chart-wrap{position:relative;height:190px;margin-bottom:12px}
+.chart-wrap{position:relative;height:185px;margin-bottom:10px}
+.chart-legend{display:flex;gap:14px;font-size:11px;color:#5a6080;margin-bottom:12px}
+.legend-dot{display:inline-block;width:10px;height:3px;vertical-align:middle;border-radius:2px;margin-right:3px}
 
+.empty-state{color:#5a6080;font-size:13px;padding:18px 0;text-align:center}
 .loading{text-align:center;padding:60px;color:#5a6080}
-.spinner{width:30px;height:30px;border:2px solid #1e2235;border-top-color:#f59e0b;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+.spinner{width:28px;height:28px;border:2px solid #1e2235;border-top-color:#f59e0b;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.error-box{color:#ef4444;font-size:13px;padding:8px 0}
 
-.footer{text-align:center;padding:20px;color:#1e2235;font-size:11px;font-family:'IBM Plex Mono',monospace}
+.debug-bar{background:#1a1d2b;border:1px solid #252840;border-radius:6px;padding:8px 12px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:#5a6080;margin-bottom:14px;display:none}
 
-@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.row-3{grid-template-columns:1fr 1fr}.row-2{grid-template-columns:1fr}}
-@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.row-3,.row-2{grid-template-columns:1fr}}
+.footer{text-align:center;padding:18px;color:#1e2235;font-size:11px;font-family:'IBM Plex Mono',monospace}
+
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(4,1fr)}.row-3{grid-template-columns:1fr 1fr}.row-2{grid-template-columns:1fr}}
+@media(max-width:800px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.row-3,.row-2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div style="display:flex;align-items:center">
-    <div class="brand">BCC <span>OPERATIONS</span></div>
-    <div class="date-badge" id="dateBadge">—</div>
+  <div class="brand">BCC <span>OPERATIONS</span></div>
+
+  <div class="date-nav">
+    <button class="nav-btn" id="prevBtn" title="Previous day">&#8249;</button>
+    <input type="date" id="datePicker">
+    <button class="nav-btn" id="nextBtn" title="Next day">&#8250;</button>
+    <button class="today-btn" id="todayBtn">Today</button>
   </div>
-  <div style="display:flex;align-items:center;gap:14px">
+
+  <div class="header-right">
     <div class="sync-info"><span class="sync-dot"></span><span id="syncTime">Loading...</span></div>
-    <button class="refresh-btn" onclick="init()">Refresh</button>
+    <button class="refresh-btn" onclick="loadData()">Refresh</button>
   </div>
 </div>
 
-<div class="main" id="mainContent">
-  <div class="loading"><div class="spinner"></div>Loading operations data...</div>
+<div class="main">
+  <div class="debug-bar" id="debugBar"></div>
+  <div id="mainContent"><div class="loading"><div class="spinner"></div>Loading operations data...</div></div>
 </div>
-
 <div class="footer">BCC Dispatch System &nbsp;·&nbsp; Auto-refreshes every 2 minutes</div>
 
 <script>
 const FIREBASE = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
 let trendChart = null;
+let cachedRoutes = null;
+let cachedHistorical = null;
+let selectedDate = todayStr();
 
+/* ── DATES ── */
 function todayStr() {
   const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 }
-
-function nDaysAgo(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+function pad(n){ return String(n).padStart(2,'0'); }
+function offsetDate(ds, n) {
+  const d = new Date(ds+'T12:00:00');
+  d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 }
-
 function friendlyDate(ds) {
-  const d = new Date(ds + 'T12:00:00');
-  return d.toLocaleDateString('en-US', {weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const d = new Date(ds+'T12:00:00');
+  const today = todayStr();
+  const label = ds===today ? 'Today — ' : ds===offsetDate(today,-1) ? 'Yesterday — ' : '';
+  return label + d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 }
-
 function shortDate(ds) {
-  const d = new Date(ds + 'T12:00:00');
-  return d.toLocaleDateString('en-US', {weekday:'short',month:'numeric',day:'numeric'});
+  const d = new Date(ds+'T12:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'});
 }
+function nDaysAgo(n){ return offsetDate(todayStr(),-n); }
 
-function pctColor(val, good, warn) {
-  if (val === null || val === undefined) return '#5a6080';
-  if (val >= good) return '#10b981';
-  if (val >= warn) return '#f59e0b';
-  return '#ef4444';
-}
-
+/* ── DATA HELPERS ── */
 async function fetchJSON(path) {
-  const r = await fetch(FIREBASE + path + '.json');
-  if (!r.ok) throw new Error('HTTP ' + r.status + ' on ' + path);
+  const r = await fetch(FIREBASE+path+'.json');
+  if (!r.ok) throw new Error('HTTP '+r.status+' fetching '+path);
   return r.json();
 }
 
-function getStops(route) {
-  const raw = route.stops || {};
-  return Object.entries(raw).map(([k, s]) => ({
+function getStops(route, routeId) {
+  const raw = route.stops;
+  if (!raw || typeof raw !== 'object') return [];
+  return Object.entries(raw).map(([k,s]) => ({
     ...s,
     _key: k,
-    _driver: route.driverName || '',
-    _asset: route.assetDescription || route.asset || '',
+    _routeId: routeId,
+    _driver: (route.driverName||'').trim(),
+    _asset: (route.assetDescription || route.asset || '').trim(),
     _date: route.date || '',
-    _routeId: route._routeId || '',
   }));
 }
 
-function isComplete(s) { return s.status === 'complete' || s.deliveryStatus === 'Delivered'; }
-function isOnTime(s) { return s.timing === 'ontime' || s.timing === 'early'; }
+function isComplete(s) {
+  const st = (s.status||'').toLowerCase();
+  const ds = (s.deliveryStatus||'').toLowerCase();
+  return st === 'complete' || ds === 'complete' || ds === 'delivered' || !!s.completedAt;
+}
+function isOnTime(s) {
+  const t = (s.timing||'').toLowerCase();
+  return t === 'ontime' || t === 'early';
+}
 function hasPhoto(s) {
   if (!s.pictures) return false;
-  if (Array.isArray(s.pictures)) return s.pictures.length > 0;
-  return Object.keys(s.pictures).length > 0;
+  if (Array.isArray(s.pictures)) return s.pictures.filter(Boolean).length > 0;
+  if (typeof s.pictures === 'object') return Object.values(s.pictures).filter(Boolean).length > 0;
+  return false;
 }
 function hasSms(s) {
   if (!s.smsSent) return false;
   return !!(s.smsSent.departed || s.smsSent.advance);
 }
 
-function buildMetrics(stops) {
-  const comp = stops.filter(isComplete);
-  const pend = stops.filter(s => !isComplete(s));
-  const ot   = comp.filter(isOnTime);
-  const ph   = comp.filter(hasPhoto);
-  const sms  = stops.filter(hasSms);
+function metrics(stops) {
+  const comp   = stops.filter(isComplete);
+  const pend   = stops.filter(s => !isComplete(s));
+  const ot     = comp.filter(isOnTime);
+  const ph     = comp.filter(hasPhoto);
+  const sms    = stops.filter(hasSms);
+  const noPh   = comp.filter(s => !hasPhoto(s));
   return {
-    total: stops.length,
-    complete: comp.length,
-    pending: pend.length,
-    ontime: ot.length,
-    photos: ph.length,
-    sms: sms.length,
-    ontimePct: comp.length ? Math.round(ot.length / comp.length * 100) : null,
-    photoPct:  comp.length ? Math.round(ph.length  / comp.length * 100) : null,
-    completePct: stops.length ? Math.round(comp.length / stops.length * 100) : null,
-    compStops: comp,
-    pendStops: pend,
-    noPhotoComp: comp.filter(s => !hasPhoto(s)),
+    total: stops.length, complete: comp.length, pending: pend.length,
+    ontime: ot.length, photos: ph.length, sms: sms.length,
+    ontimePct: comp.length ? Math.round(ot.length/comp.length*100) : null,
+    photoPct:  comp.length ? Math.round(ph.length/comp.length*100)  : null,
+    completePct: stops.length ? Math.round(comp.length/stops.length*100) : null,
+    compStops: comp, pendStops: pend, noPhotoComp: noPh,
   };
 }
 
-function buildPage(routes, historical) {
-  const today = todayStr();
+function pctColor(v, good, warn) {
+  if (v===null||v===undefined) return '#5a6080';
+  return v>=good ? '#10b981' : v>=warn ? '#f59e0b' : '#ef4444';
+}
 
-  // --- TODAY'S STOPS ---
-  const todayRoutes = Object.entries(routes || {})
-    .filter(([,r]) => r.date === today)
-    .map(([id, r]) => { r._routeId = id; return r; });
+/* ── LOAD DATA ── */
+async function loadData() {
+  try {
+    document.getElementById('syncTime').textContent = 'Refreshing...';
+    const [routes, hist, mileageRaw] = await Promise.all([
+      fetchJSON('/routes'),
+      fetchJSON('/historical'),
+      fetchJSON('/mileage'),
+    ]);
+    cachedRoutes = routes || {};
+    cachedHistorical = hist || {};
+    cachedMileage = mileageRaw || {};
+    render();
+    document.getElementById('syncTime').textContent = 'Updated '+new Date().toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML =
+      '<div class="loading" style="color:#ef4444">Failed to load: '+e.message+'</div>';
+    document.getElementById('syncTime').textContent = 'Error';
+  }
+}
+
+/* ── RENDER ── */
+function render() {
+  const ds = selectedDate;
+  const today = todayStr();
+  const isToday = ds === today;
+
+  /* Pull routes for selected date */
+  const allSrc = isToday
+    ? Object.assign({}, cachedRoutes, cachedHistorical)
+    : cachedHistorical;
+
+  const dayRoutes = Object.entries(allSrc)
+    .filter(([,r]) => r && r.date === ds);
 
   let allStops = [];
-  todayRoutes.forEach(r => { allStops = allStops.concat(getStops(r)); });
-  const M = buildMetrics(allStops);
+  dayRoutes.forEach(([id,r]) => { allStops = allStops.concat(getStops(r,id)); });
 
-  // --- BY DRIVER ---
+  const M = metrics(allStops);
+
+  /* Debug bar */
+  const dbg = document.getElementById('debugBar');
+  dbg.textContent = `date=${ds} | routes=${dayRoutes.length} | stops=${allStops.length} | complete=${M.complete} | pending=${M.pending}`;
+  dbg.style.display = 'block';
+
+  /* Mileage */
+  let milesDisplay = '—';
+  if (isToday && cachedMileage && cachedMileage.date === today) {
+    const tot = cachedMileage.total || 0;
+    if (tot > 0) milesDisplay = Math.round(tot).toLocaleString();
+  } else {
+    // Sum totalDeliveryMiles from routes for this date
+    let sum = 0; let hasAny = false;
+    dayRoutes.forEach(([,r]) => { if (r.totalDeliveryMiles) { sum += parseFloat(r.totalDeliveryMiles)||0; hasAny=true; } });
+    if (hasAny) milesDisplay = Math.round(sum).toLocaleString();
+  }
+
+  /* By driver — group by driverName */
   const driverMap = {};
   allStops.forEach(s => {
     const key = s._driver || '(unassigned)';
-    if (!driverMap[key]) driverMap[key] = { name: key, asset: s._asset, t:0, c:0, ot:0, ph:0 };
+    const asset = s._asset || '';
+    if (!driverMap[key]) driverMap[key] = { name:key, asset, t:0, c:0, ot:0, ph:0 };
+    else if (!driverMap[key].asset && asset) driverMap[key].asset = asset;
     driverMap[key].t++;
     if (isComplete(s)) {
       driverMap[key].c++;
@@ -206,9 +282,22 @@ function buildPage(routes, historical) {
       if (hasPhoto(s))  driverMap[key].ph++;
     }
   });
-  const drivers = Object.values(driverMap).sort((a,b) => b.t - a.t);
+  const drivers = Object.values(driverMap).sort((a,b)=>b.t-a.t);
 
-  // --- BY SALES ---
+  /* Fleet — group by asset (avoid route duplicates) */
+  const fleetMap = {};
+  dayRoutes.forEach(([id,r]) => {
+    const asset = (r.assetDescription||r.asset||id).trim();
+    const driver = (r.driverName||'').trim();
+    if (!fleetMap[asset]) fleetMap[asset] = { asset, driver, done:0, total:0 };
+    const stops = Object.values(r.stops||{});
+    fleetMap[asset].total += stops.length;
+    fleetMap[asset].done  += stops.filter(isComplete).length;
+    if (!fleetMap[asset].driver && driver) fleetMap[asset].driver = driver;
+  });
+  const fleet = Object.values(fleetMap).sort((a,b)=>a.asset.localeCompare(b.asset));
+
+  /* By sales */
   const salesMap = {};
   allStops.forEach(s => {
     const rep = s.assignedSales || '—';
@@ -216,257 +305,262 @@ function buildPage(routes, historical) {
     salesMap[rep].t++;
     if (isComplete(s)) salesMap[rep].c++;
   });
-  const salesList = Object.values(salesMap).sort((a,b) => b.t - a.t);
+  const salesList = Object.values(salesMap).sort((a,b)=>b.t-a.t);
 
-  // --- 7-DAY TREND ---
+  /* 7-day trend — always from historical + live routes */
   const trend = [];
-  for (let i = 6; i >= 0; i--) {
-    const ds = nDaysAgo(i);
-    let dayStops = [];
-    if (ds === today) {
-      dayStops = allStops;
-    } else {
-      Object.entries(historical || {}).forEach(([id, r]) => {
-        if (r.date === ds) { r._routeId = id; dayStops = dayStops.concat(getStops(r)); }
-      });
-    }
-    const dm = buildMetrics(dayStops);
-    trend.push({ label: shortDate(ds), date: ds, ...dm });
+  const allHistSrc = Object.assign({}, cachedHistorical, cachedRoutes);
+  for (let i=6; i>=0; i--) {
+    const tds = nDaysAgo(i);
+    let ts = [];
+    Object.entries(allHistSrc).forEach(([id,r]) => {
+      if (r && r.date===tds) ts = ts.concat(getStops(r,id));
+    });
+    const tm = metrics(ts);
+    trend.push({ label:shortDate(tds), date:tds, ...tm });
   }
 
-  // --- BUILD HTML ---
+  /* Issues — no overlap: pending separate from complete-no-photo */
+  const pendIssues = M.pendStops.slice(0,6);
+  const nophIssues = M.noPhotoComp.slice(0,6);
+
+  /* ── HTML ── */
   document.getElementById('mainContent').innerHTML = `
 
-    <!-- KPI ROW -->
-    <div class="kpi-grid">
-      <div class="kpi-card top-amber">
-        <div class="kpi-label">Routes Running</div>
-        <div class="kpi-value">${todayRoutes.length}</div>
-        <div class="kpi-sub">${M.total} total stops</div>
+  <div class="kpi-grid">
+    <div class="kpi-card top-amber">
+      <div class="kpi-label">Routes</div>
+      <div class="kpi-value">${dayRoutes.length}</div>
+      <div class="kpi-sub">${M.total} stops total</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Delivered</div>
+      <div class="kpi-value" style="color:${pctColor(M.completePct,80,60)}">${M.complete}</div>
+      <div class="kpi-sub">${M.completePct!==null?M.completePct+'% of stops':'—'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Pending</div>
+      <div class="kpi-value" style="color:${M.pending===0?'#10b981':M.pending<=4?'#f59e0b':'#ef4444'}">${M.pending}</div>
+      <div class="kpi-sub">not yet delivered</div>
+    </div>
+    <div class="kpi-card top-green">
+      <div class="kpi-label">On Time / Early</div>
+      <div class="kpi-value" style="color:${pctColor(M.ontimePct,80,60)}">${M.ontimePct!==null?M.ontimePct+'%':'—'}</div>
+      <div class="kpi-sub">${M.ontime} of ${M.complete} complete</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Photo Compliance</div>
+      <div class="kpi-value" style="color:${pctColor(M.photoPct,90,70)}">${M.photoPct!==null?M.photoPct+'%':'—'}</div>
+      <div class="kpi-sub">${M.photos} of ${M.complete} complete</div>
+    </div>
+    <div class="kpi-card top-blue">
+      <div class="kpi-label">SMS Notified</div>
+      <div class="kpi-value">${M.sms}</div>
+      <div class="kpi-sub">customers reached</div>
+    </div>
+    <div class="kpi-card top-purple">
+      <div class="kpi-label">Miles Driven</div>
+      <div class="kpi-value" style="font-size:${milesDisplay.length>5?'20px':'26px'}">${milesDisplay}</div>
+      <div class="kpi-sub">${isToday?'live today':'route total'}</div>
+    </div>
+  </div>
+
+  <div class="row row-3">
+
+    <!-- DRIVERS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Driver Performance</span>
+        <span class="panel-note">${isToday?'Live':'Historical'} · ${ds}</span>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Delivered</div>
-        <div class="kpi-value" style="color:${pctColor(M.completePct,80,60)}">${M.complete}</div>
-        <div class="kpi-sub">${M.completePct !== null ? M.completePct+'% of stops' : '—'}</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Still Pending</div>
-        <div class="kpi-value" style="color:${M.pending===0?'#10b981':M.pending<=4?'#f59e0b':'#ef4444'}">${M.pending}</div>
-        <div class="kpi-sub">on route or unscheduled</div>
-      </div>
-      <div class="kpi-card top-green">
-        <div class="kpi-label">On Time / Early</div>
-        <div class="kpi-value" style="color:${pctColor(M.ontimePct,80,60)}">${M.ontimePct !== null ? M.ontimePct+'%' : '—'}</div>
-        <div class="kpi-sub">${M.ontime} of ${M.complete} deliveries</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Photo Compliance</div>
-        <div class="kpi-value" style="color:${pctColor(M.photoPct,90,70)}">${M.photoPct !== null ? M.photoPct+'%' : '—'}</div>
-        <div class="kpi-sub">${M.photos} of ${M.complete} deliveries</div>
-      </div>
-      <div class="kpi-card top-blue">
-        <div class="kpi-label">Customers Notified</div>
-        <div class="kpi-value">${M.sms}</div>
-        <div class="kpi-sub">via SMS</div>
+      <div class="panel-body">
+        ${drivers.length===0
+          ? '<div class="empty-state">No driver data for this date</div>'
+          : `<table class="dt" style="margin-top:4px">
+            <thead><tr>
+              <th>Driver / Asset</th><th>Stops</th><th style="min-width:86px">On Time</th><th style="min-width:86px">Photos</th>
+            </tr></thead>
+            <tbody>
+            ${drivers.map(d=>{
+              const otp = d.c?Math.round(d.ot/d.c*100):null;
+              const php = d.c?Math.round(d.ph/d.c*100):null;
+              const otc = pctColor(otp,80,60);
+              const phc = pctColor(php,90,70);
+              return `<tr>
+                <td><div class="dt-name">${d.name}</div><div class="dt-sub">${d.asset}</div></td>
+                <td>${d.c}/${d.t}</td>
+                <td><div class="bar-wrap"><span style="color:${otc};min-width:30px;text-align:right">${otp!==null?otp+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${otp||0}%;background:${otc}"></div></div></div></td>
+                <td><div class="bar-wrap"><span style="color:${phc};min-width:30px;text-align:right">${php!==null?php+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${php||0}%;background:${phc}"></div></div></div></td>
+              </tr>`;
+            }).join('')}
+            </tbody>
+          </table>`
+        }
       </div>
     </div>
 
-    <!-- MAIN ROW -->
-    <div class="row row-3">
-
-      <!-- DRIVER SCORECARDS -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Driver Performance — Today</span>
-        </div>
-        <div class="panel-body">
-          <table class="dt" style="margin-top:4px">
-            <thead><tr>
-              <th>Driver / Asset</th>
-              <th>Stops</th>
-              <th style="min-width:90px">On Time</th>
-              <th style="min-width:90px">Photos</th>
-            </tr></thead>
-            <tbody>
-              ${drivers.map(d => {
-                const otp = d.c ? Math.round(d.ot/d.c*100) : null;
-                const php = d.c ? Math.round(d.ph/d.c*100) : null;
-                const otc = pctColor(otp,80,60);
-                const phc = pctColor(php,90,70);
-                return `<tr>
-                  <td><div class="dt-name">${d.name}</div><div class="dt-sub">${d.asset}</div></td>
-                  <td>${d.c}/${d.t}</td>
-                  <td><div class="bar-wrap"><span style="color:${otc};min-width:32px;text-align:right">${otp!==null?otp+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${otp||0}%;background:${otc}"></div></div></div></td>
-                  <td><div class="bar-wrap"><span style="color:${phc};min-width:32px;text-align:right">${php!==null?php+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${php||0}%;background:${phc}"></div></div></div></td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
+    <!-- TREND -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">7-Day Trend</span>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:#f59e0b"></span>On Time</span>
+          <span><span class="legend-dot" style="background:#10b981"></span>Photos</span>
         </div>
       </div>
-
-      <!-- 7-DAY TREND -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">7-Day Trend</span>
-          <div style="display:flex;gap:12px;font-size:11px;color:#5a6080">
-            <span><span style="display:inline-block;width:10px;height:3px;background:#f59e0b;vertical-align:middle;border-radius:2px;margin-right:3px"></span>On Time</span>
-            <span><span style="display:inline-block;width:10px;height:3px;background:#10b981;vertical-align:middle;border-radius:2px;margin-right:3px"></span>Photos</span>
-          </div>
+      <div class="panel-body" style="padding-top:14px">
+        <div class="chart-wrap">
+          <canvas id="trendChart" role="img" aria-label="7-day trend of on-time and photo compliance">7-day trend.</canvas>
         </div>
-        <div class="panel-body" style="padding-top:16px">
-          <div class="chart-wrap">
-            <canvas id="trendChart" role="img" aria-label="7-day line chart of on-time and photo compliance percentages">7-day trend data loading.</canvas>
-          </div>
-          <table class="dt" style="margin-bottom:12px">
-            <thead><tr>
-              <th>Date</th><th>Stops</th><th>On Time</th><th>Photos</th>
-            </tr></thead>
-            <tbody>
-              ${trend.map(t => `<tr>
-                <td style="color:#9096b4">${t.label}</td>
-                <td>${t.complete}/${t.total}</td>
-                <td style="color:${pctColor(t.ontimePct,80,60)}">${t.ontimePct!==null?t.ontimePct+'%':'—'}</td>
-                <td style="color:${pctColor(t.photoPct,90,70)}">${t.photoPct!==null?t.photoPct+'%':'—'}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
+        <table class="dt" style="margin-bottom:10px">
+          <thead><tr><th>Date</th><th>Stops</th><th>On Time</th><th>Photos</th></tr></thead>
+          <tbody>
+          ${trend.map(t=>`<tr>
+            <td style="color:#9096b4">${t.label}</td>
+            <td>${t.complete}/${t.total}</td>
+            <td style="color:${pctColor(t.ontimePct,80,60)}">${t.ontimePct!==null?t.ontimePct+'%':'—'}</td>
+            <td style="color:${pctColor(t.photoPct,90,70)}">${t.photoPct!==null?t.photoPct+'%':'—'}</td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
       </div>
+    </div>
 
-      <!-- OPEN ISSUES -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Open Issues</span>
-          <span class="panel-note">${M.pending} pending · ${M.noPhotoComp.length} no photo</span>
-        </div>
-        <div class="panel-body">
-          ${(function() {
-            const items = [
-              ...M.pendStops.slice(0,5).map(s=>({type:'pending',order:s.orderNumber||'—',name:s.customerName||s.shipToName||'—',detail:s._driver||'Unassigned',badge:'badge-pending',label:'Pending'})),
-              ...M.noPhotoComp.slice(0,5).map(s=>({type:'nophoto',order:s.orderNumber||'—',name:s.customerName||s.shipToName||'—',detail:s._driver||'Unknown',badge:'badge-nophoto',label:'No Photo'})),
-            ].slice(0,10);
-            if (!items.length) return '<div style="color:#5a6080;font-size:13px;padding:20px 0;text-align:center">No open issues</div>';
-            return items.map(i=>`<div class="issue-item">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-                <span class="issue-order">${i.order}</span>
-                <span class="badge ${i.badge}">${i.label}</span>
+    <!-- ISSUES -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Open Issues</span>
+        <span class="panel-note">${M.pending} pend · ${M.noPhotoComp.length} no photo</span>
+      </div>
+      <div class="panel-body">
+        ${(pendIssues.length===0 && nophIssues.length===0)
+          ? '<div class="empty-state">No open issues</div>'
+          : `
+          ${pendIssues.length>0?`
+            <div class="issue-section">Pending Delivery</div>
+            ${pendIssues.map(s=>`<div class="issue-item">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span class="issue-order">${s.orderNumber||s._key||'—'}</span>
+                <span class="badge badge-pending">Pending</span>
               </div>
-              <div class="issue-customer">${i.name}</div>
-              <div class="issue-detail">${i.detail}</div>
-            </div>`).join('');
-          })()}
-        </div>
+              <div class="issue-customer">${s.customerName||s.shipToName||'—'}</div>
+              <div class="issue-detail">${s._driver||'Unassigned'}</div>
+            </div>`).join('')}
+          `:''}
+          ${nophIssues.length>0?`
+            <div class="issue-section" style="margin-top:${pendIssues.length?'8px':'0'}">Delivered — No Photo</div>
+            ${nophIssues.map(s=>`<div class="issue-item">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span class="issue-order">${s.orderNumber||s._key||'—'}</span>
+                <span class="badge badge-nophoto">No Photo</span>
+              </div>
+              <div class="issue-customer">${s.customerName||s.shipToName||'—'}</div>
+              <div class="issue-detail">${s._driver||'Unknown driver'}</div>
+            </div>`).join('')}
+          `:''}
+        `}
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-2">
+
+    <!-- FLEET -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Fleet Status</span></div>
+      <div class="panel-body">
+        ${fleet.length===0
+          ? '<div class="empty-state">No fleet data for this date</div>'
+          : `<table class="dt" style="margin-top:4px">
+            <thead><tr><th>Asset</th><th>Driver</th><th>Stops</th><th>Status</th></tr></thead>
+            <tbody>
+            ${fleet.map(f=>{
+              const allDone = f.total>0 && f.done===f.total;
+              const badge = isToday ? (allDone?'badge-done':'badge-active') : 'badge-hist';
+              const label = isToday ? (allDone?'Done':'Active') : 'Complete';
+              return `<tr>
+                <td><div class="dt-name">${f.asset}</div></td>
+                <td style="text-align:left;color:#9096b4;font-size:12px">${f.driver||'—'}</td>
+                <td>${f.done}/${f.total}</td>
+                <td><span class="badge ${badge}">${label}</span></td>
+              </tr>`;
+            }).join('')}
+            </tbody>
+          </table>`
+        }
       </div>
     </div>
 
-    <!-- BOTTOM ROW -->
-    <div class="row row-2">
-
-      <!-- FLEET STATUS -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Fleet Status — Today</span>
-        </div>
-        <div class="panel-body">
-          <table class="dt" style="margin-top:4px">
-            <thead><tr>
-              <th>Asset</th><th>Driver</th><th>Stops</th><th>Status</th>
-            </tr></thead>
+    <!-- SALES -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Stops by Sales Rep</span></div>
+      <div class="panel-body">
+        ${salesList.length===0
+          ? '<div class="empty-state">No data for this date</div>'
+          : `<table class="dt" style="margin-top:4px">
+            <thead><tr><th>Rep</th><th>Total</th><th>Complete</th><th>% Done</th></tr></thead>
             <tbody>
-              ${todayRoutes.sort((a,b)=>(a.assetDescription||'').localeCompare(b.assetDescription||'')).map(r => {
-                const stops = Object.values(r.stops || {});
-                const done = stops.filter(isComplete).length;
-                const allDone = stops.length > 0 && done === stops.length;
-                return `<tr>
-                  <td><div class="dt-name">${r.assetDescription || r.asset || r._routeId}</div></td>
-                  <td style="text-align:left;color:#9096b4;font-size:12px">${r.driverName || '—'}</td>
-                  <td>${done}/${stops.length}</td>
-                  <td><span class="badge ${allDone?'badge-done':'badge-active'}">${allDone?'Done':'Active'}</span></td>
-                </tr>`;
-              }).join('')}
+            ${salesList.map(s=>{
+              const cp = s.t?Math.round(s.c/s.t*100):0;
+              return `<tr>
+                <td style="font-weight:500">${s.rep}</td>
+                <td>${s.t}</td>
+                <td>${s.c}</td>
+                <td style="color:${pctColor(cp,80,60)}">${cp}%</td>
+              </tr>`;
+            }).join('')}
             </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- SALES REP VOLUME -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Stops by Sales Rep — Today</span>
-        </div>
-        <div class="panel-body">
-          <table class="dt" style="margin-top:4px">
-            <thead><tr>
-              <th>Rep</th><th>Total</th><th>Complete</th><th>% Done</th>
-            </tr></thead>
-            <tbody>
-              ${salesList.map(s => {
-                const cp = s.t ? Math.round(s.c/s.t*100) : 0;
-                return `<tr>
-                  <td style="font-weight:500">${s.rep}</td>
-                  <td>${s.t}</td>
-                  <td>${s.c}</td>
-                  <td style="color:${pctColor(cp,80,60)}">${cp}%</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
+          </table>`
+        }
       </div>
     </div>
-  `;
+  </div>`;
 
-  // --- CHART ---
-  if (trendChart) { trendChart.destroy(); trendChart = null; }
+  /* Chart */
+  if (trendChart) { trendChart.destroy(); trendChart=null; }
   const ctx = document.getElementById('trendChart');
   if (ctx) {
     trendChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: trend.map(t => t.label),
-        datasets: [
-          { label:'On Time / Early', data: trend.map(t=>t.ontimePct), borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', tension:.35, pointRadius:4, pointBackgroundColor:'#f59e0b', borderWidth:2, spanGaps:true },
-          { label:'Photo Compliance', data: trend.map(t=>t.photoPct), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)', tension:.35, pointRadius:4, pointBackgroundColor:'#10b981', borderWidth:2, spanGaps:true },
+      type:'line',
+      data:{
+        labels: trend.map(t=>t.label),
+        datasets:[
+          {label:'On Time/Early', data:trend.map(t=>t.ontimePct), borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', tension:.35, pointRadius:4, pointBackgroundColor:'#f59e0b', borderWidth:2, spanGaps:true},
+          {label:'Photo Compliance', data:trend.map(t=>t.photoPct), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)', tension:.35, pointRadius:4, pointBackgroundColor:'#10b981', borderWidth:2, spanGaps:true},
         ],
       },
-      options: {
+      options:{
         responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false}, tooltip:{callbacks:{label: c => c.dataset.label + ': ' + (c.raw !== null ? c.raw + '%' : '—') }} },
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.raw!==null?c.raw+'%':'—')}}},
         scales:{
-          y:{ min:0, max:100, grid:{color:'#1a1d2b'}, ticks:{color:'#5a6080',font:{size:10},callback:v=>v+'%'} },
-          x:{ grid:{display:false}, ticks:{color:'#5a6080',font:{size:10}} },
+          y:{min:0,max:100,grid:{color:'#1a1d2b'},ticks:{color:'#5a6080',font:{size:10},callback:v=>v+'%'}},
+          x:{grid:{display:false},ticks:{color:'#5a6080',font:{size:10},autoSkip:false,maxRotation:0}},
         },
       },
     });
   }
 }
 
-async function init() {
+/* ── DATE NAV ── */
+function setDate(ds) {
   const today = todayStr();
-  document.getElementById('dateBadge').textContent = friendlyDate(today);
-
-  try {
-    const [routes, historical] = await Promise.all([
-      fetchJSON('/routes'),
-      fetchJSON('/historical'),
-    ]);
-    buildPage(routes, historical);
-    document.getElementById('syncTime').textContent = 'Updated ' + new Date().toLocaleTimeString();
-  } catch(e) {
-    document.getElementById('mainContent').innerHTML =
-      '<div class="loading"><div class="error-box">Failed to load data: ' + e.message + '</div></div>';
-    document.getElementById('syncTime').textContent = 'Error';
-  }
+  if (ds > today) return;
+  selectedDate = ds;
+  document.getElementById('datePicker').value = ds;
+  document.getElementById('nextBtn').disabled = ds >= today;
+  if (cachedRoutes) render();
 }
 
-function friendlyDate(ds) {
-  const d = new Date(ds + 'T12:00:00');
-  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-}
+document.getElementById('datePicker').value = todayStr();
+document.getElementById('datePicker').max = todayStr();
+document.getElementById('datePicker').addEventListener('change', e => setDate(e.target.value));
+document.getElementById('prevBtn').addEventListener('click', () => setDate(offsetDate(selectedDate,-1)));
+document.getElementById('nextBtn').addEventListener('click', () => setDate(offsetDate(selectedDate,1)));
+document.getElementById('nextBtn').disabled = true;
+document.getElementById('todayBtn').addEventListener('click', () => setDate(todayStr()));
 
-init();
-setInterval(init, 120000);
+loadData();
+setInterval(loadData, 120000);
 </script>
 </body>
 </html>
