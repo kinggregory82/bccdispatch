@@ -725,7 +725,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>${smsCellHTML(s.smsSent, isQueued, S.dateOffset > 0, s.status === 'pending')}</td>
+      <td>${smsCellHTML(s.smsSent, isQueued, s.status === 'pending')}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>`;
 }
@@ -788,7 +788,7 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   return `<span class="dx-badge pending">Pending</span>`;
 }
 
-function smsCellHTML(sms, queued, isTomorrow, isPending) {
+function smsCellHTML(sms, queued, isPending) {
   if (queued) return `<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued</span>`;
 
   const advanceSent = sms && sms.advance === true;
