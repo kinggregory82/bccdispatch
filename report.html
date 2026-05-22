@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:#0d0d0d;color:#e8e8e8;font-family:'Roboto',sans-serif;min-height:100vh}
+html,body{background:#f0f0f0;color:#111;font-family:'Roboto',sans-serif;min-height:100vh}
 
 /* ── Login ── */
 .login-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;
@@ -44,24 +44,24 @@ html,body{background:#0d0d0d;color:#e8e8e8;font-family:'Roboto',sans-serif;min-h
 .dx-product-name{font-family:'Oswald',sans-serif;font-size:19px;font-weight:700;
   letter-spacing:.16em;text-transform:uppercase;color:#cc0000;display:block}
 .dx-product-sub{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.20em;
-  text-transform:uppercase;color:#555;display:block;margin-top:2px}
+  text-transform:uppercase;color:#999;display:block;margin-top:2px}
 .dx-topright{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:#555;display:flex;align-items:center;gap:12px}
-.dx-topright b{color:#ccc}
+  text-transform:uppercase;color:#999;display:flex;align-items:center;gap:12px}
+.dx-topright b{color:#333}
 .dx-avatar{width:30px;height:30px;background:#cc0000;color:#fff;border-radius:0;
   display:inline-flex;align-items:center;justify-content:center;
   font-family:'Oswald',sans-serif;font-weight:700;font-size:13px}
-.dx-lock-btn{background:transparent;border:1px solid #2a2a2a;color:#555;
+.dx-lock-btn{background:transparent;border:1px solid #2a2a2a;color:#999;
   font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.14em;
   text-transform:uppercase;padding:5px 10px;cursor:pointer}
 .dx-lock-btn:hover{border-color:#cc0000;color:#cc0000}
 
 /* ── Toolbar ── */
-.rp-toolbar{background:#111;border-bottom:1px solid #1e1e1e;
+.rp-toolbar{background:#fff;border-bottom:1px solid #e8e8e8;
   padding:14px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .rp-label{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.18em;
-  text-transform:uppercase;color:#555}
-.rp-input{background:#0d0d0d;border:1px solid #2a2a2a;color:#ccc;
+  text-transform:uppercase;color:#999}
+.rp-input{background:#fff;border:1px solid #ccc;color:#111;
   font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;
   padding:7px 10px;letter-spacing:.04em}
 .rp-input:focus{outline:0;border-color:#cc0000}
@@ -69,16 +69,16 @@ html,body{background:#0d0d0d;color:#e8e8e8;font-family:'Roboto',sans-serif;min-h
   font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.16em;
   text-transform:uppercase;font-weight:700;padding:9px 16px;cursor:pointer}
 .rp-btn:hover{background:#a30000}
-.rp-btn.sec{background:#1e1e1e;color:#aaa}
+.rp-btn.sec{background:#e8e8e8;color:#aaa}
 .rp-btn.sec:hover{background:#2a2a2a;color:#fff}
 
 /* ── KPI Bar ── */
-.kpi-bar{display:flex;gap:0;border-bottom:1px solid #1a1a1a;overflow-x:auto}
-.kpi{flex:1;min-width:100px;padding:16px 18px;border-right:1px solid #1a1a1a;text-align:center}
+.kpi-bar{display:flex;gap:0;border-bottom:1px solid #ddd;background:#fff;overflow-x:auto}
+.kpi{flex:1;min-width:100px;padding:16px 18px;border-right:1px solid #eee;text-align:center}
 .kpi:last-child{border-right:0}
 .kpi-label{font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.22em;
-  text-transform:uppercase;color:#555;margin-bottom:4px}
-.kpi-value{font-family:'Oswald',sans-serif;font-size:26px;font-weight:700;color:#e8e8e8;line-height:1}
+  text-transform:uppercase;color:#999;margin-bottom:4px}
+.kpi-value{font-family:'Oswald',sans-serif;font-size:26px;font-weight:700;color:#111;line-height:1}
 .kpi-value.red{color:#cc0000}
 .kpi-value.green{color:#22c55e}
 .kpi-value.amber{color:#f59e0b}
@@ -86,51 +86,51 @@ html,body{background:#0d0d0d;color:#e8e8e8;font-family:'Roboto',sans-serif;min-h
 /* ── Sections ── */
 .rp-body{padding:24px 28px 80px;display:grid;gap:24px}
 .rp-section{background:#111;border:1px solid #1e1e1e}
-.rp-section-head{padding:12px 18px;border-bottom:1px solid #1e1e1e;
+.rp-section-head{padding:12px 18px;border-bottom:1px solid #eee;
   display:flex;align-items:center;gap:10px}
 .rp-section-title{font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;
   letter-spacing:.20em;text-transform:uppercase;color:#cc0000}
 .rp-section-count{font-family:'Oswald',sans-serif;font-size:11px;
-  color:#444;letter-spacing:.10em}
+  color:#aaa;letter-spacing:.10em}
 
 /* ── Tables ── */
 .rp-table-wrap{overflow-x:auto}
 table.rp-table{width:100%;border-collapse:collapse;font-size:12px}
 table.rp-table th{font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.18em;
-  text-transform:uppercase;color:#555;background:#0d0d0d;padding:8px 14px;
+  text-transform:uppercase;color:#999;background:#f7f7f7;padding:8px 14px;
   text-align:left;border-bottom:1px solid #1a1a1a;white-space:nowrap;cursor:pointer;user-select:none}
 table.rp-table th:hover{color:#cc0000}
-table.rp-table td{padding:9px 14px;border-bottom:1px solid #161616;vertical-align:middle;color:#ccc}
+table.rp-table td{padding:9px 14px;border-bottom:1px solid #161616;vertical-align:middle;color:#333}
 table.rp-table tbody tr:hover{background:#141414}
-.rp-order{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.06em;color:#e8e8e8}
+.rp-order{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.06em;color:#111}
 .rp-badge{font-family:'Oswald',sans-serif;font-size:9px;font-weight:700;
   letter-spacing:.12em;text-transform:uppercase;padding:2px 7px;border:1px solid;display:inline-block}
 .rp-badge.early{color:#22c55e;border-color:#22c55e}
 .rp-badge.ontime{color:#22c55e;border-color:#22c55e}
 .rp-badge.late{color:#cc0000;border-color:#cc0000}
 .rp-badge.complete{color:#22c55e;border-color:#22c55e}
-.rp-badge.pending{color:#555;border-color:#333}
+.rp-badge.pending{color:#999;border-color:#333}
 .rp-badge.sms-sent{color:#22c55e;border-color:#22c55e}
 .rp-badge.sms-fail{color:#cc0000;border-color:#cc0000}
-.rp-badge.sms-none{color:#444;border-color:#2a2a2a}
+.rp-badge.sms-none{color:#aaa;border-color:#2a2a2a}
 .rp-badge.photo{color:#3b82f6;border-color:#3b82f6}
-.rp-num{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600}
-.rp-pct-bar{display:flex;height:6px;background:#1a1a1a;width:100%;margin-top:3px}
+.rp-num{font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:#111}
+.rp-pct-bar{display:flex;height:6px;background:#e0e0e0;width:100%;margin-top:3px}
 .rp-pct-fill{height:100%;background:#cc0000;transition:width .3s}
 .rp-pct-fill.green{background:#22c55e}
 .rp-pct-fill.amber{background:#f59e0b}
 .sort-arr{color:#cc0000;margin-left:3px}
 
 /* ── Summary cards ── */
-.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1px;background:#1a1a1a}
-.card{background:#111;padding:16px 18px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1px;background:#e0e0e0}
+.card{background:#fff;padding:16px 18px}
 .card-label{font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.20em;
-  text-transform:uppercase;color:#555;margin-bottom:6px}
-.card-val{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#e8e8e8}
-.card-sub{font-family:'Oswald',sans-serif;font-size:10px;color:#444;margin-top:3px}
+  text-transform:uppercase;color:#999;margin-bottom:6px}
+.card-val{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#111}
+.card-sub{font-family:'Oswald',sans-serif;font-size:10px;color:#aaa;margin-top:3px}
 
 /* ── Empty / loading ── */
-.rp-empty{padding:40px;text-align:center;color:#444;font-family:'Oswald',sans-serif;
+.rp-empty{padding:40px;text-align:center;color:#aaa;font-family:'Oswald',sans-serif;
   font-size:13px;letter-spacing:.12em;text-transform:uppercase}
 .rp-toast{position:fixed;bottom:24px;right:24px;background:#cc0000;color:#fff;
   padding:10px 18px;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.12em;
@@ -408,7 +408,7 @@ function sectionByDriver(){
     const avgStop=d.stopMins.length ? Math.round(d.stopMins.reduce((a,b)=>a+b,0)/d.stopMins.length) : null;
     const onPct=d.eligible?pct(d.ontime+d.early,d.eligible):0;
     return `<tr>
-      <td><span class="rp-num">${esc(d.driver)}</span><br><span style="color:#444;font-size:11px">${esc(d.asset)}</span></td>
+      <td><span class="rp-num">${esc(d.driver)}</span><br><span style="color:#aaa;font-size:11px">${esc(d.asset)}</span></td>
       <td class="rp-num">${d.stops}</td>
       <td class="rp-num">${d.delivered}</td>
       <td>
@@ -474,7 +474,7 @@ function buildDetailSection(){
     return `<th data-col="${c.k}">${c.l}${arr}</th>`;
   }).join('');
   const tbody=sorted.map(s=>`<tr>
-    <td style="color:#555;font-size:11px">${esc(s.routeDate)}</td>
+    <td style="color:#999;font-size:11px">${esc(s.routeDate)}</td>
     <td style="font-family:'Oswald',sans-serif;font-weight:700">${esc(s.routeId)}</td>
     <td style="color:#aaa">${esc(s.driver||'—')}</td>
     <td class="rp-order">${esc(s.orderNumber)}</td>
@@ -518,7 +518,7 @@ function sectionSMS(){
       <div class="card"><div class="card-label">No Phone</div><div class="card-val" style="color:${none.length?'#f59e0b':'#22c55e'}">${none.length}</div><div class="card-sub">No contact on order</div></div>
     </div>`;
   const failRows=fail.map(s=>`<tr>
-    <td style="color:#555;font-size:11px">${esc(s.routeDate)}</td>
+    <td style="color:#999;font-size:11px">${esc(s.routeDate)}</td>
     <td class="rp-order">${esc(s.orderNumber)}</td>
     <td>${esc(s.customerName)}</td>
     <td style="color:#888">${esc(s.assignedSales||'—')}</td>
@@ -526,7 +526,7 @@ function sectionSMS(){
   </tr>`).join('');
   const failTable=fail.length?`
     <div style="padding:0 0 0 0;margin-top:1px">
-      <div style="padding:8px 14px;background:#1a0000;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#cc0000">Failed SMS — Action Required</div>
+      <div style="padding:8px 14px;background:#fff0f0;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#cc0000">Failed SMS — Action Required</div>
       <div class="rp-table-wrap"><table class="rp-table">
         <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Sales</th><th>Address</th></tr></thead>
         <tbody>${failRows}</tbody>
@@ -540,7 +540,7 @@ function sectionSameDay(){
   const sd=STOPS.filter(s=>s.sameDay);
   if(!sd.length) return section('Same-Day Orders','<div class="rp-empty">No same-day orders in range.</div>');
   const tbody=sd.map(s=>`<tr>
-    <td style="color:#555;font-size:11px">${esc(s.routeDate)}</td>
+    <td style="color:#999;font-size:11px">${esc(s.routeDate)}</td>
     <td class="rp-order">${esc(s.orderNumber)}</td>
     <td>${esc(s.customerName)}</td>
     <td style="color:#888">${esc(s.assignedSales||'—')}</td>
