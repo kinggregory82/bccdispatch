@@ -4,130 +4,160 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ben's Dispatch Manager View</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:       #070809;
-  --panel:    #0f1115;
-  --border:   #1c2030;
-  --border2:  #252a3a;
-  --text:     #f0f2ff;
-  --muted:    #6b7494;
-  --dim:      #3a3f55;
-  --amber:    #f5a623;
-  --green:    #00e676;
-  --red:      #ff3d57;
-  --blue:     #4d9fff;
-  --purple:   #c084fc;
-  --orange:   #ff6b35;
+  --bg:     #02040a;
+  --surface:#060c18;
+  --panel:  #080f1e;
+  --border: #0d2040;
+  --glow:   #00c8ff;
+  --glow2:  #00ff9d;
+  --amber:  #ffb300;
+  --red:    #ff2d55;
+  --dim:    #1a3050;
+  --muted:  #3a5878;
+  --text:   #cde8ff;
+  --bright: #e8f8ff;
 }
-body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:13px;line-height:1.4;min-height:100vh}
+
+html,body{height:100%;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:14px;line-height:1.4;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% -10%, rgba(0,100,200,.12) 0%, transparent 70%),
+    repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,100,160,.04) 39px,rgba(0,100,160,.04) 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,100,160,.04) 39px,rgba(0,100,160,.04) 40px);
+}
+
+/* ── SCANLINE OVERLAY ── */
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);pointer-events:none;z-index:999}
 
 /* ── HEADER ── */
-.header{background:#0a0b0f;border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap}
-.brand{font-size:13px;font-weight:700;letter-spacing:.4px;color:var(--text);white-space:nowrap;text-transform:uppercase}
-.brand span{color:var(--amber)}
+.header{
+  background:linear-gradient(180deg,rgba(0,30,60,.95) 0%,rgba(2,8,20,.95) 100%);
+  border-bottom:1px solid var(--glow);
+  box-shadow:0 0 30px rgba(0,200,255,.1),0 1px 0 rgba(0,200,255,.3);
+  padding:8px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;
+}
+.brand{font-family:'Orbitron',monospace;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--bright);text-transform:uppercase;white-space:nowrap}
+.brand span{color:var(--glow);text-shadow:0 0 12px var(--glow)}
 
 .date-nav{display:flex;align-items:center;gap:5px}
-.nav-btn{background:#13151f;border:1px solid var(--border2);color:var(--muted);width:26px;height:26px;border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1}
-.nav-btn:hover{background:var(--border2);color:var(--text)}
-.nav-btn:disabled{opacity:.25;cursor:default}
-input[type=date]#datePicker{background:#13151f;border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 7px;border-radius:3px;height:26px;cursor:pointer}
-input[type=date]#datePicker::-webkit-calendar-picker-indicator{filter:invert(.4)}
-.today-btn{background:transparent;border:1px solid var(--amber);color:var(--amber);font-size:11px;font-weight:600;padding:3px 9px;border-radius:3px;cursor:pointer;height:26px;letter-spacing:.3px}
-.today-btn:hover{background:var(--amber);color:#000}
+.nav-btn{background:transparent;border:1px solid var(--dim);color:var(--muted);width:26px;height:26px;border-radius:2px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;transition:.15s}
+.nav-btn:hover{border-color:var(--glow);color:var(--glow);box-shadow:0 0 8px rgba(0,200,255,.3)}
+.nav-btn:disabled{opacity:.2;cursor:default}
+input[type=date]#datePicker{background:rgba(0,20,50,.8);border:1px solid var(--dim);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:3px 8px;border-radius:2px;height:26px;cursor:pointer;letter-spacing:.5px}
+input[type=date]#datePicker::-webkit-calendar-picker-indicator{filter:invert(.3) sepia(1) saturate(5) hue-rotate(180deg)}
+.today-btn{background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:3px 10px;border-radius:2px;cursor:pointer;height:26px;letter-spacing:1.5px;text-transform:uppercase;transition:.15s}
+.today-btn:hover{background:var(--amber);color:#000;box-shadow:0 0 12px rgba(255,179,0,.5)}
 
-.hdr-right{display:flex;align-items:center;gap:10px}
-.sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:4px;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
-.sync-info{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
-.refresh-btn{background:#13151f;border:1px solid var(--border2);color:var(--muted);font-size:11px;padding:3px 9px;border-radius:3px;cursor:pointer;font-weight:500}
-.refresh-btn:hover{color:var(--text);border-color:var(--dim)}
+.hdr-right{display:flex;align-items:center;gap:12px}
+.sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--glow2);margin-right:5px;box-shadow:0 0 8px var(--glow2);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--glow2)}50%{opacity:.3;box-shadow:none}}
+.sync-info{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted)}
+.refresh-btn{background:transparent;border:1px solid var(--dim);color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;padding:3px 10px;border-radius:2px;cursor:pointer;letter-spacing:1px;transition:.15s}
+.refresh-btn:hover{border-color:var(--glow);color:var(--glow)}
 
 /* ── MAIN ── */
-.main{padding:12px 16px;max-width:1400px;margin:0 auto}
+.main{padding:14px 20px;max-width:1440px;margin:0 auto}
 
-/* ── KPI ── */
-.kpi-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:12px}
-.kpi{background:var(--panel);border:1px solid var(--border);border-top:2px solid var(--border);border-radius:5px;padding:10px 12px}
-.kpi.a{border-top-color:var(--amber)}
-.kpi.g{border-top-color:var(--green)}
-.kpi.b{border-top-color:var(--blue)}
-.kpi.p{border-top-color:var(--purple)}
-.kpi-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px;font-weight:600}
-.kpi-val{font-size:24px;font-weight:700;font-family:'IBM Plex Mono',monospace;line-height:1;color:var(--text)}
-.kpi-sub{font-size:10px;color:var(--muted);margin-top:3px}
+/* ── KPI STRIP ── */
+.kpi-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:14px;border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--border)}
+.kpi{background:var(--panel);padding:10px 14px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.a::before{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+.kpi.g::before{background:linear-gradient(90deg,transparent,var(--glow2),transparent)}
+.kpi.c::before{background:linear-gradient(90deg,transparent,var(--glow),transparent)}
+.kpi.r::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.kpi-label{font-family:'Orbitron',monospace;font-size:7px;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.kpi-val{font-family:'Orbitron',monospace;font-size:22px;font-weight:700;line-height:1;color:var(--bright)}
+.kpi-val.glow-c{color:var(--glow);text-shadow:0 0 20px rgba(0,200,255,.6)}
+.kpi-val.glow-g{color:var(--glow2);text-shadow:0 0 20px rgba(0,255,157,.5)}
+.kpi-val.glow-a{color:var(--amber);text-shadow:0 0 20px rgba(255,179,0,.5)}
+.kpi-val.glow-r{color:var(--red);text-shadow:0 0 20px rgba(255,45,85,.5)}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:4px;font-weight:500;letter-spacing:.3px}
 
-/* ── LAYOUT ROWS ── */
+/* ── LAYOUT ── */
 .row{display:grid;gap:10px;margin-bottom:10px}
-.row-3{grid-template-columns:1fr 1fr 260px}
+.row-3{grid-template-columns:1fr 1fr 250px}
 .row-2{grid-template-columns:1fr 1fr}
 
 /* ── PANELS ── */
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:5px;overflow:hidden}
-.ph{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.pt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
-.pn{font-size:10px;color:var(--dim)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:3px;overflow:hidden;position:relative}
+.panel::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,200,255,.15),transparent)}
+.ph{padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(0,20,50,.4)}
+.pt{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:var(--glow);text-shadow:0 0 8px rgba(0,200,255,.4)}
+.pn{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted)}
 .pb{padding:0 12px}
 
 /* ── TABLES ── */
 .dt{width:100%;border-collapse:collapse}
-.dt th{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:0 5px 6px;text-align:right;font-weight:600}
+.dt th{font-family:'Orbitron',monospace;font-size:7px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:0 5px 7px;text-align:right;font-weight:400;border-bottom:1px solid var(--dim)}
 .dt th:first-child{text-align:left}
-.dt td{padding:5px;font-size:12px;border-top:1px solid var(--border);vertical-align:middle}
-.dt td:not(:first-child){text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px}
-.dn{font-weight:600;color:var(--text)}
-.ds{font-size:10px;color:var(--muted);margin-top:1px}
+.dt td{padding:5px;font-size:13px;border-bottom:1px solid rgba(13,32,64,.8);vertical-align:middle}
+.dt td:not(:first-child){text-align:right;font-family:'Share Tech Mono',monospace;font-size:11px}
+.dt tr:last-child td{border-bottom:none}
+.dn{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:var(--bright)}
+.ds{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px}
 
-.bar-wrap{display:flex;align-items:center;gap:4px;justify-content:flex-end}
-.bar-track{width:36px;height:3px;background:var(--border2);border-radius:2px;overflow:hidden;flex-shrink:0}
-.bar-fill{height:100%;border-radius:2px}
+/* ── BAR ── */
+.bar-wrap{display:flex;align-items:center;gap:5px;justify-content:flex-end}
+.bar-track{width:40px;height:3px;background:var(--dim);border-radius:0;overflow:hidden;flex-shrink:0}
+.bar-fill{height:100%}
 
-/* ── COLLAPSIBLE ISSUES ── */
+/* ── ISSUES ── */
 .issue-cat{border-bottom:1px solid var(--border)}
 .issue-cat:last-child{border-bottom:none}
-.issue-cat-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;cursor:pointer;user-select:none}
-.issue-cat-hdr:hover{background:#13151f}
-.issue-cat-label{font-size:9px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);font-weight:700}
+.issue-cat-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;cursor:pointer;user-select:none;transition:.1s}
+.issue-cat-hdr:hover{background:rgba(0,200,255,.04)}
+.issue-cat-label{font-family:'Orbitron',monospace;font-size:7px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:400}
 .issue-cat-meta{display:flex;align-items:center;gap:6px}
-.issue-cat-count{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--dim)}
-.chevron{font-size:10px;color:var(--dim);transition:transform .2s}
+.issue-count{font-family:'Orbitron',monospace;font-size:11px;font-weight:700}
+.chevron{font-size:9px;color:var(--muted);transition:transform .2s}
 .chevron.open{transform:rotate(180deg)}
 .issue-body{display:none;padding:0 12px 4px}
 .issue-body.open{display:block}
-.issue-item{padding:6px 0;border-bottom:1px solid var(--border)}
+.issue-drv-hdr{padding:5px 0 2px;font-family:'Orbitron',monospace;font-size:7px;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);border-bottom:1px solid var(--border);margin-bottom:2px}
+.issue-item{padding:5px 0;border-bottom:1px solid rgba(13,32,64,.6)}
 .issue-item:last-child{border-bottom:none}
-.issue-order{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--amber)}
-.issue-name{font-size:12px;font-weight:600;color:var(--text);margin:1px 0}
-.issue-detail{font-size:10px;color:var(--muted)}
 .issue-row{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.issue-order{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--amber)}
+.issue-name{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:var(--text);margin:1px 0}
 
 /* ── BADGES ── */
-.badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:2px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
-.b-late{background:rgba(255,61,87,.15);color:var(--red);border:1px solid rgba(255,61,87,.3)}
-.b-nophoto{background:rgba(255,107,53,.15);color:var(--orange);border:1px solid rgba(255,107,53,.3)}
-.b-done{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2)}
-.b-active{background:rgba(245,166,35,.1);color:var(--amber);border:1px solid rgba(245,166,35,.2)}
-.b-hist{background:var(--border);color:var(--muted)}
+.badge{display:inline-block;font-family:'Orbitron',monospace;font-size:8px;padding:2px 6px;border-radius:1px;font-weight:700;letter-spacing:.5px;white-space:nowrap;border:1px solid}
+.b-late{background:rgba(255,45,85,.12);color:var(--red);border-color:rgba(255,45,85,.4);text-shadow:0 0 8px rgba(255,45,85,.5)}
+.b-nophoto{background:rgba(255,179,0,.08);color:var(--amber);border-color:rgba(255,179,0,.3)}
+.b-done{background:rgba(0,255,157,.08);color:var(--glow2);border-color:rgba(0,255,157,.25)}
+.b-active{background:rgba(0,200,255,.08);color:var(--glow);border-color:rgba(0,200,255,.25)}
+.b-hist{background:rgba(26,48,80,.5);color:var(--muted);border-color:var(--dim)}
 
 /* ── CHART ── */
-.chart-wrap{position:relative;height:160px;margin-bottom:8px}
-.chart-legend{display:flex;gap:12px;font-size:10px;color:var(--muted);margin-bottom:10px}
-.ldot{display:inline-block;width:8px;height:2px;vertical-align:middle;border-radius:1px;margin-right:3px}
+.chart-wrap{position:relative;height:155px;margin-bottom:8px}
+.chart-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);margin-bottom:8px;font-family:'Share Tech Mono',monospace}
+.ldot{display:inline-block;width:8px;height:2px;vertical-align:middle;border-radius:0;margin-right:4px}
 
 /* ── DEBUG ── */
-.debug-bar{background:#0d0f17;border:1px solid var(--border);border-radius:4px;padding:5px 10px;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:10px}
+.debug-bar{background:rgba(0,10,25,.8);border:1px solid var(--border);border-radius:2px;padding:4px 10px;font-size:9px;font-family:'Share Tech Mono',monospace;color:var(--muted);margin-bottom:10px;letter-spacing:.3px}
 
-.empty{color:var(--muted);font-size:12px;padding:14px 0;text-align:center}
+/* ── STATUS CORNER ── */
+.corner-bracket{position:relative}
+.corner-bracket::before,.corner-bracket::after{content:'';position:absolute;width:8px;height:8px;opacity:.4}
+.corner-bracket::before{top:0;left:0;border-top:1px solid var(--glow);border-left:1px solid var(--glow)}
+.corner-bracket::after{bottom:0;right:0;border-bottom:1px solid var(--glow);border-right:1px solid var(--glow)}
+
+.empty{color:var(--muted);font-size:11px;padding:12px 0;text-align:center;font-family:'Share Tech Mono',monospace;letter-spacing:.5px}
 .loading{text-align:center;padding:50px;color:var(--muted)}
-.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+.spinner{width:22px;height:22px;border:1px solid var(--dim);border-top-color:var(--glow);border-radius:50%;animation:spin .6s linear infinite;margin:0 auto 10px;box-shadow:0 0 10px rgba(0,200,255,.2)}
 @keyframes spin{to{transform:rotate(360deg)}}
-.footer{text-align:center;padding:14px;color:var(--border2);font-size:10px;font-family:'IBM Plex Mono',monospace}
+.footer{text-align:center;padding:12px;color:var(--dim);font-size:9px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase}
 
-@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(4,1fr)}.row-3{grid-template-columns:1fr 1fr}.row-2{grid-template-columns:1fr}}
-@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.row-3,.row-2{grid-template-columns:1fr}}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(4,1fr)}.row-3{grid-template-columns:1fr 1fr}.row-2{grid-template-columns:1fr}}
+@media(max-width:700px){.kpi-strip{grid-template-columns:repeat(2,1fr)}.row-3,.row-2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -141,31 +171,22 @@ input[type=date]#datePicker::-webkit-calendar-picker-indicator{filter:invert(.4)
     <button class="today-btn" id="todayBtn">Today</button>
   </div>
   <div class="hdr-right">
-    <div class="sync-info"><span class="sync-dot"></span><span id="syncTime">Loading…</span></div>
-    <button class="refresh-btn" onclick="loadData()">Refresh</button>
+    <div class="sync-info"><span class="sync-dot"></span><span id="syncTime">—</span></div>
+    <button class="refresh-btn" onclick="loadData()">↻ REFRESH</button>
   </div>
 </div>
 
 <div class="main">
   <div class="debug-bar" id="debugBar">&nbsp;</div>
-  <div id="mainContent"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  <div id="mainContent"><div class="loading"><div class="spinner"></div><div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px">LOADING DISPATCH DATA…</div></div></div>
 </div>
-<div class="footer">Ben's Contractor Center · Dispatch · Auto-refreshes every 2 min</div>
+<div class="footer">Ben's Contractor Center · Dispatch Operations · Auto-refresh 120s</div>
 
 <script>
-const FIREBASE = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
+const FIREBASE='https://bccsms-27c55-default-rtdb.firebaseio.com';
+const DRIVER_MAP={'460':'Tyler Begley','985':'Mitch Warczinsky','392':'Tim Bailey','537':'Gary Rogers','320':'Larry Reid','396':'Mike Desutter','788':'Chad Billot','750':'Tim Bailey','481':'','627':''};
+let trendChart=null,cachedRoutes=null,cachedHistorical=null,cachedMileage=null,selectedDate=todayStr();
 
-const DRIVER_MAP = {
-  '460':'Tyler Begley','985':'Mitch Warczinsky','392':'Tim Bailey',
-  '537':'Gary Rogers','320':'Larry Reid','396':'Mike Desutter',
-  '788':'Chad Billot','750':'Tim Bailey','481':'','627':'',
-};
-
-let trendChart = null;
-let cachedRoutes = null, cachedHistorical = null, cachedMileage = null;
-let selectedDate = todayStr();
-
-/* ── UTILS ── */
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
 function p(n){return String(n).padStart(2,'0')}
 function offsetDate(ds,n){const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
@@ -173,31 +194,30 @@ function nDaysAgo(n){return offsetDate(todayStr(),-n)}
 function shortDate(ds){return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'})}
 
 function resolveDriver(route){
-  const name=(route.driverName||'').trim();
-  if(name) return name;
-  const asset=(route.asset||'').trim();
-  for(const [num,drv] of Object.entries(DRIVER_MAP)){
-    if(asset===num||asset.startsWith(num+' ')) return drv;
-  }
+  const name=(route.driverName||'').trim();if(name)return name;
+  const a=(route.asset||'').trim();
+  for(const[num,drv]of Object.entries(DRIVER_MAP)){if(a===num||a.startsWith(num+' '))return drv;}
   return '';
 }
 
 function pctColor(v,good,warn){
-  if(v===null||v===undefined) return 'var(--muted)';
-  return v>=good?'var(--green)':v>=warn?'var(--amber)':'var(--red)';
+  if(v===null||v===undefined)return'var(--muted)';
+  return v>=good?'var(--glow2)':v>=warn?'var(--amber)':'var(--red)';
+}
+function pctGlowClass(v,good,warn){
+  if(v===null||v===undefined)return'';
+  return v>=good?'glow-g':v>=warn?'glow-a':'glow-r';
 }
 
-/* ── FIREBASE ── */
 async function fetchJSON(path){
   const r=await fetch(FIREBASE+path+'.json');
-  if(!r.ok) throw new Error('HTTP '+r.status);
+  if(!r.ok)throw new Error('HTTP '+r.status);
   return r.json();
 }
 
-/* ── STOP HELPERS ── */
 function getStops(route,routeId){
   const raw=route.stops;
-  if(!raw||typeof raw!=='object') return [];
+  if(!raw||typeof raw!=='object')return[];
   return Object.entries(raw).map(([k,s])=>({
     ...s,_key:k,_routeId:routeId,
     _driver:resolveDriver(route),
@@ -207,208 +227,203 @@ function getStops(route,routeId){
 }
 
 function isComplete(s){
-  return (s.status||'').toLowerCase()==='complete'||
+  return(s.status||'').toLowerCase()==='complete'||
          (s.deliveryStatus||'').toLowerCase()==='complete'||
-         (s.deliveryStatus||'').toLowerCase()==='delivered'||
-         !!s.completedAt;
+         (s.deliveryStatus||'').toLowerCase()==='delivered'||!!s.completedAt;
 }
 function hasPhoto(s){
-  if(!s.pictures) return false;
-  if(Array.isArray(s.pictures)) return s.pictures.filter(Boolean).length>0;
+  if(!s.pictures)return false;
+  if(Array.isArray(s.pictures))return s.pictures.filter(Boolean).length>0;
   return Object.values(s.pictures).filter(Boolean).length>0;
 }
-function hasSms(s){return !!(s.smsSent&&(s.smsSent.departed||s.smsSent.advance))}
-
+function hasSms(s){return!!(s.smsSent&&(s.smsSent.departed||s.smsSent.advance))}
 function minutesLate(s){
-  /* returns minutes late (positive=late, negative=early) or null */
   try{
-    const arr=s.arrivalTime||s.completedAt;
-    const eta=s.seedEta||s.calculatedEta;
-    if(!arr||!eta) return null;
-    const a=new Date(arr), e=new Date(eta);
-    return Math.round((a-e)/60000);
+    const arr=s.arrivalTime||s.completedAt,eta=s.seedEta||s.calculatedEta;
+    if(!arr||!eta)return null;
+    return Math.round((new Date(arr)-new Date(eta))/60000);
   }catch(e){return null}
 }
 
 function metrics(stops){
-  const comp=stops.filter(isComplete);
-  const pend=stops.filter(s=>!isComplete(s));
-  const ph=comp.filter(hasPhoto);
-  const sms=stops.filter(hasSms);
-
-  /* Late: complete stops where timing==='late' OR computed >30min late */
+  const comp=stops.filter(isComplete),pend=stops.filter(s=>!isComplete(s));
+  const ph=comp.filter(hasPhoto),sms=stops.filter(hasSms);
   const late=comp.filter(s=>{
-    if(s.timing==='late') return true;
-    const ml=minutesLate(s);
-    return ml!==null && ml>30;
+    if(s.timing==='late')return true;
+    if(s.timing==='early'||s.timing==='ontime')return false;
+    const ml=minutesLate(s);return ml!==null&&ml>30;
   });
   const ontime=comp.filter(s=>{
-    if(s.timing==='early'||s.timing==='ontime') return true;
-    if(s.timing==='late') return false;
-    const ml=minutesLate(s);
-    return ml!==null && ml<=30;
+    if(s.timing==='early'||s.timing==='ontime')return true;
+    if(s.timing==='late')return false;
+    const ml=minutesLate(s);return ml!==null&&ml<=30;
   });
-  const noPh=comp.filter(s=>!hasPhoto(s));
-
   return{
     total:stops.length,complete:comp.length,pending:pend.length,
     ontime:ontime.length,late:late.length,photos:ph.length,sms:sms.length,
     ontimePct:comp.length?Math.round(ontime.length/comp.length*100):null,
-    photoPct: comp.length?Math.round(ph.length/comp.length*100):null,
+    photoPct:comp.length?Math.round(ph.length/comp.length*100):null,
     completePct:stops.length?Math.round(comp.length/stops.length*100):null,
-    compStops:comp,pendStops:pend,lateStops:late,noPhotoComp:noPh,
+    compStops:comp,pendStops:pend,lateStops:late,noPhotoComp:comp.filter(s=>!hasPhoto(s)),
   };
 }
 
-/* ── LOAD DATA ── */
 async function loadData(){
   try{
-    document.getElementById('syncTime').textContent='Refreshing…';
-    const[routes,hist,mil]=await Promise.all([
-      fetchJSON('/routes'),fetchJSON('/historical'),fetchJSON('/mileage')
-    ]);
+    document.getElementById('syncTime').textContent='SYNCING…';
+    const[routes,hist,mil]=await Promise.all([fetchJSON('/routes'),fetchJSON('/historical'),fetchJSON('/mileage')]);
     cachedRoutes=routes||{};cachedHistorical=hist||{};cachedMileage=mil||{};
     render();
-    document.getElementById('syncTime').textContent='Updated '+new Date().toLocaleTimeString();
+    document.getElementById('syncTime').textContent=new Date().toLocaleTimeString();
   }catch(e){
-    document.getElementById('mainContent').innerHTML='<div class="loading" style="color:var(--red)">Failed: '+e.message+'</div>';
-    document.getElementById('syncTime').textContent='Error';
+    document.getElementById('mainContent').innerHTML='<div class="loading" style="color:var(--red)">FEED ERROR: '+e.message+'</div>';
+    document.getElementById('syncTime').textContent='ERR';
   }
 }
 
-/* ── RENDER ── */
 function render(){
   const ds=selectedDate,today=todayStr(),isToday=ds===today;
   const allSrc=Object.assign({},cachedHistorical,isToday?cachedRoutes:{});
-
   const dayRoutes=Object.entries(allSrc).filter(([,r])=>r&&r.date===ds);
-
-  let allStops=[];
-  dayRoutes.forEach(([id,r])=>{allStops=allStops.concat(getStops(r,id))});
-
+  let allStops=[];dayRoutes.forEach(([id,r])=>{allStops=allStops.concat(getStops(r,id))});
   const M=metrics(allStops);
-  document.getElementById('debugBar').textContent=
-    `date=${ds} | routes=${dayRoutes.length} | stops=${allStops.length} | complete=${M.complete} | pending=${M.pending} | late=${M.lateStops.length}`;
 
-  /* MILEAGE */
+  document.getElementById('debugBar').textContent=
+    `date=${ds} | routes=${dayRoutes.length} | stops=${allStops.length} | complete=${M.complete} | pending=${M.pending} | late=${M.lateStops.length} | photos=${M.photos}`;
+
+  /* MILEAGE — check /mileage node first, then sum from routes */
   let milesDisplay='—';
-  if(isToday&&cachedMileage&&cachedMileage.date===today&&cachedMileage.total>0){
+  const today_str=todayStr();
+  if(cachedMileage&&cachedMileage.date===today_str&&parseFloat(cachedMileage.total||0)>0){
     milesDisplay=Math.round(cachedMileage.total).toLocaleString();
   } else {
     let s=0,any=false;
-    dayRoutes.forEach(([,r])=>{if(r.totalDeliveryMiles){s+=parseFloat(r.totalDeliveryMiles)||0;any=true;}});
-    if(any) milesDisplay=Math.round(s).toLocaleString();
+    dayRoutes.forEach(([,r])=>{
+      const m=parseFloat(r.totalDeliveryMiles||r.mileage||0);
+      if(m>0){s+=m;any=true;}
+    });
+    /* also try summing stop distanceMiles */
+    if(!any){
+      allStops.forEach(s2=>{const m=parseFloat(s2.distanceMiles||0);if(m>0){s+=m;any=true;}});
+    }
+    if(any)milesDisplay=Math.round(s).toLocaleString();
   }
 
-  /* DRIVER MAP */
+  /* DRIVER */
   const driverMap={};
   allStops.forEach(s=>{
     const k=s._driver||'(unassigned)',asset=s._asset||'';
-    if(!driverMap[k]) driverMap[k]={name:k,asset,t:0,c:0,ot:0,ph:0,lateMin:[]};
-    else if(!driverMap[k].asset&&asset) driverMap[k].asset=asset;
+    if(!driverMap[k])driverMap[k]={name:k,asset,t:0,c:0,ot:0,ph:0,lateMin:[]};
+    else if(!driverMap[k].asset&&asset)driverMap[k].asset=asset;
     driverMap[k].t++;
     if(isComplete(s)){
       driverMap[k].c++;
-      if(s.timing==='early'||s.timing==='ontime') driverMap[k].ot++;
-      else{
-        const ml=minutesLate(s);
-        if(ml!==null&&ml<=30) driverMap[k].ot++;
-        else if(ml!==null&&ml>30) driverMap[k].lateMin.push(ml);
-      }
-      if(hasPhoto(s)) driverMap[k].ph++;
+      if(s.timing==='early'||s.timing==='ontime')driverMap[k].ot++;
+      else{const ml=minutesLate(s);if(ml!==null&&ml<=30)driverMap[k].ot++;else if(ml!==null&&ml>30)driverMap[k].lateMin.push(ml);}
+      if(hasPhoto(s))driverMap[k].ph++;
     }
   });
   const drivers=Object.values(driverMap).sort((a,b)=>b.t-a.t);
 
-  /* FLEET — deduplicated by asset */
+  /* FLEET */
   const fleetMap={};
   dayRoutes.forEach(([id,r])=>{
-    const asset=(r.assetDescription||r.asset||id).trim();
-    const driver=resolveDriver(r);
-    if(!fleetMap[asset]) fleetMap[asset]={asset,driver,done:0,total:0};
+    const asset=(r.assetDescription||r.asset||id).trim(),driver=resolveDriver(r);
+    if(!fleetMap[asset])fleetMap[asset]={asset,driver,done:0,total:0};
     const stops=Object.values(r.stops||{});
     fleetMap[asset].total+=stops.length;
     fleetMap[asset].done+=stops.filter(isComplete).length;
-    if(!fleetMap[asset].driver&&driver) fleetMap[asset].driver=driver;
+    if(!fleetMap[asset].driver&&driver)fleetMap[asset].driver=driver;
   });
   const fleet=Object.values(fleetMap).sort((a,b)=>a.asset.localeCompare(b.asset));
 
-  /* SALES — consolidated by rep across all routes */
+  /* SALES — consolidated */
   const salesMap={};
   allStops.forEach(s=>{
     const rep=(s.assignedSales||'—').trim()||'—';
-    if(!salesMap[rep]) salesMap[rep]={rep,t:0,c:0};
-    salesMap[rep].t++;
-    if(isComplete(s)) salesMap[rep].c++;
+    if(!salesMap[rep])salesMap[rep]={rep,t:0,c:0};
+    salesMap[rep].t++;if(isComplete(s))salesMap[rep].c++;
   });
   const salesList=Object.values(salesMap).sort((a,b)=>b.t-a.t);
 
-  /* 7-DAY TREND */
+  /* TREND */
   const trend=[];
-  const trendSrc=Object.assign({},cachedHistorical,cachedRoutes);
+  const tSrc=Object.assign({},cachedHistorical,cachedRoutes);
   for(let i=6;i>=0;i--){
-    const tds=nDaysAgo(i);
-    let ts=[];
-    Object.entries(trendSrc).forEach(([id,r])=>{if(r&&r.date===tds)ts=ts.concat(getStops(r,id))});
+    const tds=nDaysAgo(i);let ts=[];
+    Object.entries(tSrc).forEach(([id,r])=>{if(r&&r.date===tds)ts=ts.concat(getStops(r,id))});
     const tm=metrics(ts);
-    trend.push({label:shortDate(tds),date:tds,...tm});
+    trend.push({label:shortDate(tds),...tm});
   }
 
-  /* ISSUES: Late stops (with driver + minutes) and No-photo stops */
+  /* LATE BY DRIVER */
   const lateByDriver={};
   M.lateStops.forEach(s=>{
-    const drv=s._driver||'Unknown';
-    if(!lateByDriver[drv]) lateByDriver[drv]=[];
-    const ml=minutesLate(s);
-    lateByDriver[drv].push({...s,_ml:ml});
+    const d=s._driver||'Unknown';
+    if(!lateByDriver[d])lateByDriver[d]=[];
+    lateByDriver[d].push({...s,_ml:minutesLate(s)});
   });
 
-  /* ── HTML ── */
+  /* KPI color logic */
+  const cpPct=M.completePct,otPct=M.ontimePct,phPct=M.photoPct;
+
   document.getElementById('mainContent').innerHTML=`
 
-  <div class="kpi-grid">
-    <div class="kpi a"><div class="kpi-label">Routes</div>
-      <div class="kpi-val">${dayRoutes.length}</div>
-      <div class="kpi-sub">${M.total} stops</div></div>
-    <div class="kpi"><div class="kpi-label">Delivered</div>
-      <div class="kpi-val" style="color:${pctColor(M.completePct,80,60)}">${M.complete}</div>
-      <div class="kpi-sub">${M.completePct!==null?M.completePct+'%':'—'} of stops</div></div>
-    <div class="kpi"><div class="kpi-label">Pending</div>
-      <div class="kpi-val" style="color:${M.pending===0?'var(--green)':M.pending<=5?'var(--amber)':'var(--red)'}">${M.pending}</div>
-      <div class="kpi-sub">not delivered</div></div>
-    <div class="kpi g"><div class="kpi-label">On Time / Early</div>
-      <div class="kpi-val" style="color:${pctColor(M.ontimePct,80,60)}">${M.ontimePct!==null?M.ontimePct+'%':'—'}</div>
-      <div class="kpi-sub">${M.ontime} of ${M.complete}</div></div>
-    <div class="kpi"><div class="kpi-label">Photo Compliance</div>
-      <div class="kpi-val" style="color:${pctColor(M.photoPct,90,70)}">${M.photoPct!==null?M.photoPct+'%':'—'}</div>
-      <div class="kpi-sub">${M.photos} of ${M.complete}</div></div>
-    <div class="kpi b"><div class="kpi-label">SMS Notified</div>
+  <div class="kpi-strip">
+    <div class="kpi a corner-bracket">
+      <div class="kpi-label">Routes</div>
+      <div class="kpi-val glow-c">${dayRoutes.length}</div>
+      <div class="kpi-sub">${M.total} STOPS TOTAL</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Delivered</div>
+      <div class="kpi-val ${pctGlowClass(cpPct,80,60)}">${M.complete}</div>
+      <div class="kpi-sub">${cpPct!==null?cpPct+'% OF STOPS':'—'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Pending</div>
+      <div class="kpi-val ${M.pending===0?'glow-g':M.pending<=5?'glow-a':'glow-r'}">${M.pending}</div>
+      <div class="kpi-sub">NOT DELIVERED</div>
+    </div>
+    <div class="kpi g">
+      <div class="kpi-label">On Time / Early</div>
+      <div class="kpi-val ${pctGlowClass(otPct,80,60)}">${otPct!==null?otPct+'%':'—'}</div>
+      <div class="kpi-sub">${M.ontime} OF ${M.complete} COMPLETE</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Photo Compliance</div>
+      <div class="kpi-val ${pctGlowClass(phPct,90,70)}">${phPct!==null?phPct+'%':'—'}</div>
+      <div class="kpi-sub">${M.photos} OF ${M.complete} COMPLETE</div>
+    </div>
+    <div class="kpi c">
+      <div class="kpi-label">SMS Notified</div>
       <div class="kpi-val">${M.sms}</div>
-      <div class="kpi-sub">customers</div></div>
-    <div class="kpi p"><div class="kpi-label">Miles Driven</div>
-      <div class="kpi-val" style="font-size:${milesDisplay.length>5?'18px':'24px'}">${milesDisplay}</div>
-      <div class="kpi-sub">${isToday?'live':'route total'}</div></div>
+      <div class="kpi-sub">CUSTOMERS</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Miles Driven</div>
+      <div class="kpi-val" style="font-size:${milesDisplay.length>4?'16px':'22px'}">${milesDisplay}</div>
+      <div class="kpi-sub">${isToday?'LIVE TODAY':'ROUTE TOTAL'}</div>
+    </div>
   </div>
 
   <div class="row row-3">
 
-    <!-- DRIVER PERF -->
-    <div class="panel">
-      <div class="ph"><span class="pt">Driver Performance</span><span class="pn">${isToday?'Live':'Historical'} · ${ds}</span></div>
+    <div class="panel corner-bracket">
+      <div class="ph"><span class="pt">Driver Performance</span><span class="pn">${isToday?'LIVE':'HIST'} · ${ds}</span></div>
       <div class="pb">
-        ${drivers.length===0?'<div class="empty">No data</div>':`
-        <table class="dt" style="margin-top:4px">
-          <thead><tr><th>Driver</th><th>Stops</th><th style="min-width:76px">On Time</th><th style="min-width:76px">Photos</th></tr></thead>
+        ${drivers.length===0?'<div class="empty">— NO DATA —</div>':`
+        <table class="dt" style="margin-top:6px">
+          <thead><tr><th>Driver</th><th>Stops</th><th style="min-width:78px">On Time</th><th style="min-width:78px">Photos</th></tr></thead>
           <tbody>
           ${drivers.map(d=>{
-            const otp=d.c?Math.round(d.ot/d.c*100):null;
-            const php=d.c?Math.round(d.ph/d.c*100):null;
+            const otp=d.c?Math.round(d.ot/d.c*100):null,php=d.c?Math.round(d.ph/d.c*100):null;
             const otc=pctColor(otp,80,60),phc=pctColor(php,90,70);
             return`<tr>
               <td><div class="dn">${d.name}</div><div class="ds">${d.asset}</div></td>
               <td>${d.c}/${d.t}</td>
-              <td><div class="bar-wrap"><span style="color:${otc};min-width:28px;text-align:right">${otp!==null?otp+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${otp||0}%;background:${otc}"></div></div></div></td>
-              <td><div class="bar-wrap"><span style="color:${phc};min-width:28px;text-align:right">${php!==null?php+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${php||0}%;background:${phc}"></div></div></div></td>
+              <td><div class="bar-wrap"><span style="color:${otc};min-width:28px;text-align:right;font-family:'Share Tech Mono',monospace;font-size:11px">${otp!==null?otp+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${otp||0}%;background:${otc}"></div></div></div></td>
+              <td><div class="bar-wrap"><span style="color:${phc};min-width:28px;text-align:right;font-family:'Share Tech Mono',monospace;font-size:11px">${php!==null?php+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${php||0}%;background:${phc}"></div></div></div></td>
             </tr>`;
           }).join('')}
           </tbody>
@@ -416,13 +431,12 @@ function render(){
       </div>
     </div>
 
-    <!-- TREND -->
     <div class="panel">
       <div class="ph">
         <span class="pt">7-Day Trend</span>
         <div class="chart-legend">
-          <span><span class="ldot" style="background:var(--amber)"></span>On Time</span>
-          <span><span class="ldot" style="background:var(--green)"></span>Photos</span>
+          <span><span class="ldot" style="background:var(--amber)"></span>ON TIME</span>
+          <span><span class="ldot" style="background:var(--glow2)"></span>PHOTOS</span>
         </div>
       </div>
       <div class="pb" style="padding-top:10px">
@@ -431,7 +445,7 @@ function render(){
           <thead><tr><th>Date</th><th>Stops</th><th>On Time</th><th>Photos</th></tr></thead>
           <tbody>
           ${trend.map(t=>`<tr>
-            <td style="color:var(--muted)">${t.label}</td>
+            <td style="color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:10px">${t.label}</td>
             <td>${t.complete}/${t.total}</td>
             <td style="color:${pctColor(t.ontimePct,80,60)}">${t.ontimePct!==null?t.ontimePct+'%':'—'}</td>
             <td style="color:${pctColor(t.photoPct,90,70)}">${t.photoPct!==null?t.photoPct+'%':'—'}</td>
@@ -441,86 +455,79 @@ function render(){
       </div>
     </div>
 
-    <!-- ISSUES (collapsible) -->
     <div class="panel">
       <div class="ph">
         <span class="pt">Issues</span>
-        <span class="pn">${M.lateStops.length} late · ${M.noPhotoComp.length} no photo</span>
+        <span class="pn">${M.lateStops.length} LATE · ${M.noPhotoComp.length} NO PHOTO</span>
       </div>
 
-      <!-- Late by Driver -->
       <div class="issue-cat">
         <div class="issue-cat-hdr" onclick="toggleCat(this)">
           <span class="issue-cat-label">Late Deliveries</span>
           <div class="issue-cat-meta">
-            <span class="issue-cat-count">${M.lateStops.length}</span>
+            <span class="issue-count" style="color:${M.lateStops.length>0?'var(--red)':'var(--muted)'}">${M.lateStops.length}</span>
             <span class="chevron open">▾</span>
           </div>
         </div>
         <div class="issue-body open">
           ${M.lateStops.length===0
-            ? '<div class="empty" style="padding:10px 0">None</div>'
-            : Object.entries(lateByDriver).map(([drv,stops])=>`
-              <div style="padding:5px 0 2px;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);font-weight:600">${drv}</div>
+            ?'<div class="empty">— NONE —</div>'
+            :Object.entries(lateByDriver).map(([drv,stops])=>`
+              <div class="issue-drv-hdr">${drv}</div>
               ${stops.slice(0,6).map(s=>`<div class="issue-item">
                 <div class="issue-row">
                   <div>
                     <div class="issue-order">${s.orderNumber||s._key||'—'}</div>
-                    <div class="issue-name">${s.customerName||s.shipToName||'—'}</div>
+                    <div class="issue-name">${(s.customerName||s.shipToName||'—').substring(0,22)}</div>
                   </div>
                   <span class="badge b-late">${s._ml!==null?'+'+s._ml+'m':'LATE'}</span>
                 </div>
               </div>`).join('')}
-            `).join('')
-          }
+            `).join('')}
         </div>
       </div>
 
-      <!-- No Photo -->
       <div class="issue-cat">
         <div class="issue-cat-hdr" onclick="toggleCat(this)">
-          <span class="issue-cat-label">Delivered — No Photo</span>
+          <span class="issue-cat-label">No Photo on Delivery</span>
           <div class="issue-cat-meta">
-            <span class="issue-cat-count">${M.noPhotoComp.length}</span>
+            <span class="issue-count" style="color:${M.noPhotoComp.length>0?'var(--amber)':'var(--muted)'}">${M.noPhotoComp.length}</span>
             <span class="chevron open">▾</span>
           </div>
         </div>
         <div class="issue-body open">
           ${M.noPhotoComp.length===0
-            ? '<div class="empty" style="padding:10px 0">None</div>'
-            : M.noPhotoComp.slice(0,12).map(s=>`<div class="issue-item">
+            ?'<div class="empty">— NONE —</div>'
+            :M.noPhotoComp.slice(0,10).map(s=>`<div class="issue-item">
                 <div class="issue-row">
                   <div>
                     <div class="issue-order">${s.orderNumber||s._key||'—'}</div>
-                    <div class="issue-name">${s.customerName||s.shipToName||'—'}</div>
-                    <div class="issue-detail">${s._driver||'—'}</div>
+                    <div class="issue-name">${(s.customerName||s.shipToName||'—').substring(0,22)}</div>
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted)">${s._driver||'—'}</div>
                   </div>
-                  <span class="badge b-nophoto">No Photo</span>
+                  <span class="badge b-nophoto">NO PHOTO</span>
                 </div>
-              </div>`).join('')
-          }
+              </div>`).join('')}
         </div>
       </div>
     </div>
   </div>
 
   <div class="row row-2">
-
-    <!-- FLEET -->
     <div class="panel">
-      <div class="ph"><span class="pt">Fleet Status</span><span class="pn">${isToday?'Live':'Historical'}</span></div>
+      <div class="ph"><span class="pt">Fleet Status</span><span class="pn">${isToday?'LIVE':'HISTORICAL'}</span></div>
       <div class="pb">
-        ${fleet.length===0?'<div class="empty">No fleet data</div>':`
-        <table class="dt" style="margin-top:4px">
+        ${fleet.length===0?'<div class="empty">— NO FLEET DATA —</div>':`
+        <table class="dt" style="margin-top:6px">
           <thead><tr><th>Asset</th><th>Driver</th><th>Stops</th><th>Status</th></tr></thead>
           <tbody>
           ${fleet.map(f=>{
             const allDone=f.total>0&&f.done===f.total;
             const badge=isToday?(allDone?'b-done':'b-active'):'b-hist';
-            const label=isToday?(allDone?'Done':'Active'):'Complete';
+            const label=isToday?(allDone?'DONE':'ACTIVE'):'COMPLETE';
             return`<tr>
               <td><div class="dn">${f.asset}</div></td>
-              <td style="text-align:left;color:var(--muted);font-size:11px">${f.driver||'—'}</td>
+              <td style="text-align:left;color:var(--muted);font-size:11px;font-family:'Share Tech Mono',monospace">${f.driver||'—'}</td>
               <td>${f.done}/${f.total}</td>
               <td><span class="badge ${badge}">${label}</span></td>
             </tr>`;
@@ -530,20 +537,18 @@ function render(){
       </div>
     </div>
 
-    <!-- SALES — consolidated -->
     <div class="panel">
-      <div class="ph"><span class="pt">Stops by Sales Rep</span><span class="pn">Consolidated</span></div>
+      <div class="ph"><span class="pt">Stops by Sales Rep</span><span class="pn">CONSOLIDATED</span></div>
       <div class="pb">
-        ${salesList.length===0?'<div class="empty">No data</div>':`
-        <table class="dt" style="margin-top:4px">
+        ${salesList.length===0?'<div class="empty">— NO DATA —</div>':`
+        <table class="dt" style="margin-top:6px">
           <thead><tr><th>Rep</th><th>Total</th><th>Done</th><th>%</th></tr></thead>
           <tbody>
           ${salesList.map(s=>{
             const cp=s.t?Math.round(s.c/s.t*100):0;
             return`<tr>
-              <td style="font-weight:600">${s.rep}</td>
-              <td>${s.t}</td>
-              <td>${s.c}</td>
+              <td style="font-weight:700;font-family:'Rajdhani',sans-serif;font-size:13px">${s.rep}</td>
+              <td>${s.t}</td><td>${s.c}</td>
               <td style="color:${pctColor(cp,80,60)}">${cp}%</td>
             </tr>`;
           }).join('')}
@@ -553,7 +558,6 @@ function render(){
     </div>
   </div>`;
 
-  /* CHART */
   if(trendChart){trendChart.destroy();trendChart=null;}
   const ctx=document.getElementById('trendChart');
   if(ctx){
@@ -562,38 +566,32 @@ function render(){
       data:{
         labels:trend.map(t=>t.label),
         datasets:[
-          {label:'On Time/Early',data:trend.map(t=>t.ontimePct),borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,.06)',tension:.35,pointRadius:3,pointBackgroundColor:'#f5a623',borderWidth:2,spanGaps:true},
-          {label:'Photo',data:trend.map(t=>t.photoPct),borderColor:'#00e676',backgroundColor:'rgba(0,230,118,.06)',tension:.35,pointRadius:3,pointBackgroundColor:'#00e676',borderWidth:2,spanGaps:true},
+          {label:'On Time',data:trend.map(t=>t.ontimePct),borderColor:'#ffb300',backgroundColor:'rgba(255,179,0,.05)',tension:.35,pointRadius:3,pointBackgroundColor:'#ffb300',borderWidth:1.5,spanGaps:true},
+          {label:'Photos',data:trend.map(t=>t.photoPct),borderColor:'#00ff9d',backgroundColor:'rgba(0,255,157,.05)',tension:.35,pointRadius:3,pointBackgroundColor:'#00ff9d',borderWidth:1.5,spanGaps:true},
         ],
       },
       options:{
         responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.raw!==null?c.raw+'%':'—')}}},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(6,12,24,.95)',borderColor:'#0d2040',borderWidth:1,titleFont:{family:'Orbitron',size:9},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>c.dataset.label+': '+(c.raw!==null?c.raw+'%':'—')}}},
         scales:{
-          y:{min:0,max:100,grid:{color:'#1c2030'},ticks:{color:'#6b7494',font:{size:9},callback:v=>v+'%'}},
-          x:{grid:{display:false},ticks:{color:'#6b7494',font:{size:9},autoSkip:false,maxRotation:0}},
+          y:{min:0,max:100,grid:{color:'rgba(13,32,64,.8)'},ticks:{color:'#3a5878',font:{size:9,family:'Share Tech Mono'},callback:v=>v+'%'}},
+          x:{grid:{color:'rgba(13,32,64,.5)'},ticks:{color:'#3a5878',font:{size:9,family:'Share Tech Mono'},autoSkip:false,maxRotation:0}},
         },
       },
     });
   }
 }
 
-/* ── COLLAPSIBLE ── */
 function toggleCat(hdr){
-  const chevron=hdr.querySelector('.chevron');
-  const body=hdr.nextElementSibling;
-  const open=body.classList.toggle('open');
-  chevron.classList.toggle('open',open);
+  const ch=hdr.querySelector('.chevron'),body=hdr.nextElementSibling;
+  const open=body.classList.toggle('open');ch.classList.toggle('open',open);
 }
 
-/* ── DATE NAV ── */
 function setDate(ds){
-  const today=todayStr();
-  if(ds>today) return;
-  selectedDate=ds;
-  document.getElementById('datePicker').value=ds;
+  const today=todayStr();if(ds>today)return;
+  selectedDate=ds;document.getElementById('datePicker').value=ds;
   document.getElementById('nextBtn').disabled=ds>=today;
-  if(cachedRoutes) render();
+  if(cachedRoutes)render();
 }
 
 document.getElementById('datePicker').value=todayStr();
