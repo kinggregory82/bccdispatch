@@ -3,210 +3,343 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ben's Dispatch Manager View</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<title>BCC Dispatch Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:     #02040a;
-  --surface:#060c18;
-  --panel:  #080f1e;
-  --border: #0d2040;
-  --glow:   #00c8ff;
-  --glow2:  #00ff9d;
-  --amber:  #ffb300;
-  --red:    #ff2d55;
-  --dim:    #1a3050;
-  --muted:  #3a5878;
-  --text:   #cde8ff;
-  --bright: #e8f8ff;
+  --sidebar-w: 220px;
+  --navy:   #1a2642;
+  --navy2:  #243154;
+  --accent: #2563eb;
+  --accent2:#3b82f6;
+  --green:  #16a34a;
+  --green-bg:#dcfce7;
+  --amber:  #d97706;
+  --amber-bg:#fef3c7;
+  --red:    #dc2626;
+  --red-bg: #fee2e2;
+  --blue-bg:#dbeafe;
+  --bg:     #f1f5f9;
+  --surface:#ffffff;
+  --border: #e2e8f0;
+  --text:   #0f172a;
+  --muted:  #64748b;
+  --light:  #94a3b8;
 }
+html,body{height:100%;overflow:hidden}
+body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--text);display:flex}
 
-html,body{height:100%;overflow-x:hidden}
-body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:14px;line-height:1.4;
-  background-image:
-    radial-gradient(ellipse 60% 40% at 50% -10%, rgba(0,100,200,.12) 0%, transparent 70%),
-    repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,100,160,.04) 39px,rgba(0,100,160,.04) 40px),
-    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,100,160,.04) 39px,rgba(0,100,160,.04) 40px);
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--navy);
+  display:flex;flex-direction:column;
+  height:100vh;overflow:hidden;
+  box-shadow:2px 0 12px rgba(0,0,0,.15);
+  z-index:10;
 }
-
-/* ── SCANLINE OVERLAY ── */
-body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);pointer-events:none;z-index:999}
-
-/* ── HEADER ── */
-.header{
-  background:linear-gradient(180deg,rgba(0,30,60,.95) 0%,rgba(2,8,20,.95) 100%);
-  border-bottom:1px solid var(--glow);
-  box-shadow:0 0 30px rgba(0,200,255,.1),0 1px 0 rgba(0,200,255,.3);
-  padding:8px 20px;
-  display:flex;align-items:center;justify-content:space-between;
-  position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;
+.sidebar-logo{
+  padding:20px 18px 18px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;gap:10px;
 }
-.brand{font-family:'Orbitron',monospace;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--bright);text-transform:uppercase;white-space:nowrap}
-.brand span{color:var(--glow);text-shadow:0 0 12px var(--glow)}
+.logo-mark{
+  width:34px;height:34px;border-radius:8px;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;letter-spacing:-1px;
+  flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,.4);
+}
+.logo-text{color:#fff;font-weight:700;font-size:13px;line-height:1.3}
+.logo-text small{display:block;color:rgba(255,255,255,.45);font-size:10px;font-weight:400;letter-spacing:.3px}
 
-.date-nav{display:flex;align-items:center;gap:5px}
-.nav-btn{background:transparent;border:1px solid var(--dim);color:var(--muted);width:26px;height:26px;border-radius:2px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;transition:.15s}
-.nav-btn:hover{border-color:var(--glow);color:var(--glow);box-shadow:0 0 8px rgba(0,200,255,.3)}
-.nav-btn:disabled{opacity:.2;cursor:default}
-input[type=date]#datePicker{background:rgba(0,20,50,.8);border:1px solid var(--dim);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:3px 8px;border-radius:2px;height:26px;cursor:pointer;letter-spacing:.5px}
-input[type=date]#datePicker::-webkit-calendar-picker-indicator{filter:invert(.3) sepia(1) saturate(5) hue-rotate(180deg)}
-.today-btn{background:transparent;border:1px solid var(--amber);color:var(--amber);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:3px 10px;border-radius:2px;cursor:pointer;height:26px;letter-spacing:1.5px;text-transform:uppercase;transition:.15s}
-.today-btn:hover{background:var(--amber);color:#000;box-shadow:0 0 12px rgba(255,179,0,.5)}
+.nav{padding:12px 10px;flex:1;overflow-y:auto}
+.nav-section{margin-bottom:20px}
+.nav-label{font-size:9px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,.3);padding:0 8px;margin-bottom:6px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:6px;cursor:pointer;
+  color:rgba(255,255,255,.6);font-size:13px;font-weight:500;
+  transition:.15s;margin-bottom:2px;text-decoration:none;
+}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(37,99,235,.3);color:#fff;border:1px solid rgba(37,99,235,.4)}
+.nav-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
 
-.hdr-right{display:flex;align-items:center;gap:12px}
-.sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--glow2);margin-right:5px;box-shadow:0 0 8px var(--glow2);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--glow2)}50%{opacity:.3;box-shadow:none}}
-.sync-info{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted)}
-.refresh-btn{background:transparent;border:1px solid var(--dim);color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;padding:3px 10px;border-radius:2px;cursor:pointer;letter-spacing:1px;transition:.15s}
-.refresh-btn:hover{border-color:var(--glow);color:var(--glow)}
+.sidebar-bottom{padding:14px;border-top:1px solid rgba(255,255,255,.08)}
+.user-chip{display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0}
+.user-info{line-height:1.3}
+.user-name{color:#fff;font-size:12px;font-weight:600}
+.user-role{color:rgba(255,255,255,.4);font-size:10px}
 
 /* ── MAIN ── */
-.main{padding:14px 20px;max-width:1440px;margin:0 auto}
+.main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;min-width:0}
 
-/* ── KPI STRIP ── */
-.kpi-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:14px;border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--border)}
-.kpi{background:var(--panel);padding:10px 14px;position:relative;overflow:hidden}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.kpi.a::before{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
-.kpi.g::before{background:linear-gradient(90deg,transparent,var(--glow2),transparent)}
-.kpi.c::before{background:linear-gradient(90deg,transparent,var(--glow),transparent)}
-.kpi.r::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
-.kpi-label{font-family:'Orbitron',monospace;font-size:7px;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
-.kpi-val{font-family:'Orbitron',monospace;font-size:22px;font-weight:700;line-height:1;color:var(--bright)}
-.kpi-val.glow-c{color:var(--glow);text-shadow:0 0 20px rgba(0,200,255,.6)}
-.kpi-val.glow-g{color:var(--glow2);text-shadow:0 0 20px rgba(0,255,157,.5)}
-.kpi-val.glow-a{color:var(--amber);text-shadow:0 0 20px rgba(255,179,0,.5)}
-.kpi-val.glow-r{color:var(--red);text-shadow:0 0 20px rgba(255,45,85,.5)}
-.kpi-sub{font-size:10px;color:var(--muted);margin-top:4px;font-weight:500;letter-spacing:.3px}
+/* ── TOP BAR ── */
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.topbar-left h1{font-size:18px;font-weight:700;color:var(--text)}
+.topbar-left p{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.date-nav{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 10px}
+.nav-arrow{background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:0 2px;line-height:1}
+.nav-arrow:hover{color:var(--text)}
+.nav-arrow:disabled{opacity:.3;cursor:default}
+input[type=date]#datePicker{background:none;border:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;outline:none;width:110px}
+.today-btn{background:var(--accent);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;letter-spacing:.2px}
+.today-btn:hover{background:var(--accent2)}
+.sync-pill{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:11px;color:var(--muted)}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#16a34a;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.refresh-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--muted);cursor:pointer}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* ── LAYOUT ── */
-.row{display:grid;gap:10px;margin-bottom:10px}
-.row-3{grid-template-columns:1fr 1fr 250px}
-.row-2{grid-template-columns:1fr 1fr}
+/* ── SCROLL AREA ── */
+.scroll{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
 
-/* ── PANELS ── */
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:3px;overflow:hidden;position:relative}
-.panel::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,200,255,.15),transparent)}
-.ph{padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(0,20,50,.4)}
-.pt{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:var(--glow);text-shadow:0 0 8px rgba(0,200,255,.4)}
-.pn{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted)}
-.pb{padding:0 12px}
+/* ── KPI ROW ── */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden;transition:.2s}
+.kpi:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);transform:translateY(-1px)}
+.kpi-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
+.kpi-icon.blue{background:var(--blue-bg)}
+.kpi-icon.green{background:var(--green-bg)}
+.kpi-icon.amber{background:var(--amber-bg)}
+.kpi-icon.red{background:var(--red-bg)}
+.kpi-label{font-size:11px;font-weight:500;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.kpi-val{font-size:26px;font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.kpi-delta{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;margin-top:3px}
+.kpi-delta.up{background:var(--green-bg);color:var(--green)}
+.kpi-delta.down{background:var(--red-bg);color:var(--red)}
+.kpi-delta.neutral{background:var(--blue-bg);color:var(--accent)}
 
-/* ── TABLES ── */
-.dt{width:100%;border-collapse:collapse}
-.dt th{font-family:'Orbitron',monospace;font-size:7px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:0 5px 7px;text-align:right;font-weight:400;border-bottom:1px solid var(--dim)}
-.dt th:first-child{text-align:left}
-.dt td{padding:5px;font-size:13px;border-bottom:1px solid rgba(13,32,64,.8);vertical-align:middle}
-.dt td:not(:first-child){text-align:right;font-family:'Share Tech Mono',monospace;font-size:11px}
-.dt tr:last-child td{border-bottom:none}
-.dn{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;color:var(--bright)}
-.ds{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px}
+/* ── MID GRID ── */
+.mid-grid{display:grid;grid-template-columns:1fr 340px;gap:16px}
 
-/* ── BAR ── */
-.bar-wrap{display:flex;align-items:center;gap:5px;justify-content:flex-end}
-.bar-track{width:40px;height:3px;background:var(--dim);border-radius:0;overflow:hidden;flex-shrink:0}
-.bar-fill{height:100%}
+/* ── MAP ── */
+.map-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.panel-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-size:13px;font-weight:700;color:var(--text)}
+.panel-meta{font-size:11px;color:var(--muted)}
+#deliveryMap{height:340px;width:100%}
 
-/* ── ISSUES ── */
-.issue-cat{border-bottom:1px solid var(--border)}
-.issue-cat:last-child{border-bottom:none}
-.issue-cat-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;cursor:pointer;user-select:none;transition:.1s}
-.issue-cat-hdr:hover{background:rgba(0,200,255,.04)}
-.issue-cat-label{font-family:'Orbitron',monospace;font-size:7px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:400}
-.issue-cat-meta{display:flex;align-items:center;gap:6px}
-.issue-count{font-family:'Orbitron',monospace;font-size:11px;font-weight:700}
-.chevron{font-size:9px;color:var(--muted);transition:transform .2s}
+/* ── MAP LEGEND ── */
+.map-legend{display:flex;align-items:center;gap:14px;padding:8px 14px;border-top:1px solid var(--border);background:var(--bg)}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;opacity:.8}
+
+/* ── RIGHT COLUMN ── */
+.right-col{display:flex;flex-direction:column;gap:12px}
+
+/* ── PANEL ── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.ph{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.pt{font-size:13px;font-weight:700;color:var(--text)}
+.pn{font-size:11px;color:var(--muted)}
+.view-all{font-size:11px;font-weight:600;color:var(--accent);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif}
+
+/* ── ALERTS ── */
+.alert-item{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);transition:.15s}
+.alert-item:last-child{border-bottom:none}
+.alert-item:hover{background:var(--bg)}
+.alert-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
+.alert-icon.warn{background:var(--amber-bg);color:var(--amber)}
+.alert-icon.info{background:var(--blue-bg);color:var(--accent)}
+.alert-icon.err{background:var(--red-bg);color:var(--red)}
+.alert-body{flex:1;min-width:0}
+.alert-title{font-weight:600;font-size:12px;color:var(--text)}
+.alert-detail{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert-time{font-size:10px;color:var(--light);white-space:nowrap;margin-top:2px}
+
+/* ── COLLAPSIBLE ISSUES ── */
+.issue-cat-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;cursor:pointer;border-bottom:1px solid var(--border)}
+.issue-cat-hdr:hover{background:var(--bg)}
+.issue-cat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.issue-count-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+.chevron{font-size:10px;color:var(--light);transition:transform .2s;margin-left:6px}
 .chevron.open{transform:rotate(180deg)}
-.issue-body{display:none;padding:0 12px 4px}
+.issue-body{display:none}
 .issue-body.open{display:block}
-.issue-drv-hdr{padding:5px 0 2px;font-family:'Orbitron',monospace;font-size:7px;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);border-bottom:1px solid var(--border);margin-bottom:2px}
-.issue-item{padding:5px 0;border-bottom:1px solid rgba(13,32,64,.6)}
-.issue-item:last-child{border-bottom:none}
-.issue-row{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
-.issue-order{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--amber)}
-.issue-name{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:var(--text);margin:1px 0}
+.issue-row-item{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border)}
+.issue-row-item:last-child{border-bottom:none}
+.issue-row-item:hover{background:var(--bg)}
+.issue-order{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent)}
+.issue-name{font-size:12px;font-weight:600;color:var(--text);margin-top:1px}
+.issue-drv{font-size:10px;color:var(--muted);margin-top:1px}
 
-/* ── BADGES ── */
-.badge{display:inline-block;font-family:'Orbitron',monospace;font-size:8px;padding:2px 6px;border-radius:1px;font-weight:700;letter-spacing:.5px;white-space:nowrap;border:1px solid}
-.b-late{background:rgba(255,45,85,.12);color:var(--red);border-color:rgba(255,45,85,.4);text-shadow:0 0 8px rgba(255,45,85,.5)}
-.b-nophoto{background:rgba(255,179,0,.08);color:var(--amber);border-color:rgba(255,179,0,.3)}
-.b-done{background:rgba(0,255,157,.08);color:var(--glow2);border-color:rgba(0,255,157,.25)}
-.b-active{background:rgba(0,200,255,.08);color:var(--glow);border-color:rgba(0,200,255,.25)}
-.b-hist{background:rgba(26,48,80,.5);color:var(--muted);border-color:var(--dim)}
+/* ── BADGE ── */
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px}
+.badge-late{background:var(--red-bg);color:var(--red)}
+.badge-nophoto{background:var(--amber-bg);color:var(--amber)}
+.badge-transit{background:var(--blue-bg);color:var(--accent)}
+.badge-done{background:var(--green-bg);color:var(--green)}
+.badge-delayed{background:var(--red-bg);color:var(--red)}
+.badge-site{background:#ede9fe;color:#7c3aed}
 
-/* ── CHART ── */
-.chart-wrap{position:relative;height:155px;margin-bottom:8px}
-.chart-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);margin-bottom:8px;font-family:'Share Tech Mono',monospace}
-.ldot{display:inline-block;width:8px;height:2px;vertical-align:middle;border-radius:0;margin-right:4px}
+/* ── BOTTOM GRID ── */
+.bottom-grid{display:grid;grid-template-columns:1fr 280px;gap:16px}
 
-/* ── DEBUG ── */
-.debug-bar{background:rgba(0,10,25,.8);border:1px solid var(--border);border-radius:2px;padding:4px 10px;font-size:9px;font-family:'Share Tech Mono',monospace;color:var(--muted);margin-bottom:10px;letter-spacing:.3px}
+/* ── TABLE ── */
+.tbl-wrap{overflow:auto;max-height:260px}
+table{width:100%;border-collapse:collapse}
+thead th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:8px 12px;text-align:left;background:var(--bg);position:sticky;top:0;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:8px 12px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+.tbl-order{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent)}
+.tbl-customer{font-weight:600;font-size:12px}
+.tbl-city{font-size:11px;color:var(--muted)}
+.tbl-driver{font-size:11px;color:var(--muted)}
 
-/* ── STATUS CORNER ── */
-.corner-bracket{position:relative}
-.corner-bracket::before,.corner-bracket::after{content:'';position:absolute;width:8px;height:8px;opacity:.4}
-.corner-bracket::before{top:0;left:0;border-top:1px solid var(--glow);border-left:1px solid var(--glow)}
-.corner-bracket::after{bottom:0;right:0;border-bottom:1px solid var(--glow);border-right:1px solid var(--glow)}
+/* ── FLEET STRIP ── */
+.fleet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:12px}
+.fleet-item{border:1px solid var(--border);border-radius:8px;padding:10px 12px;transition:.15s}
+.fleet-item:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.fleet-asset{font-size:11px;font-weight:700;color:var(--text)}
+.fleet-driver{font-size:10px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fleet-progress{margin-top:7px}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.progress-fill{height:100%;border-radius:2px;transition:width .5s}
+.fleet-stops{font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
 
-.empty{color:var(--muted);font-size:11px;padding:12px 0;text-align:center;font-family:'Share Tech Mono',monospace;letter-spacing:.5px}
-.loading{text-align:center;padding:50px;color:var(--muted)}
-.spinner{width:22px;height:22px;border:1px solid var(--dim);border-top-color:var(--glow);border-radius:50%;animation:spin .6s linear infinite;margin:0 auto 10px;box-shadow:0 0 10px rgba(0,200,255,.2)}
-@keyframes spin{to{transform:rotate(360deg)}}
-.footer{text-align:center;padding:12px;color:var(--dim);font-size:9px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.empty{padding:20px;text-align:center;font-size:12px;color:var(--light)}
+.debug-bar{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);margin-bottom:0}
 
-@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(4,1fr)}.row-3{grid-template-columns:1fr 1fr}.row-2{grid-template-columns:1fr}}
-@media(max-width:700px){.kpi-strip{grid-template-columns:repeat(2,1fr)}.row-3,.row-2{grid-template-columns:1fr}}
+@media(max-width:1200px){.mid-grid{grid-template-columns:1fr}.bottom-grid{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(3,1fr)}}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="brand">Ben's <span>Dispatch</span> Manager View</div>
-  <div class="date-nav">
-    <button class="nav-btn" id="prevBtn">&#8249;</button>
-    <input type="date" id="datePicker">
-    <button class="nav-btn" id="nextBtn">&#8250;</button>
-    <button class="today-btn" id="todayBtn">Today</button>
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">BC</div>
+    <div class="logo-text">Ben's Contractor<small>Dispatch Center</small></div>
   </div>
-  <div class="hdr-right">
-    <div class="sync-info"><span class="sync-dot"></span><span id="syncTime">—</span></div>
-    <button class="refresh-btn" onclick="loadData()">↻ REFRESH</button>
-  </div>
+  <nav class="nav">
+    <div class="nav-section">
+      <div class="nav-label">Operations</div>
+      <a class="nav-item active" href="#"><span class="nav-icon">📊</span>Dashboard</a>
+      <a class="nav-item" href="https://kinggregory82.github.io/bccdispatch" target="_blank"><span class="nav-icon">🚚</span>Dispatch View</a>
+      <a class="nav-item" href="https://kinggregory82.github.io/salesview" target="_blank"><span class="nav-icon">💼</span>Sales View</a>
+      <a class="nav-item" href="https://kinggregory82.github.io/bccdispatch/report.html" target="_blank"><span class="nav-icon">📋</span>Report</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Fleet</div>
+      <a class="nav-item" href="#"><span class="nav-icon">🏗️</span>Boom Trucks</a>
+      <a class="nav-item" href="#"><span class="nav-icon">🔧</span>Moffetts</a>
+      <a class="nav-item" href="#"><span class="nav-icon">⚡</span>Conveyors</a>
+    </div>
+  </nav>
+
 </div>
 
+<!-- MAIN -->
 <div class="main">
-  <div class="debug-bar" id="debugBar">&nbsp;</div>
-  <div id="mainContent"><div class="loading"><div class="spinner"></div><div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px">LOADING DISPATCH DATA…</div></div></div>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Dispatch Manager</h1>
+      <p id="greeting">Good morning — <span id="dateLabel">—</span></p>
+    </div>
+    <div class="topbar-right">
+      <div class="date-nav">
+        <button class="nav-arrow" id="prevBtn">‹</button>
+        <input type="date" id="datePicker">
+        <button class="nav-arrow" id="nextBtn">›</button>
+      </div>
+      <button class="today-btn" id="todayBtn">Today</button>
+      <div class="sync-pill"><span class="sync-dot"></span><span id="syncTime">—</span></div>
+      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- SCROLL AREA -->
+  <div class="scroll" id="scrollArea">
+    <div class="debug-bar" id="debugBar">&nbsp;</div>
+    <div id="mainContent" style="display:contents"></div>
+  </div>
+
 </div>
-<div class="footer">Ben's Contractor Center · Dispatch Operations · Auto-refresh 120s</div>
 
 <script>
 const FIREBASE='https://bccsms-27c55-default-rtdb.firebaseio.com';
 const DRIVER_MAP={'460':'Tyler Begley','985':'Mitch Warczinsky','392':'Tim Bailey','537':'Gary Rogers','320':'Larry Reid','396':'Mike Desutter','788':'Chad Billot','750':'Tim Bailey','481':'','627':''};
-let trendChart=null,cachedRoutes=null,cachedHistorical=null,cachedMileage=null,selectedDate=todayStr();
+
+/* Michigan city → [lat, lon] lookup for Thumb/Central MI service area */
+const CITY_COORDS={
+  'marlette':[43.1392,-83.0836],'sandusky':[43.4206,-82.8330],'bad axe':[43.8025,-83.0000],
+  'caro':[43.4878,-83.3963],'vassar':[43.3722,-83.5833],'cass city':[43.5978,-83.1747],
+  'pigeon':[43.8289,-83.2691],'harbor beach':[43.8428,-82.6513],'ubly':[43.7128,-82.9327],
+  'deckerville':[43.5231,-82.7297],'lexington':[43.2678,-82.5342],'port sanilac':[43.4303,-82.5431],
+  'yale':[43.1306,-82.7989],'brown city':[43.2128,-82.9869],'imlay city':[43.0239,-83.0763],
+  'lapeer':[43.0514,-83.3188],'almont':[42.9206,-83.0438],'romeo':[42.8028,-83.0122],
+  'richmond':[42.8089,-82.7580],'armada':[42.8448,-82.8858],'port huron':[42.9709,-82.4249],
+  'flint':[43.0125,-83.6875],'saginaw':[43.4195,-83.9508],'bay city':[43.5945,-83.8886],
+  'midland':[43.6156,-84.2472],'mount pleasant':[43.5978,-84.7742],'mt pleasant':[43.5978,-84.7742],
+  'owosso':[42.9981,-84.1764],'st johns':[43.0028,-84.5569],'alma':[43.3786,-84.6602],
+  'ionia':[42.9870,-85.0676],'charlotte':[42.5628,-84.8358],'lansing':[42.7325,-84.5555],
+  'east lansing':[42.7368,-84.4839],'grand rapids':[42.9634,-85.6681],'detroit':[42.3314,-83.0458],
+  'pontiac':[42.6389,-83.2910],'troy':[42.6064,-83.1498],'royal oak':[42.4895,-83.1446],
+  'warren':[42.5145,-83.0146],'sterling heights':[42.5803,-83.0302],'utica':[42.6264,-83.0224],
+  'shelby township':[42.6820,-83.0335],'clinton township':[42.5928,-82.9199],
+  'mount clemens':[42.5973,-82.8777],'st clair':[42.8198,-82.4902],'marine city':[42.7198,-82.4957],
+  'algonac':[42.6195,-82.5321],'new baltimore':[42.6820,-82.7358],'chesterfield':[42.6861,-82.8435],
+  'croswell':[43.2756,-82.6221],'peck':[43.2556,-82.8108],'capac':[43.0167,-82.9269],
+  'north branch':[43.2217,-83.1961],'otisville':[43.1717,-83.5258],'davison':[43.0336,-83.5169],
+  'flushing':[43.0614,-83.8522],'swartz creek':[42.9578,-83.8283],'linden':[42.8114,-83.7830],
+  'holly':[42.7942,-83.6280],'grand blanc':[42.9278,-83.5983],'burton':[42.9995,-83.6136],
+  'frankenmuth':[43.3314,-83.7383],'birch run':[43.2467,-83.7944],'chesaning':[43.1834,-84.1124],
+  'hemlock':[43.4103,-84.2310],'freeland':[43.5231,-84.1224],'coleman':[43.7539,-84.5877],
+  'beaverton':[43.8789,-84.4869],'gladwin':[43.9828,-84.4877],'higgins lake':[44.4067,-84.7136],
+  'hale':[44.3717,-83.8008],'east tawas':[44.2817,-83.4985],'oscoda':[44.4167,-83.3328],
+  'tawas city':[44.2695,-83.5147],'harrisville':[44.6556,-83.2983],'rogers city':[45.4209,-83.8186],
+  'alpena':[45.0617,-83.4327],'cheboygan':[45.6467,-84.4739],'petoskey':[45.3731,-84.9553],
+  'gaylord':[44.9992,-84.6747],'grayling':[44.6617,-84.7122],'cadillac':[44.2522,-85.4013],
+  'reed city':[43.8736,-85.5100],'big rapids':[43.6981,-85.4838],'greenville':[43.1764,-85.2533],
+  'stanton':[43.2942,-85.0830],'howard city':[43.3981,-85.4719],'lakeview':[43.4517,-85.2686],
+  'belding':[43.0992,-85.2261],'saranac':[42.9264,-85.2027],'lowell':[42.9281,-85.3408],
+  'ada':[42.9598,-85.4963],'rockford':[43.1200,-85.5594],'sparta':[43.1606,-85.7094],
+  'muskegon':[43.2342,-86.2484],'whitehall':[43.4042,-86.3492],'montague':[43.4167,-86.3634],
+  'hart':[43.6981,-86.3595],'shelby':[43.6156,-86.3650],'fremont':[43.4653,-85.9508],
+};
+
+let leafletMap=null,mapMarkers=[],trendChart=null;
+let cachedRoutes=null,cachedHistorical=null,cachedMileage=null;
+let selectedDate=todayStr();
 
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
 function p(n){return String(n).padStart(2,'0')}
 function offsetDate(ds,n){const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
 function nDaysAgo(n){return offsetDate(todayStr(),-n)}
 function shortDate(ds){return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'})}
+function friendlyDate(ds){const d=new Date(ds+'T12:00:00');return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
 
 function resolveDriver(route){
-  const name=(route.driverName||'').trim();if(name)return name;
+  const n=(route.driverName||'').trim();if(n)return n;
   const a=(route.asset||'').trim();
   for(const[num,drv]of Object.entries(DRIVER_MAP)){if(a===num||a.startsWith(num+' '))return drv;}
   return '';
 }
 
-function pctColor(v,good,warn){
-  if(v===null||v===undefined)return'var(--muted)';
-  return v>=good?'var(--glow2)':v>=warn?'var(--amber)':'var(--red)';
-}
-function pctGlowClass(v,good,warn){
-  if(v===null||v===undefined)return'';
-  return v>=good?'glow-g':v>=warn?'glow-a':'glow-r';
+function cityFromAddress(addr){
+  if(!addr)return null;
+  const parts=addr.split(',');
+  for(let i=1;i<parts.length;i++){
+    const c=parts[i].trim().toLowerCase().replace(' mi','').replace(' michigan','').trim();
+    if(CITY_COORDS[c])return c;
+  }
+  return null;
 }
 
 async function fetchJSON(path){
@@ -226,102 +359,111 @@ function getStops(route,routeId){
   }));
 }
 
-function isComplete(s){
-  return(s.status||'').toLowerCase()==='complete'||
-         (s.deliveryStatus||'').toLowerCase()==='complete'||
-         (s.deliveryStatus||'').toLowerCase()==='delivered'||!!s.completedAt;
-}
-function hasPhoto(s){
-  if(!s.pictures)return false;
-  if(Array.isArray(s.pictures))return s.pictures.filter(Boolean).length>0;
-  return Object.values(s.pictures).filter(Boolean).length>0;
-}
+function isComplete(s){return(s.status||'').toLowerCase()==='complete'||(s.deliveryStatus||'').toLowerCase()==='delivered'||!!s.completedAt}
+function hasPhoto(s){if(!s.pictures)return false;if(Array.isArray(s.pictures))return s.pictures.filter(Boolean).length>0;return Object.values(s.pictures).filter(Boolean).length>0}
 function hasSms(s){return!!(s.smsSent&&(s.smsSent.departed||s.smsSent.advance))}
-function minutesLate(s){
+function minutesLate(s){try{const arr=s.arrivalTime||s.completedAt,eta=s.seedEta||s.calculatedEta;if(!arr||!eta)return null;return Math.round((new Date(arr)-new Date(eta))/60000);}catch(e){return null}}
+
+function stopMinutes(s){
+  /* Returns actual stop dwell time in minutes, or null if unavailable/zero */
   try{
-    const arr=s.arrivalTime||s.completedAt,eta=s.seedEta||s.calculatedEta;
-    if(!arr||!eta)return null;
-    return Math.round((new Date(arr)-new Date(eta))/60000);
+    const arr=s.arrivalTime, dep=s.deliveryTime||s.completedAt;
+    if(!arr||!dep) return null;
+    const mins=Math.round((new Date(dep)-new Date(arr))/60000);
+    return mins>0?mins:null; /* exclude zero or negative = bad data */
   }catch(e){return null}
 }
 
 function metrics(stops){
   const comp=stops.filter(isComplete),pend=stops.filter(s=>!isComplete(s));
   const ph=comp.filter(hasPhoto),sms=stops.filter(hasSms);
-  const late=comp.filter(s=>{
-    if(s.timing==='late')return true;
-    if(s.timing==='early'||s.timing==='ontime')return false;
-    const ml=minutesLate(s);return ml!==null&&ml>30;
-  });
-  const ontime=comp.filter(s=>{
-    if(s.timing==='early'||s.timing==='ontime')return true;
-    if(s.timing==='late')return false;
-    const ml=minutesLate(s);return ml!==null&&ml<=30;
-  });
-  return{
-    total:stops.length,complete:comp.length,pending:pend.length,
-    ontime:ontime.length,late:late.length,photos:ph.length,sms:sms.length,
+  const late=comp.filter(s=>{if(s.timing==='late')return true;if(s.timing==='early'||s.timing==='ontime')return false;const ml=minutesLate(s);return ml!==null&&ml>30;});
+  const ontime=comp.filter(s=>{if(s.timing==='early'||s.timing==='ontime')return true;if(s.timing==='late')return false;const ml=minutesLate(s);return ml!==null&&ml<=30;});
+  return{total:stops.length,complete:comp.length,pending:pend.length,ontime:ontime.length,late:late.length,photos:ph.length,sms:sms.length,
     ontimePct:comp.length?Math.round(ontime.length/comp.length*100):null,
     photoPct:comp.length?Math.round(ph.length/comp.length*100):null,
     completePct:stops.length?Math.round(comp.length/stops.length*100):null,
-    compStops:comp,pendStops:pend,lateStops:late,noPhotoComp:comp.filter(s=>!hasPhoto(s)),
-  };
+    compStops:comp,lateStops:late,noPhotoComp:comp.filter(s=>!hasPhoto(s))};
 }
 
 async function loadData(){
   try{
-    document.getElementById('syncTime').textContent='SYNCING…';
+    document.getElementById('syncTime').textContent='Syncing…';
     const[routes,hist,mil]=await Promise.all([fetchJSON('/routes'),fetchJSON('/historical'),fetchJSON('/mileage')]);
     cachedRoutes=routes||{};cachedHistorical=hist||{};cachedMileage=mil||{};
     render();
-    document.getElementById('syncTime').textContent=new Date().toLocaleTimeString();
+    document.getElementById('syncTime').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
   }catch(e){
-    document.getElementById('mainContent').innerHTML='<div class="loading" style="color:var(--red)">FEED ERROR: '+e.message+'</div>';
-    document.getElementById('syncTime').textContent='ERR';
+    document.getElementById('syncTime').textContent='Error';
+    console.error(e);
   }
+}
+
+function initMap(){
+  if(leafletMap)return;
+  leafletMap=L.map('deliveryMap',{zoomControl:true,attributionControl:false}).setView([43.5,-84.0],7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(leafletMap);
+  /* Yard marker */
+  L.circleMarker([43.1392,-83.0836],{radius:8,fillColor:'#1a2642',fillOpacity:1,color:'#fff',weight:2}).addTo(leafletMap).bindPopup('<b>BCC Yard</b><br>Marlette, MI');
+}
+
+function updateMap(stops){
+  if(!leafletMap)return;
+  mapMarkers.forEach(m=>m.remove());mapMarkers=[];
+  const cityCount={};
+  stops.forEach(s=>{
+    const city=cityFromAddress(s.address||s.deliveryAddress||'');
+    if(city){cityCount[city]=(cityCount[city]||0)+1;}
+  });
+  const max=Math.max(1,...Object.values(cityCount));
+  Object.entries(cityCount).forEach(([city,count])=>{
+    const coords=CITY_COORDS[city];if(!coords)return;
+    const pct=count/max;
+    const r=8+pct*22;
+    const color=pct>0.6?'#dc2626':pct>0.3?'#d97706':'#2563eb';
+    const m=L.circleMarker(coords,{radius:r,fillColor:color,fillOpacity:.55,color:color,weight:1.5,opacity:.8})
+      .addTo(leafletMap)
+      .bindPopup(`<b>${city.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' ')}</b><br>${count} stop${count>1?'s':''}`);
+    mapMarkers.push(m);
+  });
 }
 
 function render(){
   const ds=selectedDate,today=todayStr(),isToday=ds===today;
+  document.getElementById('dateLabel').textContent=friendlyDate(ds);
+  const h=new Date().getHours();
+  document.getElementById('greeting').querySelector('span').textContent=friendlyDate(ds);
+  document.querySelector('.topbar-left p').firstChild.textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+' — ';
+
   const allSrc=Object.assign({},cachedHistorical,isToday?cachedRoutes:{});
   const dayRoutes=Object.entries(allSrc).filter(([,r])=>r&&r.date===ds);
   let allStops=[];dayRoutes.forEach(([id,r])=>{allStops=allStops.concat(getStops(r,id))});
   const M=metrics(allStops);
 
   document.getElementById('debugBar').textContent=
-    `date=${ds} | routes=${dayRoutes.length} | stops=${allStops.length} | complete=${M.complete} | pending=${M.pending} | late=${M.lateStops.length} | photos=${M.photos}`;
+    `date=${ds} | routes=${dayRoutes.length} | stops=${allStops.length} | complete=${M.complete} | pending=${M.pending} | late=${M.lateStops.length}`;
 
-  /* MILEAGE — check /mileage node first, then sum from routes */
-  let milesDisplay='—';
-  const today_str=todayStr();
-  if(cachedMileage&&cachedMileage.date===today_str&&parseFloat(cachedMileage.total||0)>0){
-    milesDisplay=Math.round(cachedMileage.total).toLocaleString();
+  /* MILEAGE */
+  let miles='—';
+  if(cachedMileage&&cachedMileage.date===todayStr()&&parseFloat(cachedMileage.total||0)>0){
+    miles=Math.round(cachedMileage.total).toLocaleString();
   } else {
     let s=0,any=false;
-    dayRoutes.forEach(([,r])=>{
-      const m=parseFloat(r.totalDeliveryMiles||r.mileage||0);
-      if(m>0){s+=m;any=true;}
-    });
-    /* also try summing stop distanceMiles */
-    if(!any){
-      allStops.forEach(s2=>{const m=parseFloat(s2.distanceMiles||0);if(m>0){s+=m;any=true;}});
-    }
-    if(any)milesDisplay=Math.round(s).toLocaleString();
+    dayRoutes.forEach(([,r])=>{const m=parseFloat(r.totalDeliveryMiles||0);if(m>0){s+=m;any=true;}});
+    if(any)miles=Math.round(s).toLocaleString();
   }
 
   /* DRIVER */
   const driverMap={};
   allStops.forEach(s=>{
     const k=s._driver||'(unassigned)',asset=s._asset||'';
-    if(!driverMap[k])driverMap[k]={name:k,asset,t:0,c:0,ot:0,ph:0,lateMin:[]};
-    else if(!driverMap[k].asset&&asset)driverMap[k].asset=asset;
+    if(!driverMap[k])driverMap[k]={name:k,asset,t:0,c:0,ot:0,ph:0,late:0,stopMins:[]};
     driverMap[k].t++;
-    if(isComplete(s)){
-      driverMap[k].c++;
+    if(isComplete(s)){driverMap[k].c++;
       if(s.timing==='early'||s.timing==='ontime')driverMap[k].ot++;
-      else{const ml=minutesLate(s);if(ml!==null&&ml<=30)driverMap[k].ot++;else if(ml!==null&&ml>30)driverMap[k].lateMin.push(ml);}
+      else{const ml=minutesLate(s);if(ml!==null&&ml<=30)driverMap[k].ot++;else if(ml!==null&&ml>30)driverMap[k].late++;}
       if(hasPhoto(s))driverMap[k].ph++;
-    }
+      const sm=stopMinutes(s);if(sm!==null)driverMap[k].stopMins.push(sm);}
   });
   const drivers=Object.values(driverMap).sort((a,b)=>b.t-a.t);
 
@@ -331,20 +473,24 @@ function render(){
     const asset=(r.assetDescription||r.asset||id).trim(),driver=resolveDriver(r);
     if(!fleetMap[asset])fleetMap[asset]={asset,driver,done:0,total:0};
     const stops=Object.values(r.stops||{});
-    fleetMap[asset].total+=stops.length;
-    fleetMap[asset].done+=stops.filter(isComplete).length;
+    fleetMap[asset].total+=stops.length;fleetMap[asset].done+=stops.filter(isComplete).length;
     if(!fleetMap[asset].driver&&driver)fleetMap[asset].driver=driver;
   });
   const fleet=Object.values(fleetMap).sort((a,b)=>a.asset.localeCompare(b.asset));
 
-  /* SALES — consolidated */
+  /* SALES consolidated */
   const salesMap={};
-  allStops.forEach(s=>{
-    const rep=(s.assignedSales||'—').trim()||'—';
-    if(!salesMap[rep])salesMap[rep]={rep,t:0,c:0};
-    salesMap[rep].t++;if(isComplete(s))salesMap[rep].c++;
-  });
-  const salesList=Object.values(salesMap).sort((a,b)=>b.t-a.t);
+  allStops.forEach(s=>{const rep=(s.assignedSales||'—').trim()||'—';if(!salesMap[rep])salesMap[rep]={rep,t:0,c:0};salesMap[rep].t++;if(isComplete(s))salesMap[rep].c++;});
+
+  /* LATE BY DRIVER */
+  const lateByDriver={};
+  M.lateStops.forEach(s=>{const d=s._driver||'Unknown';if(!lateByDriver[d])lateByDriver[d]=[];lateByDriver[d].push({...s,_ml:minutesLate(s)});});
+
+  /* ALERTS: late deliveries + missing photos as alert items */
+  const alerts=[
+    ...M.lateStops.slice(0,3).map(s=>({type:'warn',title:s.customerName||s.shipToName||s.orderNumber,detail:`Late delivery — ${s._driver||'Unknown driver'}`,ml:minutesLate(s)})),
+    ...M.noPhotoComp.slice(0,3).map(s=>({type:'info',title:s.customerName||s.shipToName||s.orderNumber,detail:`No photo on file — ${s._driver||'Unknown driver'}`,ml:null})),
+  ];
 
   /* TREND */
   const trend=[];
@@ -352,234 +498,191 @@ function render(){
   for(let i=6;i>=0;i--){
     const tds=nDaysAgo(i);let ts=[];
     Object.entries(tSrc).forEach(([id,r])=>{if(r&&r.date===tds)ts=ts.concat(getStops(r,id))});
-    const tm=metrics(ts);
-    trend.push({label:shortDate(tds),...tm});
+    const tm=metrics(ts);trend.push({label:shortDate(tds),...tm});
   }
 
-  /* LATE BY DRIVER */
-  const lateByDriver={};
-  M.lateStops.forEach(s=>{
-    const d=s._driver||'Unknown';
-    if(!lateByDriver[d])lateByDriver[d]=[];
-    lateByDriver[d].push({...s,_ml:minutesLate(s)});
-  });
-
-  /* KPI color logic */
-  const cpPct=M.completePct,otPct=M.ontimePct,phPct=M.photoPct;
+  const pctC=(v,g,w)=>v===null?'var(--muted)':v>=g?'var(--green)':v>=w?'var(--amber)':'var(--red)';
 
   document.getElementById('mainContent').innerHTML=`
-
-  <div class="kpi-strip">
-    <div class="kpi a corner-bracket">
-      <div class="kpi-label">Routes</div>
-      <div class="kpi-val glow-c">${dayRoutes.length}</div>
-      <div class="kpi-sub">${M.total} STOPS TOTAL</div>
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-icon blue">🚚</div>
+      <div class="kpi-label">Routes Running</div>
+      <div class="kpi-val">${dayRoutes.length}</div>
+      <div class="kpi-sub">${M.total} stops total</div>
     </div>
     <div class="kpi">
+      <div class="kpi-icon green">✅</div>
       <div class="kpi-label">Delivered</div>
-      <div class="kpi-val ${pctGlowClass(cpPct,80,60)}">${M.complete}</div>
-      <div class="kpi-sub">${cpPct!==null?cpPct+'% OF STOPS':'—'}</div>
+      <div class="kpi-val" style="color:${M.completePct>=80?'var(--green)':M.completePct>=60?'var(--amber)':'var(--red)'}">${M.complete}</div>
+      <div class="kpi-sub">${M.completePct!==null?M.completePct+'% of stops':'—'}</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Pending</div>
-      <div class="kpi-val ${M.pending===0?'glow-g':M.pending<=5?'glow-a':'glow-r'}">${M.pending}</div>
-      <div class="kpi-sub">NOT DELIVERED</div>
-    </div>
-    <div class="kpi g">
+      <div class="kpi-icon ${M.pending===0?'green':M.pending<=5?'amber':'red'}">⏱️</div>
       <div class="kpi-label">On Time / Early</div>
-      <div class="kpi-val ${pctGlowClass(otPct,80,60)}">${otPct!==null?otPct+'%':'—'}</div>
-      <div class="kpi-sub">${M.ontime} OF ${M.complete} COMPLETE</div>
+      <div class="kpi-val" style="color:${pctC(M.ontimePct,80,60)}">${M.ontimePct!==null?M.ontimePct+'%':'—'}</div>
+      <div class="kpi-sub">${M.ontime} of ${M.complete} deliveries</div>
     </div>
     <div class="kpi">
+      <div class="kpi-icon ${M.photoPct>=90?'green':'amber'}">📸</div>
       <div class="kpi-label">Photo Compliance</div>
-      <div class="kpi-val ${pctGlowClass(phPct,90,70)}">${phPct!==null?phPct+'%':'—'}</div>
-      <div class="kpi-sub">${M.photos} OF ${M.complete} COMPLETE</div>
-    </div>
-    <div class="kpi c">
-      <div class="kpi-label">SMS Notified</div>
-      <div class="kpi-val">${M.sms}</div>
-      <div class="kpi-sub">CUSTOMERS</div>
+      <div class="kpi-val" style="color:${pctC(M.photoPct,90,70)}">${M.photoPct!==null?M.photoPct+'%':'—'}</div>
+      <div class="kpi-sub">${M.photos} of ${M.complete} complete</div>
     </div>
     <div class="kpi">
+      <div class="kpi-icon blue">📍</div>
       <div class="kpi-label">Miles Driven</div>
-      <div class="kpi-val" style="font-size:${milesDisplay.length>4?'16px':'22px'}">${milesDisplay}</div>
-      <div class="kpi-sub">${isToday?'LIVE TODAY':'ROUTE TOTAL'}</div>
+      <div class="kpi-val" style="font-size:${miles.length>4?'18px':'26px'}">${miles}</div>
+      <div class="kpi-sub">${isToday?'Live today':'Route total'}</div>
     </div>
   </div>
 
-  <div class="row row-3">
-
-    <div class="panel corner-bracket">
-      <div class="ph"><span class="pt">Driver Performance</span><span class="pn">${isToday?'LIVE':'HIST'} · ${ds}</span></div>
-      <div class="pb">
-        ${drivers.length===0?'<div class="empty">— NO DATA —</div>':`
-        <table class="dt" style="margin-top:6px">
-          <thead><tr><th>Driver</th><th>Stops</th><th style="min-width:78px">On Time</th><th style="min-width:78px">Photos</th></tr></thead>
-          <tbody>
-          ${drivers.map(d=>{
-            const otp=d.c?Math.round(d.ot/d.c*100):null,php=d.c?Math.round(d.ph/d.c*100):null;
-            const otc=pctColor(otp,80,60),phc=pctColor(php,90,70);
-            return`<tr>
-              <td><div class="dn">${d.name}</div><div class="ds">${d.asset}</div></td>
-              <td>${d.c}/${d.t}</td>
-              <td><div class="bar-wrap"><span style="color:${otc};min-width:28px;text-align:right;font-family:'Share Tech Mono',monospace;font-size:11px">${otp!==null?otp+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${otp||0}%;background:${otc}"></div></div></div></td>
-              <td><div class="bar-wrap"><span style="color:${phc};min-width:28px;text-align:right;font-family:'Share Tech Mono',monospace;font-size:11px">${php!==null?php+'%':'—'}</span><div class="bar-track"><div class="bar-fill" style="width:${php||0}%;background:${phc}"></div></div></div></td>
-            </tr>`;
-          }).join('')}
-          </tbody>
-        </table>`}
+  <!-- MID: MAP + ALERTS -->
+  <div class="mid-grid">
+    <div class="map-panel">
+      <div class="panel-header">
+        <span class="panel-title">Delivery Heat Map — Michigan</span>
+        <span class="panel-meta">${allStops.length} stops · ${ds}</span>
+      </div>
+      <div id="deliveryMap"></div>
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>1–2 stops</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>3–5 stops</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>6+ stops</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#1a2642"></div>BCC Yard</div>
       </div>
     </div>
 
-    <div class="panel">
-      <div class="ph">
-        <span class="pt">7-Day Trend</span>
-        <div class="chart-legend">
-          <span><span class="ldot" style="background:var(--amber)"></span>ON TIME</span>
-          <span><span class="ldot" style="background:var(--glow2)"></span>PHOTOS</span>
+    <div class="right-col">
+
+      <!-- ALERTS -->
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">Active Issues</span>
+          <span class="pn">${alerts.length} flagged</span>
+        </div>
+        ${alerts.length===0
+          ?'<div class="empty">No issues — clean day ✓</div>'
+          :alerts.map(a=>`<div class="alert-item">
+            <div class="alert-icon ${a.type==='warn'?'warn':'info'}">${a.type==='warn'?'⚠️':'📷'}</div>
+            <div class="alert-body">
+              <div class="alert-title">${(a.title||'').substring(0,28)}</div>
+              <div class="alert-detail">${a.detail}</div>
+              ${a.ml!==null?`<div class="alert-time">+${a.ml} min late</div>`:''}
+            </div>
+          </div>`).join('')
+        }
+      </div>
+
+      <!-- ISSUES COLLAPSIBLE -->
+      <div class="panel">
+        <div class="ph"><span class="pt">Issue Log</span><span class="pn">${M.lateStops.length} late · ${M.noPhotoComp.length} no photo</span></div>
+
+        <div class="issue-cat-hdr" onclick="toggleCat(this)">
+          <span class="issue-cat-label">Late Deliveries</span>
+          <div style="display:flex;align-items:center">
+            <span class="issue-count-badge" style="background:${M.lateStops.length>0?'var(--red-bg)':'var(--green-bg)'};color:${M.lateStops.length>0?'var(--red)':'var(--green)'}">${M.lateStops.length}</span>
+            <span class="chevron open">▾</span>
+          </div>
+        </div>
+        <div class="issue-body open">
+          ${M.lateStops.length===0?'<div class="empty">None — all on time ✓</div>':
+            Object.entries(lateByDriver).map(([drv,stops])=>
+              stops.slice(0,4).map(s=>`<div class="issue-row-item">
+                <div>
+                  <div class="issue-order">${s.orderNumber||'—'}</div>
+                  <div class="issue-name">${(s.customerName||s.shipToName||'—').substring(0,24)}</div>
+                  <div class="issue-drv">${drv}</div>
+                </div>
+                <span class="badge badge-late">${s._ml!==null?'+'+s._ml+'m':'LATE'}</span>
+              </div>`).join('')
+            ).join('')
+          }
+        </div>
+
+        <div class="issue-cat-hdr" onclick="toggleCat(this)">
+          <span class="issue-cat-label">Missing Photos</span>
+          <div style="display:flex;align-items:center">
+            <span class="issue-count-badge" style="background:${M.noPhotoComp.length>0?'var(--amber-bg)':'var(--green-bg)'};color:${M.noPhotoComp.length>0?'var(--amber)':'var(--green)'}">${M.noPhotoComp.length}</span>
+            <span class="chevron open">▾</span>
+          </div>
+        </div>
+        <div class="issue-body open">
+          ${M.noPhotoComp.length===0?'<div class="empty">All deliveries have photos ✓</div>':
+            M.noPhotoComp.slice(0,6).map(s=>`<div class="issue-row-item">
+              <div>
+                <div class="issue-order">${s.orderNumber||'—'}</div>
+                <div class="issue-name">${(s.customerName||s.shipToName||'—').substring(0,24)}</div>
+                <div class="issue-drv">${s._driver||'—'}</div>
+              </div>
+              <span class="badge badge-nophoto">NO PHOTO</span>
+            </div>`).join('')
+          }
         </div>
       </div>
-      <div class="pb" style="padding-top:10px">
-        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
-        <table class="dt" style="margin-bottom:8px">
-          <thead><tr><th>Date</th><th>Stops</th><th>On Time</th><th>Photos</th></tr></thead>
+    </div>
+  </div>
+
+  <!-- BOTTOM: STOPS TABLE + FLEET -->
+  <div class="bottom-grid">
+
+    <div class="panel">
+      <div class="ph">
+        <span class="pt">Driver Performance</span>
+        <span class="pn">${isToday?'Live':'Historical'} · ${ds}</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Driver</th><th>Asset</th><th>Stops</th><th>On Time</th><th>Photos</th><th>Avg Stop</th>
+          </tr></thead>
           <tbody>
-          ${trend.map(t=>`<tr>
-            <td style="color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:10px">${t.label}</td>
-            <td>${t.complete}/${t.total}</td>
-            <td style="color:${pctColor(t.ontimePct,80,60)}">${t.ontimePct!==null?t.ontimePct+'%':'—'}</td>
-            <td style="color:${pctColor(t.photoPct,90,70)}">${t.photoPct!==null?t.photoPct+'%':'—'}</td>
-          </tr>`).join('')}
+          ${drivers.length===0?`<tr><td colspan="5" class="empty">No data</td></tr>`:
+            drivers.map(d=>{
+              const otp=d.c?Math.round(d.ot/d.c*100):null;
+              const php=d.c?Math.round(d.ph/d.c*100):null;
+              return`<tr>
+                <td><div class="tbl-customer">${d.name}</div></td>
+                <td><div class="tbl-driver">${d.asset}</div></td>
+                <td style="font-variant-numeric:tabular-nums">${d.c}/${d.t}</td>
+                <td><span style="font-weight:600;color:${pctC(otp,80,60)}">${otp!==null?otp+'%':'—'}</span></td>
+                <td><span style="font-weight:600;color:${pctC(php,90,70)}">${php!==null?php+'%':'—'}</span></td>
+                <td style="color:var(--muted)">${d.stopMins.length>0?Math.round(d.stopMins.reduce((a,b)=>a+b,0)/d.stopMins.length)+'m':'—'}</td>
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
     </div>
 
     <div class="panel">
-      <div class="ph">
-        <span class="pt">Issues</span>
-        <span class="pn">${M.lateStops.length} LATE · ${M.noPhotoComp.length} NO PHOTO</span>
-      </div>
-
-      <div class="issue-cat">
-        <div class="issue-cat-hdr" onclick="toggleCat(this)">
-          <span class="issue-cat-label">Late Deliveries</span>
-          <div class="issue-cat-meta">
-            <span class="issue-count" style="color:${M.lateStops.length>0?'var(--red)':'var(--muted)'}">${M.lateStops.length}</span>
-            <span class="chevron open">▾</span>
-          </div>
-        </div>
-        <div class="issue-body open">
-          ${M.lateStops.length===0
-            ?'<div class="empty">— NONE —</div>'
-            :Object.entries(lateByDriver).map(([drv,stops])=>`
-              <div class="issue-drv-hdr">${drv}</div>
-              ${stops.slice(0,6).map(s=>`<div class="issue-item">
-                <div class="issue-row">
-                  <div>
-                    <div class="issue-order">${s.orderNumber||s._key||'—'}</div>
-                    <div class="issue-name">${(s.customerName||s.shipToName||'—').substring(0,22)}</div>
-                  </div>
-                  <span class="badge b-late">${s._ml!==null?'+'+s._ml+'m':'LATE'}</span>
-                </div>
-              </div>`).join('')}
-            `).join('')}
-        </div>
-      </div>
-
-      <div class="issue-cat">
-        <div class="issue-cat-hdr" onclick="toggleCat(this)">
-          <span class="issue-cat-label">No Photo on Delivery</span>
-          <div class="issue-cat-meta">
-            <span class="issue-count" style="color:${M.noPhotoComp.length>0?'var(--amber)':'var(--muted)'}">${M.noPhotoComp.length}</span>
-            <span class="chevron open">▾</span>
-          </div>
-        </div>
-        <div class="issue-body open">
-          ${M.noPhotoComp.length===0
-            ?'<div class="empty">— NONE —</div>'
-            :M.noPhotoComp.slice(0,10).map(s=>`<div class="issue-item">
-                <div class="issue-row">
-                  <div>
-                    <div class="issue-order">${s.orderNumber||s._key||'—'}</div>
-                    <div class="issue-name">${(s.customerName||s.shipToName||'—').substring(0,22)}</div>
-                    <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted)">${s._driver||'—'}</div>
-                  </div>
-                  <span class="badge b-nophoto">NO PHOTO</span>
-                </div>
-              </div>`).join('')}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row row-2">
-    <div class="panel">
-      <div class="ph"><span class="pt">Fleet Status</span><span class="pn">${isToday?'LIVE':'HISTORICAL'}</span></div>
-      <div class="pb">
-        ${fleet.length===0?'<div class="empty">— NO FLEET DATA —</div>':`
-        <table class="dt" style="margin-top:6px">
-          <thead><tr><th>Asset</th><th>Driver</th><th>Stops</th><th>Status</th></tr></thead>
-          <tbody>
-          ${fleet.map(f=>{
+      <div class="ph"><span class="pt">Fleet Status</span><span class="pn">${fleet.length} assets</span></div>
+      <div class="fleet-grid">
+        ${fleet.length===0?'<div class="empty" style="grid-column:span 2">No fleet data</div>':
+          fleet.map(f=>{
+            const pct=f.total>0?Math.round(f.done/f.total*100):0;
             const allDone=f.total>0&&f.done===f.total;
-            const badge=isToday?(allDone?'b-done':'b-active'):'b-hist';
-            const label=isToday?(allDone?'DONE':'ACTIVE'):'COMPLETE';
-            return`<tr>
-              <td><div class="dn">${f.asset}</div></td>
-              <td style="text-align:left;color:var(--muted);font-size:11px;font-family:'Share Tech Mono',monospace">${f.driver||'—'}</td>
-              <td>${f.done}/${f.total}</td>
-              <td><span class="badge ${badge}">${label}</span></td>
-            </tr>`;
+            const color=allDone?'var(--green)':pct>50?'var(--accent)':'var(--amber)';
+            return`<div class="fleet-item">
+              <div class="fleet-asset">${f.asset}</div>
+              <div class="fleet-driver">${f.driver||'—'}</div>
+              <div class="fleet-progress">
+                <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+                <div class="fleet-stops"><span>${f.done}/${f.total} stops</span><span style="color:${color};font-weight:600">${allDone&&isToday?'DONE':pct+'%'}</span></div>
+              </div>
+            </div>`;
           }).join('')}
-          </tbody>
-        </table>`}
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="ph"><span class="pt">Stops by Sales Rep</span><span class="pn">CONSOLIDATED</span></div>
-      <div class="pb">
-        ${salesList.length===0?'<div class="empty">— NO DATA —</div>':`
-        <table class="dt" style="margin-top:6px">
-          <thead><tr><th>Rep</th><th>Total</th><th>Done</th><th>%</th></tr></thead>
-          <tbody>
-          ${salesList.map(s=>{
-            const cp=s.t?Math.round(s.c/s.t*100):0;
-            return`<tr>
-              <td style="font-weight:700;font-family:'Rajdhani',sans-serif;font-size:13px">${s.rep}</td>
-              <td>${s.t}</td><td>${s.c}</td>
-              <td style="color:${pctColor(cp,80,60)}">${cp}%</td>
-            </tr>`;
-          }).join('')}
-          </tbody>
-        </table>`}
       </div>
     </div>
   </div>`;
 
-  if(trendChart){trendChart.destroy();trendChart=null;}
-  const ctx=document.getElementById('trendChart');
-  if(ctx){
-    trendChart=new Chart(ctx,{
-      type:'line',
-      data:{
-        labels:trend.map(t=>t.label),
-        datasets:[
-          {label:'On Time',data:trend.map(t=>t.ontimePct),borderColor:'#ffb300',backgroundColor:'rgba(255,179,0,.05)',tension:.35,pointRadius:3,pointBackgroundColor:'#ffb300',borderWidth:1.5,spanGaps:true},
-          {label:'Photos',data:trend.map(t=>t.photoPct),borderColor:'#00ff9d',backgroundColor:'rgba(0,255,157,.05)',tension:.35,pointRadius:3,pointBackgroundColor:'#00ff9d',borderWidth:1.5,spanGaps:true},
-        ],
-      },
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(6,12,24,.95)',borderColor:'#0d2040',borderWidth:1,titleFont:{family:'Orbitron',size:9},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>c.dataset.label+': '+(c.raw!==null?c.raw+'%':'—')}}},
-        scales:{
-          y:{min:0,max:100,grid:{color:'rgba(13,32,64,.8)'},ticks:{color:'#3a5878',font:{size:9,family:'Share Tech Mono'},callback:v=>v+'%'}},
-          x:{grid:{color:'rgba(13,32,64,.5)'},ticks:{color:'#3a5878',font:{size:9,family:'Share Tech Mono'},autoSkip:false,maxRotation:0}},
-        },
-      },
-    });
-  }
+  /* Init + update map */
+  setTimeout(()=>{
+    initMap();
+    updateMap(allStops);
+    leafletMap.invalidateSize();
+  },100);
 }
 
 function toggleCat(hdr){
@@ -589,7 +692,8 @@ function toggleCat(hdr){
 
 function setDate(ds){
   const today=todayStr();if(ds>today)return;
-  selectedDate=ds;document.getElementById('datePicker').value=ds;
+  selectedDate=ds;
+  document.getElementById('datePicker').value=ds;
   document.getElementById('nextBtn').disabled=ds>=today;
   if(cachedRoutes)render();
 }
