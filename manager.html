@@ -128,7 +128,8 @@ input[type=date]#datePicker{background:none;border:none;font-family:'IBM Plex Mo
 .pb{padding:0 14px}
 
 /* ── MAP ── */
-#deliveryMap{height:320px;width:100%;filter:grayscale(40%) contrast(1.1)}
+.grid-2.g-65-35 > .panel:first-child{display:flex;flex-direction:column}
+#deliveryMap{flex:1;min-height:320px;width:100%;filter:grayscale(40%) contrast(1.1)}
 .map-legend{display:flex;gap:16px;padding:7px 14px;border-top:1px solid var(--border);background:var(--panel2)}
 .legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -813,6 +814,7 @@ function runReport(){
 function toggleCat(hdr){
   const ch=hdr.querySelector('.chevron'),body=hdr.nextElementSibling;
   const open=body.classList.toggle('open');ch.classList.toggle('open',open);
+  if(leafletMap)setTimeout(()=>leafletMap.invalidateSize(),250);
 }
 
 /* ── DATE NAV ── */
