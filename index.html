@@ -746,7 +746,7 @@ function routeBlockHTML(r, queued, sel) {
         <div class="dx-route-head-left">
           <span class="dx-route-id">Route <b>${esc(r.id)}</b></span>
           <span class="dx-route-meta">
-            ${(r.driverName || driverFromAsset(r.assetDescription || r.asset)) ? `<b>${esc(r.driverName || driverFromAsset(r.assetDescription || r.asset))}</b> &middot; ` : ''}Unit <b>${esc(r.assetDescription || r.asset||'—')}</b>
+            ${(r.driverName) ? `<b>${esc(r.driverName.split(' ')[0])}</b> &middot; ` : ''}Unit <b>${esc([r.asset, r.assetDescription].filter(Boolean).join(' ')||'—')}</b>
             ${r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
           </span>
         </div>
@@ -777,10 +777,65 @@ function routeBlockHTML(r, queued, sel) {
           <th>Customer ETA</th><th>Arrival</th><th>Status</th><th>On Site</th><th>Timing</th><th>SMS</th><th></th>
         </tr></thead>
         <tbody>
-          ${r.stops.map(s => stopRowHTML(r.id, s, queued.has(s.stopId), sel && sel.routeId===r.id && sel.stopId===s.stopId)).join('')}
+          ${groupStopsByAddress(r.stops).map(g => g.length === 1 ? stopRowHTML(r.id, g[0], queued.has(g[0].stopId), sel && sel.routeId===r.id && sel.stopId===g[0].stopId) : groupedStopRowHTML(r.id, g, queued, sel)).join('')}
         </tbody>
       </table>
     </section>`;
+}
+
+
+function addrKey(addr) {
+  return (addr || '').trim().toLowerCase()
+    .replace(/[.,]/g, '').replace(/\s+/g, ' ')
+    .split(' ').map(w => w.replace(/s$/, '')).join(' ');
+}
+
+function groupStopsByAddress(stops) {
+  const groups = [], seen = {};
+  stops.forEach(s => {
+    const k = addrKey(s.address || '');
+    if (seen[k] !== undefined) { groups[seen[k]].push(s); }
+    else { seen[k] = groups.length; groups.push([s]); }
+  });
+  return groups;
+}
+
+function groupedStopRowHTML(routeId, stops, queued, sel) {
+  // Use first stop as representative for ETA/arrival/status
+  const s = stops[0];
+  const allComplete = stops.every(s => s.status === 'complete');
+  const allSent     = stops.every(s => s.smsSent && (s.smsSent.departed || s.smsSent.advance));
+  const isQueued    = stops.some(s => queued.has(s.stopId));
+  const isSelected  = sel && stops.some(s => sel.routeId === routeId && sel.stopId === s.stopId);
+  const cls = ['dx-row', allComplete ? 'complete' : 'pending', isSelected ? 'selected' : ''].join(' ');
+  const pics = stops.flatMap(s => (s.pictures||[]).concat(s.signatures||[]));
+  const hasPics = pics.length > 0;
+  const orderNums = stops.map(s => s.orderNumber || '').filter(Boolean).join(', ');
+  const photoRow = `
+    <tr class="dx-photo-row" data-route="${esc(routeId)}">
+      <td colspan="10" style="padding:2px 8px 7px 44px;border-top:none">
+        ${hasPics
+          ? `<button onclick='lbOpen(${JSON.stringify(pics)},0)' style="padding:2px 10px;background:#cc0000;color:#fff;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;border-radius:3px;border:none;cursor:pointer">View Photos (${pics.length})</button>`
+          : `<button disabled style="padding:2px 10px;background:transparent;color:#aaa;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;border-radius:3px;border:1px solid #ddd;cursor:default">No Photos</button>`
+        }
+      </td>
+    </tr>`;
+  return `
+    <tr class="${esc(cls)}" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">
+      <td class="dx-seq">${s.sequence||''}</td>
+      <td class="dx-order" style="font-size:10px">${esc(orderNums)}</td>
+      <td>
+        <div class="dx-customer">${esc(s.customerName||'')}</div>
+        <div class="dx-customer-sub">${esc(s.address||'')}</div>
+      </td>
+      <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
+      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
+      <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
+      <td>${serviceElapsedHTML(s)}</td>
+      <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
+      <td>${smsCellHTML(allSent ? {departed:true} : s.smsSent, isQueued, !allComplete)}</td>
+      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
+    </tr>${photoRow}`;
 }
 
 function stopRowHTML(routeId, s, isQueued, isSelected) {
