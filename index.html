@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -721,8 +720,25 @@ function renderRoutes() {
 }
 
 function routeBlockHTML(r, queued, sel) {
-  const completed = r.stops.filter(s => s.status === 'complete').length;
-  const total = r.stops.length;
+  // Group stops by address — same address = one site visit
+  function uniqueSites(stops) {
+    const sites = [];
+    stops.forEach(s => {
+      const addr = (s.address || '').trim().toLowerCase().replace(/[.,]/g,'').replace(/\s+/g,' ');
+      const stripped = addr.split(' ').map(w => w.replace(/s$/, '')).join(' ');
+      const exists = sites.some(site => {
+        const sa = site.replace(/[.,]/g,'').replace(/\s+/g,' ');
+        const ss = sa.split(' ').map(w => w.replace(/s$/, '')).join(' ');
+        return ss === stripped;
+      });
+      if (!exists) sites.push(addr);
+    });
+    return sites.length || stops.length;
+  }
+  const completedStops = r.stops.filter(s => s.status === 'complete');
+  const pendingStops   = r.stops.filter(s => s.status !== 'complete');
+  const completed = uniqueSites(completedStops);
+  const total     = uniqueSites(completedStops) + uniqueSites(pendingStops);
   const pct = total ? Math.round(completed/total*100) : 0;
   return `
     <section class="dx-route">
@@ -730,7 +746,7 @@ function routeBlockHTML(r, queued, sel) {
         <div class="dx-route-head-left">
           <span class="dx-route-id">Route <b>${esc(r.id)}</b></span>
           <span class="dx-route-meta">
-            ${(r.driverName) ? `<b>${esc(r.driverName.split(' ')[0])}</b> &middot; ` : ''}Unit <b>${esc([r.asset, r.assetDescription].filter(Boolean).join(' ')||'—')}</b>
+            ${(r.driverName || driverFromAsset(r.assetDescription || r.asset)) ? `<b>${esc(r.driverName || driverFromAsset(r.assetDescription || r.asset))}</b> &middot; ` : ''}Unit <b>${esc(r.assetDescription || r.asset||'—')}</b>
             ${r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
           </span>
         </div>
@@ -957,7 +973,7 @@ function renderDrawer() {
         <div class="dx-seq-big">${stop.sequence||''}</div>
         <div class="dx-drawer-titles">
           <div class="dx-drawer-title">${esc(stop.customerName||'')}</div>
-          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc([route.asset, route.assetDescription].filter(Boolean).join(' ')||'—')}</div>
+          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc(route.asset||'—')}</div>
         </div>
         <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
       </div>
