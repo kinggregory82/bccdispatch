@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -729,7 +730,7 @@ function routeBlockHTML(r, queued, sel) {
         <div class="dx-route-head-left">
           <span class="dx-route-id">Route <b>${esc(r.id)}</b></span>
           <span class="dx-route-meta">
-            ${(r.driverName || driverFromAsset(r.assetDescription || r.asset)) ? `<b>${esc(r.driverName || driverFromAsset(r.assetDescription || r.asset))}</b> &middot; ` : ''}Unit <b>${esc(r.assetDescription || r.asset||'—')}</b>
+            ${(r.driverName) ? `<b>${esc(r.driverName.split(' ')[0])}</b> &middot; ` : ''}Unit <b>${esc([r.asset, r.assetDescription].filter(Boolean).join(' ')||'—')}</b>
             ${r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
           </span>
         </div>
@@ -956,7 +957,7 @@ function renderDrawer() {
         <div class="dx-seq-big">${stop.sequence||''}</div>
         <div class="dx-drawer-titles">
           <div class="dx-drawer-title">${esc(stop.customerName||'')}</div>
-          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc(route.asset||'—')}</div>
+          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc([route.asset, route.assetDescription].filter(Boolean).join(' ')||'—')}</div>
         </div>
         <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
       </div>
