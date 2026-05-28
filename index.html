@@ -551,7 +551,7 @@ function getRoutes() {
             .filter(s => {
               if (s.status === 'complete') return true;
               if (S.dateOffset > 0) return true; // future date — show all pending
-              const hasEta = s.arrivalTime || s.calculatedEta || (s.customerEta && s.customerEta.low);
+              const hasEta = s.arrivalTime || s.seedEta || s.calculatedEta || (s.customerEta && s.customerEta.low);
               const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order' && s.deliveryStatus !== 'Scheduled' && s.deliveryStatus !== 'Printed';
               return hasEta || hasStatus;
             })
@@ -565,7 +565,7 @@ function getRoutes() {
     }))
     .filter(r => {
       const hasActivePending = r.stops.some(s => s.status !== 'complete');
-      const hasActiveComplete = r.stops.some(s => s.status === 'complete' && (s.calculatedEta || s.seedEta || s.arrivalTime));
+      const hasActiveComplete = r.stops.some(s => s.status === 'complete' && (s.seedEta || s.calculatedEta || s.arrivalTime));
       return hasActivePending || hasActiveComplete;
     })
     .sort((a,b) => a.id.localeCompare(b.id));
@@ -627,7 +627,7 @@ function getStats() {
           if (!isNaN(low) && !isNaN(high)) { etaLowMs = low.getTime(); etaHighMs = high.getTime(); }
         }
         if (!etaLowMs) {
-          const anchor = s.calculatedEta || s.seedEta;
+          const anchor = s.seedEta || s.calculatedEta;
           if (anchor) { const anchorMs = new Date(anchor).getTime(); etaLowMs = anchorMs; etaHighMs = anchorMs + 30*60*1000; }
         }
         if (etaLowMs) {
@@ -1147,7 +1147,7 @@ function getDeliveryTiming(s) {
     }
   }
   if (!etaLowMs) {
-    const anchor = s.calculatedEta || s.seedEta;
+    const anchor = s.seedEta || s.calculatedEta;
     if (!anchor) return null;
     const anchorMs = new Date(anchor).getTime();
     etaLowMs  = anchorMs;               // on time starts at scheduled arrival
