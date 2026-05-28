@@ -228,6 +228,7 @@ html, body {
   display: inline-block;
 }
 .dx-sms-cell.pending { color: #aaa; font-weight: 500; }
+.dx-sms-cell.unsent { color: #aaa; font-weight: 500; font-style: italic; }
 .dx-sms-cell.queued { color: #cc0000; font-weight: 600; }
 .dx-sms-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #2e8a3e; }
 .dx-sms-cell.queued .dx-sms-dot { background: #cc0000; animation: dx-blink 1.5s ease infinite; }
@@ -1092,13 +1093,17 @@ function smsCellHTML(sms, queued, isPending) {
   const trkPhone    = (sms && sms.trackerPhone) ? esc(sms.trackerPhone) : '';
   const onclick     = `onclick="smsDetail('${advBody}','${advPhone}','${trkBody}','${trkPhone}')" style="cursor:pointer"`;
 
+  // Sent (departure or tracking link delivered)
   if (departed) {
     const at = sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
     return `<span class="dx-sms-cell sent" ${onclick}><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
   }
-  if (fail) return `<span class="dx-sms-fail" ${onclick}>SMS FAIL</span>`;
+  // Advance (3 PM) SMS sent
   if (advanceSent) return `<span class="dx-sms-cell sent" ${onclick}><span class="dx-sms-dot"></span>Advance Sent</span>`;
-  return `<span class="dx-sms-fail" ${onclick}>SMS FAIL</span>`;
+  // Only a TRUE failure — the poller attempted a send and got an error back
+  if (fail) return `<span class="dx-sms-fail" ${onclick}>SMS Failed</span>`;
+  // No send attempted yet — this is the normal pending state, NOT a failure
+  return `<span class="dx-sms-cell pending">Not sent</span>`;
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
@@ -1234,7 +1239,11 @@ function renderDrawer() {
                 ? `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent at ${typeof stop.smsSent.at==='number' ? esc(fmtTime(stop.smsSent.at)) : esc(stop.smsSent.at)}</span>`
                 : stop.smsSent && stop.smsSent.departed === true
                   ? '<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent</span>'
-                  : '<span class="dx-sms-cell unsent">Not yet sent &mdash; will fire on next poll</span>'
+                  : stop.smsSent && stop.smsSent.advance === true
+                    ? '<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>'
+                    : stop.smsSent && stop.smsSent.fail === true
+                      ? `<span class="dx-sms-fail">SMS Failed${stop.smsSent.failReason ? ' &mdash; ' + esc(stop.smsSent.failReason) : ''}</span>`
+                      : '<span class="dx-sms-cell unsent">Not yet sent &mdash; will fire on next poll</span>'
             }
           </div>
           <button class="dx-action-btn" id="dx-resend-btn" ${queued ? 'disabled' : ''}>
