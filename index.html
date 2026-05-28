@@ -133,6 +133,32 @@ html, body {
   box-shadow: 0 0 10px rgba(204,0,0,0.5);
   transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 3px; }
 
+/* ── UNSCHEDULED ORDERS ── */
+.dx-unsched { border: 1px solid #c4830d; box-shadow: 0 2px 8px rgba(196,131,13,0.12);
+  background: #fff; overflow: hidden; margin-top: 8px; }
+.dx-unsched-head {
+  background: linear-gradient(180deg, #2a2418 0%, #1a160e 100%);
+  color: #fff; padding: 13px 18px 13px 22px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  border-left: 4px solid #e0a020; position: relative;
+}
+.dx-unsched-head::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(224,160,32,0.5), transparent);
+}
+.dx-unsched-title { display: flex; align-items: baseline; gap: 14px;
+  font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+.dx-unsched-title .lbl { font-size: 16px; font-weight: 700; letter-spacing: 0.14em;
+  color: #e0a020; text-shadow: 0 0 12px rgba(224,160,32,0.3); }
+.dx-unsched-title .ct { font-family: 'Oswald', sans-serif; font-size: 12px;
+  letter-spacing: 0.16em; color: #bbb; }
+.dx-unsched-title .ct b { color: #fff; font-weight: 600; }
+.dx-unsched-note { font-family: 'Oswald', sans-serif; font-size: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: #998866; }
+.dx-unsched .dx-table tbody tr:hover { background: #fffaf0; box-shadow: inset 3px 0 0 #e0a020; }
+.dx-unsched .dx-seq { color: #c4830d; }
+.dx-badge.unrouted { background: #fff6e6; color: #b5780a; border: 1px solid #e8cf9a; }
+
 /* ── STOPS TABLE ── */
 .dx-table { width: 100%; border-collapse: collapse; background: #fff; }
 .dx-table th, .dx-table td { text-align: left; padding: 13px 14px;
@@ -548,6 +574,29 @@ function queuedStopIds() {
   Object.values(S.queue).forEach(e => e && e.stopId && ids.add(e.stopId));
   return ids;
 }
+
+// Orders for the target date that aren't on a real route yet (UNASSIGNED or
+// no route block). Shown in a separate "Unscheduled" holding section so the
+// board surfaces work that hasn't been routed in DQ. No SMS, no progress bar.
+function getUnscheduled() {
+  const dk = dateKey();
+  const routedStopIds = new Set();
+  getRoutes().forEach(r => r.stops.forEach(s => routedStopIds.add(s.stopId)));
+
+  const out = [];
+  Object.entries(S.routes).forEach(([id, r]) => {
+    if (!r || r.date !== dk) return;
+    if (id !== 'UNASSIGNED') return;   // only the unassigned bucket
+    if (!r.stops) return;
+    Object.entries(r.stops).forEach(([stopId, s]) => {
+      if (routedStopIds.has(stopId)) return;   // already shown in a route block
+      if (s.status === 'complete') return;     // completed work isn't "unscheduled"
+      out.push({ stopId, ...s });
+    });
+  });
+  return out.sort((a,b) =>
+    (a.orderNumber||'').localeCompare(b.orderNumber||''));
+}
 function getStats() {
   const routes  = getRoutes();
   const todayYMD = new Date().toISOString().slice(0, 10);
@@ -748,8 +797,9 @@ function renderRoutes() {
   const routes = getRoutes();
   const queued = queuedStopIds();
   const sel = S.selected;
+  const unscheduled = getUnscheduled();
 
-  if (routes.length === 0) {
+  if (routes.length === 0 && unscheduled.length === 0) {
     el.innerHTML = `
       <div class="dx-empty">
         <div class="dx-empty-code">&#8709;</div>
@@ -760,7 +810,9 @@ function renderRoutes() {
     return;
   }
 
-  el.innerHTML = routes.map(r => routeBlockHTML(r, queued, sel)).join('') +
+  el.innerHTML =
+    routes.map(r => routeBlockHTML(r, queued, sel)).join('') +
+    (unscheduled.length ? unscheduledBlockHTML(unscheduled, queued, sel) : '') +
     '<div class="dx-meta-foot">Live &mdash; Firebase REST &middot; polls every 2 min</div>';
 
   // Attach click handlers to all Edit buttons and rows
@@ -843,6 +895,52 @@ function addrKey(addr) {
   return (addr || '').trim().toLowerCase()
     .replace(/[.,]/g, '').replace(/\s+/g, ' ')
     .split(' ').map(w => w.replace(/s$/, '')).join(' ');
+}
+
+function unscheduledBlockHTML(stops, queued, sel) {
+  const rows = stops.map((s, i) => {
+    const isQueued   = queued.has(s.stopId);
+    const isSelected = sel && sel.routeId === 'UNASSIGNED' && sel.stopId === s.stopId;
+    return `
+    <tr class="dx-row pending ${isSelected ? 'selected' : ''}" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">
+      <td class="dx-seq">${i + 1}</td>
+      <td class="dx-order">${esc(s.orderNumber || '')}</td>
+      <td>
+        <div class="dx-customer">${esc(s.customerName || '')}</div>
+        <div class="dx-customer-sub">${esc(s.address || '')}</div>
+      </td>
+      <td><span class="dx-eta-empty">—</span></td>
+      <td><span style="color:#ccc">—</span></td>
+      <td><span class="dx-badge unrouted">Unrouted</span></td>
+      <td><span style="color:#ccc">—</span></td>
+      <td><span style="color:#ccc">—</span></td>
+      <td><span style="color:#ccc">—</span></td>
+      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Edit ›</button></td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <section class="dx-unsched">
+      <div class="dx-unsched-head">
+        <div class="dx-unsched-title">
+          <span class="lbl">Unscheduled Orders</span>
+          <span class="ct"><b>${stops.length}</b> order${stops.length === 1 ? '' : 's'} not yet routed</span>
+        </div>
+        <div class="dx-unsched-note">No ETA &middot; No SMS &middot; Awaiting route assignment</div>
+      </div>
+      <table class="dx-table">
+        <colgroup>
+          <col style="width:44px"><col style="width:140px"><col>
+          <col style="width:160px"><col style="width:100px"><col style="width:220px">
+          <col style="width:80px"><col style="width:90px"><col style="width:110px"><col style="width:60px">
+        </colgroup>
+        <thead><tr>
+          <th>#</th><th>Order</th><th>Customer</th>
+          <th>Customer ETA</th><th>Arrival</th><th>Status</th><th>On Site</th><th>Timing</th><th>SMS</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>`;
 }
 
 function groupStopsByAddress(stops) {
@@ -1060,6 +1158,11 @@ function getDeliveryTiming(s) {
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
 function getSelectedStop() {
   if (!S.selected) return { route: null, stop: null };
+  // Unscheduled orders live under the UNASSIGNED bucket, not in getRoutes()
+  if (S.selected.routeId === 'UNASSIGNED') {
+    const stop = getUnscheduled().find(s => s.stopId === S.selected.stopId);
+    return { route: { id: 'UNASSIGNED', driverName: '', asset: '', stops: getUnscheduled() }, stop: stop || null };
+  }
   const route = getRoutes().find(r => r.id === S.selected.routeId);
   const stop  = route ? route.stops.find(s => s.stopId === S.selected.stopId) : null;
   return { route, stop };
