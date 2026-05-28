@@ -1384,7 +1384,27 @@ function closeDrawer() {
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
-renderPin();
+// Allow auto-authentication when opened from the manager page, which passes the
+// PIN as a URL parameter (?pin=...). sessionStorage isn't shared across tabs
+// opened via window.open, so the URL param is how the manager hands off auth.
+(function bootDispatcher() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlPin = params.get('pin');
+    if (urlPin && urlPin === DISPATCH_PIN) {
+      S.authed = true;
+      // Strip the pin from the address bar so it isn't bookmarked/shared
+      if (window.history && window.history.replaceState) {
+        params.delete('pin');
+        const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        window.history.replaceState({}, document.title, clean);
+      }
+      renderApp();
+      return;
+    }
+  } catch (e) { /* fall through to PIN screen */ }
+  renderPin();
+})();
 
 
 // ── Photo Lightbox ───────────────────────────────────────────
