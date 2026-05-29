@@ -856,7 +856,8 @@ function routeBlockHTML(r, queued, sel) {
           <span class="dx-route-id">Route <b>${esc(r.id)}</b></span>
           <span class="dx-route-meta">
             ${(r.driverName) ? `<b>${esc(r.driverName.split(' ')[0])}</b> &middot; ` : ''}Unit <b>${esc([r.asset, r.assetDescription].filter(Boolean).join(' ')||'—')}</b>
-            ${r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
+            ${r.timeOut ? ` &middot; Departed <b>${fmtTime(r.timeOut)}</b>` : r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
+            ${r.timeIn ? ` &middot; Returned <b>${fmtTime(r.timeIn)}</b>` : ''}
           </span>
         </div>
         <div class="dx-route-head-right">
@@ -1012,7 +1013,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       <td class="dx-order">${esc(s.orderNumber||'')}</td>
       <td>
         <div class="dx-customer">${esc(s.customerName||'')}</div>
-        <div class="dx-customer-sub">${esc(s.address||'')}</div>
+        <div class="dx-customer-sub">${esc(s.address||'')}${s.weight ? ` <span style="color:#888;font-size:10px">· ${s.weight} lbs</span>` : ''}${s.reference ? ` <span style="color:#888;font-size:10px">· Ref: ${esc(s.reference)}</span>` : ''}</div>
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
       <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
@@ -1192,7 +1193,7 @@ function renderDrawer() {
         <div class="dx-seq-big">${stop.sequence||''}</div>
         <div class="dx-drawer-titles">
           <div class="dx-drawer-title">${esc(stop.customerName||'')}</div>
-          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc(route.asset||'—')}</div>
+          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc(route.asset||'—')}${stop.weight ? ` &middot; ${stop.weight} lbs` : ''}${stop.reference ? ` &middot; Ref: ${esc(stop.reference)}` : ''}</div>
         </div>
         <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
       </div>
