@@ -564,7 +564,7 @@ function getRoutes() {
         : [],
     }))
     .filter(r => {
-      const hasActivePending = r.stops.some(s => s.status !== 'complete');
+      const hasActivePending = r.stops.some(s => s.status !== 'complete' && s.status !== 'skipped');
       const hasActiveComplete = r.stops.some(s => s.status === 'complete' && (s.seedEta || s.calculatedEta || s.arrivalTime));
       return hasActivePending || hasActiveComplete;
     })
@@ -844,8 +844,9 @@ function routeBlockHTML(r, queued, sel) {
     return sites.length || stops.length;
   }
   const completedStops = r.stops.filter(s => s.status === 'complete');
-  const pendingStops   = r.stops.filter(s => s.status !== 'complete');
+  const pendingStops   = r.stops.filter(s => s.status !== 'complete' && s.status !== 'skipped');
   const completed = uniqueSites(completedStops);
+  const skippedStops  = r.stops.filter(s => s.status === 'skipped');
   const total     = uniqueSites(completedStops) + uniqueSites(pendingStops);
   const pct = total ? Math.round(completed/total*100) : 0;
   return `
