@@ -1130,8 +1130,10 @@ function timingBadgeHTML(timing) {
 
 function getDeliveryTiming(s) {
   if (s.status !== 'complete') return null;
-  // Use arrivalTime as the actual event — fall back to deliveryTime, then completedAt
-  const actualTs = s.arrivalTime || s.deliveryTime || s.completedAt;
+  // Use deliveryTime (actual completion) as the timing event — not arrivalTime.
+  // Arrival is when the truck pulls up; delivery is when the job is done.
+  // For boom trucks especially, arrival and delivery can be hours apart.
+  const actualTs = s.deliveryTime || s.completedAt || s.arrivalTime;
   if (!actualTs) return null;
 
   // Use the SAME source as the Customer ETA column for the schedule anchor
@@ -1149,7 +1151,9 @@ function getDeliveryTiming(s) {
     }
   }
   if (!etaLowMs) {
-    const anchor = s.seedEta || s.calculatedEta;
+    // Use timingAnchor (calculatedEta snapshotted at completion) if available,
+    // otherwise calculatedEta, then seedEta. This matches what dispatcher showed.
+    const anchor = s.timingAnchor || s.calculatedEta || s.seedEta;
     if (!anchor) return null;
     const anchorMs = new Date(anchor).getTime();
     etaLowMs  = anchorMs;               // on time starts at scheduled arrival
