@@ -427,25 +427,8 @@ html, body {
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const DB           = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
-const DRIVER_MAP   = {
-  '460 Boom':             'Tyler Begley',
-  '985 Boom':             'Mitch Warczinsky',
-  '392 Boom':             'Tim Bailey',
-  '537 Boom':             'Gary Rogers',
-  '481 Boom':             'Backup',
-  '015':                  'Nick Harris',
-  '320 Moffett':          'Larry Reid',
-  '396 Moffett':          'Mike Desutter',
-  '788 Moffett Tarpside': 'Chad Billot',
-  '750':                  'Tim Bailey',
-};
-function driverFromAsset(asset) {
-  if (!asset) return '';
-  for (const [key, name] of Object.entries(DRIVER_MAP)) {
-    if (asset.includes(key)) return name;
-  }
-  return '';
-}
+// Driver names come from DQ via route.driverName — no hardcoded map needed
+function driverFromAsset(asset) { return ''; }
 const DISPATCH_PIN = '2025';
 const TRACKER_BASE = 'https://kinggregory82.github.io/bcctracker';
 
@@ -592,6 +575,8 @@ function getUnscheduled() {
     Object.entries(r.stops).forEach(([stopId, s]) => {
       if (routedStopIds.has(stopId)) return;   // already shown in a route block
       if (s.status === 'complete') return;     // completed work isn't "unscheduled"
+      if (s.status === 'skipped') return;      // skipped stops don't need action
+      if (s.orderDate && s.orderDate !== dk) return;  // only today's unassigned
       out.push({ stopId, ...s });
     });
   });
