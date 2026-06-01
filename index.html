@@ -1091,23 +1091,45 @@ function smsCellHTML(sms, queued, isPending) {
 
   const advanceSent = sms && sms.advance === true;
   const departed    = sms && (sms.departed === true || sms.at);
-  const fail        = sms && sms.fail === true;
-  const advBody     = (sms && sms.advanceBody)  ? esc(sms.advanceBody)  : '';
-  const advPhone    = (sms && sms.advancePhone) ? esc(sms.advancePhone) : '';
-  const trkBody     = (sms && sms.trackerBody)  ? esc(sms.trackerBody)  : '';
-  const trkPhone    = (sms && sms.trackerPhone) ? esc(sms.trackerPhone) : '';
-  const onclick     = `onclick="smsDetail('${advBody}','${advPhone}','${trkBody}','${trkPhone}')" style="cursor:pointer"`;
+  const legacyFail  = sms && sms.fail === true;
 
-  // Sent (departure or tracking link delivered)
-  if (departed) {
-    const at = sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
-    return `<span class="dx-sms-cell sent" ${onclick}><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
+  // Check per-phone departure results (new format)
+  const depResults  = sms && sms.departureResults ? Object.entries(sms.departureResults) : [];
+  const anyFailed   = depResults.some(([,r]) => !r.ok && !r.optout);
+  const anyOptout   = depResults.some(([,r]) => r.optout);
+  const allFailed   = depResults.length > 0 && depResults.every(([,r]) => !r.ok);
+
+  // Build tooltip showing per-phone status
+  function depTooltip() {
+    if (!depResults.length) return '';
+    const lines = depResults.map(([phone, r]) => {
+      const num = phone.replace('_','.');
+      if (r.optout)  return `${num}: Opted out (STOP)`;
+      if (!r.ok)     return `${num}: FAILED — ${r.error || 'unknown error'}`;
+      return `${num}: Sent ✓`;
+    });
+    return lines.join('\n');
   }
-  // Advance (3 PM) SMS sent
-  if (advanceSent) return `<span class="dx-sms-cell sent" ${onclick}><span class="dx-sms-dot"></span>Advance Sent</span>`;
-  // Only a TRUE failure — the poller attempted a send and got an error back
-  if (fail) return `<span class="dx-sms-fail" ${onclick}>SMS Failed</span>`;
-  // No send attempted yet — this is the normal pending state, NOT a failure
+
+  if (departed || (depResults.length > 0 && !allFailed)) {
+    // Sent — but may have partial failures
+    if (anyFailed) {
+      const tip = depTooltip();
+      const failCount = depResults.filter(([,r]) => !r.ok && !r.optout).length;
+      return `<span class="dx-sms-fail" title="${esc(tip)}" style="cursor:help">${failCount} NUM FAILED</span>`;
+    }
+    if (anyOptout && !depResults.some(([,r]) => r.ok && !r.optout)) {
+      return `<span class="dx-sms-cell pending" title="Customer texted STOP" style="cursor:help">Opted Out</span>`;
+    }
+    const at = sms && sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
+    const tip = depTooltip();
+    return `<span class="dx-sms-cell sent" title="${esc(tip)}" style="cursor:help"><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
+  }
+  if (advanceSent) return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>`;
+  if (allFailed || legacyFail) {
+    const tip = depTooltip();
+    return `<span class="dx-sms-fail" title="${esc(tip)}" style="cursor:help">SMS Failed</span>`;
+  }
   return `<span class="dx-sms-cell pending">Not sent</span>`;
 }
 
