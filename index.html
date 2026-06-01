@@ -971,7 +971,7 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
         <div class="dx-customer-sub">${esc(s.address||'')}</div>
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
-      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
+      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || (s.deliveryStatus || '').toLowerCase().includes('arrived')) && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
@@ -1019,7 +1019,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
         <div class="dx-customer-sub">${esc(s.address||'')}${s.weight ? ` <span style="color:#888;font-size:10px">· ${s.weight} lbs</span>` : ''}${s.reference ? ` <span style="color:#888;font-size:10px">· Ref: ${esc(s.reference)}</span>` : ''}${(()=>{const d=s.status!=='complete'&&route?distanceToStop(s,route):null;return d?` <span style="color:#4a9eff;font-size:10px">· ${d} mi away</span>`:'';})()}</div>
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
-      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
+      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || (s.deliveryStatus || '').toLowerCase().includes('arrived')) && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
@@ -1072,14 +1072,14 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   }
   if (deliveryStatus) {
     const ds = deliveryStatus.toLowerCase();
-    if (ds === 'next stop')        return `<span class="dx-badge next">Next Stop</span>`;
-    if (ds === 'arrived')          return `<span class="dx-badge next">Arrived</span>`;
-    if (ds === 'enroute')          return `<span class="dx-badge enroute">En Route</span>`;
-    if (ds === 'ready to depart')  return `<span class="dx-badge enroute">Ready</span>`;
-    if (ds === 'job not ready')    return `<span class="dx-badge skipped">Not Ready</span>`;
-    if (ds === 'returning')        return `<span class="dx-badge skipped">Returning</span>`;
-    if (ds === 'delivery w/issue') return `<span class="dx-badge skipped">Issue</span>`;
-    if (ds === 'cancelled')        return `<span class="dx-badge skipped">Cancelled</span>`;
+    if (ds.includes('arrived'))          return `<span class="dx-badge next">Arrived</span>`;
+    if (ds.includes('next stop'))        return `<span class="dx-badge next">Next Stop</span>`;
+    if (ds.includes('enroute') || ds.includes('en route') || ds.includes('out for delivery')) return `<span class="dx-badge enroute">En Route</span>`;
+    if (ds.includes('ready to depart'))  return `<span class="dx-badge enroute">Ready</span>`;
+    if (ds.includes('job not ready'))    return `<span class="dx-badge skipped">Not Ready</span>`;
+    if (ds.includes('returning'))        return `<span class="dx-badge skipped">Returning</span>`;
+    if (ds.includes('w/issue') || ds.includes('with issue')) return `<span class="dx-badge skipped">Issue</span>`;
+    if (ds.includes('cancelled') || ds.includes('cancel'))   return `<span class="dx-badge skipped">Cancelled</span>`;
   }
   if (status === 'next')    return `<span class="dx-badge next">Next</span>`;
   if (status === 'skipped') return `<span class="dx-badge skipped">Skipped</span>`;
