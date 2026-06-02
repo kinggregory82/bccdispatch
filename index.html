@@ -1111,17 +1111,26 @@ function smsCellHTML(sms, queued, isPending, stop) {
   const anyOptout   = depResults.some(([,r]) => r.optout);
   const allFailed   = depResults.length > 0 && depResults.every(([,r]) => !r.ok);
 
-  // Build tooltip showing per-phone status
+  // Build tooltip showing per-phone status (incl. carrier delivery if known)
   function depTooltip() {
     if (!depResults.length) return '';
     const lines = depResults.map(([phone, r]) => {
       const num = phone.replace('_','.');
       if (r.optout)  return `${num}: Opted out (STOP)`;
       if (!r.ok)     return `${num}: FAILED — ${r.error || 'unknown error'}`;
+      const cs = r.carrierStatus;
+      if (cs === 'delivered')   return `${num}: Delivered ✓ (carrier confirmed)`;
+      if (cs === 'undelivered') return `${num}: UNDELIVERED (carrier)`;
+      if (cs === 'sent')        return `${num}: Sent — awaiting carrier`;
       return `${num}: Sent ✓`;
     });
     return lines.join('\n');
   }
+
+  // Carrier-confirmed delivery rollup across phones (from the webhook)
+  const carrierStatuses = depResults.map(([,r]) => r.carrierStatus).filter(Boolean);
+  const anyDelivered    = carrierStatuses.includes('delivered');
+  const anyUndelivered  = carrierStatuses.includes('undelivered');
 
   if (departed || (depResults.length > 0 && !allFailed)) {
     // Sent — but may have partial failures
@@ -1135,6 +1144,15 @@ function smsCellHTML(sms, queued, isPending, stop) {
     }
     const at = sms && sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
     const tip = depTooltip();
+    // If the carrier reported back (via the delivery webhook), show the real
+    // outcome. "Undelivered" is the important one — it means the text bounced.
+    if (anyUndelivered && !anyDelivered) {
+      return `<span class="dx-sms-fail" title="${esc(tip)}" style="cursor:help">Undelivered</span>`;
+    }
+    if (anyDelivered) {
+      return `<span class="dx-sms-cell sent" title="${esc(tip)}" style="cursor:help"><span class="dx-sms-dot"></span>Delivered${at ? ' · ' + esc(at) : ''}</span>`;
+    }
+    // Sent to SimpleTexting, carrier hasn't reported yet.
     return `<span class="dx-sms-cell sent" title="${esc(tip)}" style="cursor:help"><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
   }
   if (advanceSent) return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>`;
