@@ -1229,6 +1229,34 @@ function renderDrawer() {
       <div class="dx-drawer-intro">Edit what the customer sees on their tracker</div>
       <div class="dx-drawer-body">
 
+        <!-- Sold-To / Ship-To -->
+        ${(() => {
+          const sold = (stop.soldToName || '').trim();
+          const ship = (stop.shipToName || '').trim();
+          // Fall back gracefully if the poller hasn't refreshed both names yet.
+          const soldDisp = sold || stop.customerName || '—';
+          const shipDisp = ship || stop.customerName || '—';
+          const same = soldDisp.toLowerCase() === shipDisp.toLowerCase();
+          return `
+        <div class="dx-edit-block">
+          <div class="dx-edit-label">Customer</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Sold To</div>
+              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(soldDisp)}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship To${same ? ' (same)' : ''}</div>
+              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(shipDisp)}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship-To Address</div>
+              <div style="font-size:13px;color:#ccc">${esc(stop.address || '—')}</div>
+            </div>
+          </div>
+        </div>`;
+        })()}
+
         <!-- ETA -->
         <div class="dx-edit-block">
           <div class="dx-edit-label">Customer ETA Window</div>
@@ -1348,14 +1376,27 @@ function renderDrawer() {
   document.getElementById('dx-save-phone').onclick = async () => {
     const phone = document.getElementById('dx-phone').value.trim();
     try {
+      // Write to the stop (used for today's texts)
       await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, { phone });
+      // Also persist to a customer-keyed override so it survives route rebuilds
+      // and auto-applies to this customer's future orders. The poller reads
+      // manual_phones/{customerCode} as its highest-priority phone source.
+      const custCode = (stop.customerCode || '').trim();
+      if (custCode) {
+        await dbPatch(`manual_phones/${custCode}`, {
+          phone,
+          savedBy: 'dispatcher',
+          savedAt: Date.now(),
+          customerName: stop.customerName || '',
+        });
+      }
       await logHistory({
         field: 'phone',
         oldValue: stop.phone || '—',
-        newValue: phone,
+        newValue: phone + (custCode ? ' (saved for future orders)' : ''),
         route, stop,
       });
-      toast('PHONE NUMBER UPDATED');
+      toast(custCode ? 'PHONE SAVED — WILL REUSE FOR THIS CUSTOMER' : 'PHONE NUMBER UPDATED');
     } catch(e) { toast(e.message, true); }
   };
 
