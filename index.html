@@ -1253,6 +1253,7 @@ function renderDrawer() {
             <div>
               <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Sold To</div>
               <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(soldDisp)}</div>
+              ${(stop.soldToAddress || '').trim() ? `<div style="font-size:12px;color:#aaa">${esc(stop.soldToAddress)}</div>` : ''}
             </div>
             <div>
               <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship To${same ? ' (same)' : ''}</div>
