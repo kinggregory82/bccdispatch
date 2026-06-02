@@ -1015,7 +1015,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
       <td class="dx-seq">${s.sequence||''}</td>
       <td class="dx-order">${esc(s.orderNumber||'')}</td>
       <td>
-        <div class="dx-customer">${esc(s.customerName||'')}</div>
+        <div class="dx-customer">${esc(s.customerName||'')}${s.assignedSales ? ` <span style="font-family:'Roboto',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;color:#cc0000;background:#fff0f0;padding:1px 6px;border-radius:3px;vertical-align:middle">${esc(s.assignedSales)}</span>` : ''}</div>
         <div class="dx-customer-sub">${esc(s.address||'')}${s.weight ? ` <span style="color:#888;font-size:10px">· ${s.weight} lbs</span>` : ''}${s.reference ? ` <span style="color:#888;font-size:10px">· Ref: ${esc(s.reference)}</span>` : ''}${(()=>{const d=s.status!=='complete'&&route?distanceToStop(s,route):null;return d?` <span style="color:#4a9eff;font-size:10px">· ${d} mi away</span>`:'';})()}</div>
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
@@ -1023,7 +1023,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>${smsCellHTML(s.smsSent, isQueued, s.status === 'pending')}</td>
+      <td>${smsCellHTML(s.smsSent, isQueued, s.status === 'pending', s)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>${photoRow}`;
 }
@@ -1086,7 +1086,7 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   return `<span class="dx-badge pending">Pending</span>`;
 }
 
-function smsCellHTML(sms, queued, isPending) {
+function smsCellHTML(sms, queued, isPending, stop) {
   if (queued) return `<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued</span>`;
 
   const advanceSent = sms && sms.advance === true;
@@ -1130,7 +1130,16 @@ function smsCellHTML(sms, queued, isPending) {
     const tip = depTooltip();
     return `<span class="dx-sms-fail" title="${esc(tip)}" style="cursor:help">SMS Failed</span>`;
   }
-  return `<span class="dx-sms-cell pending">Not sent</span>`;
+
+  // Nothing sent yet — say WHY instead of a bare "Not sent".
+  const hasPhone = stop && (stop.phone || '').replace(/\D/g, '').length >= 10;
+  if (!hasPhone) {
+    return `<span class="dx-sms-cell pending" title="No valid phone number on file — add one under Edit to enable texting" style="cursor:help">No Phone #</span>`;
+  }
+  if (isPending) {
+    return `<span class="dx-sms-cell pending" title="Tracking text sends automatically when the truck departs for this stop" style="cursor:help">Sends on Departure</span>`;
+  }
+  return `<span class="dx-sms-cell pending" title="Queued to send on the next poll cycle" style="cursor:help">Awaiting Send</span>`;
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
@@ -1253,6 +1262,10 @@ function renderDrawer() {
               <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship-To Address</div>
               <div style="font-size:13px;color:#ccc">${esc(stop.address || '—')}</div>
             </div>
+            ${stop.assignedSales ? `<div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Sales Rep</div>
+              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(stop.assignedSales)}</div>
+            </div>` : ''}
           </div>
         </div>`;
         })()}
