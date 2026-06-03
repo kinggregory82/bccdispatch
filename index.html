@@ -211,59 +211,6 @@ html, body {
   font-family: 'Oswald', sans-serif; font-size: 12px;
   letter-spacing: 0.14em; text-transform: uppercase; }
 .dx-sms-cell.sent   { color: #111; font-weight: 600; }
-.dx-sms-cell.sent .dx-sms-dot { background: #2ecc71; }
-
-/* ── Six distinct SMS statuses ── */
-.dx-sms-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 800;
-  letter-spacing: 0.10em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 3px;
-  position: relative; isolation: isolate;
-}
-/* Solid (non-problem) states — no glow */
-.dx-sms-badge.advance-sent { color: #fff; background: #2ecc71; }      /* green */
-.dx-sms-badge.queued       { color: #fff; background: #3d9be8; }      /* blue */
-.dx-sms-badge.advance-sent .dx-sms-dot { background: #fff; }
-.dx-sms-badge.queued       .dx-sms-dot { background: #fff; animation: dx-blink 1.5s ease infinite; }
-
-/* Problem states — solid color + cascading glowing border that pulses until dismissed */
-.dx-sms-badge.rep-only       { color: #fff; background: #f7b731; }    /* amber */
-.dx-sms-badge.no-customer-no { color: #fff; background: #e83030; }    /* red */
-.dx-sms-badge.opted-out      { color: #fff; background: #9b59b6; }    /* purple */
-.dx-sms-badge.sms-failed     { color: #fff; background: #ff6b35; }    /* orange-red */
-
-/* Cascading glow — a rotating conic-gradient border that pulses outward. */
-@keyframes dx-glow-rotate { from { --dx-glow-angle: 0deg; } to { --dx-glow-angle: 360deg; } }
-@keyframes dx-glow-pulse  {
-  0%, 100% { box-shadow: 0 0 4px var(--dx-glow-color), 0 0 8px var(--dx-glow-color); }
-  50%      { box-shadow: 0 0 8px var(--dx-glow-color), 0 0 18px var(--dx-glow-color); }
-}
-@property --dx-glow-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-
-.dx-sms-badge.rep-only,
-.dx-sms-badge.no-customer-no,
-.dx-sms-badge.opted-out,
-.dx-sms-badge.sms-failed {
-  animation: dx-glow-pulse 1.6s ease-in-out infinite;
-}
-.dx-sms-badge.rep-only       { --dx-glow-color: rgba(247,183,49,.85); }
-.dx-sms-badge.no-customer-no { --dx-glow-color: rgba(232,48,48,.85); }
-.dx-sms-badge.opted-out      { --dx-glow-color: rgba(155,89,182,.85); }
-.dx-sms-badge.sms-failed     { --dx-glow-color: rgba(255,107,53,.85); }
-
-/* The cascading border — sits behind the badge using a rotating conic gradient */
-.dx-sms-badge.rep-only::before,
-.dx-sms-badge.no-customer-no::before,
-.dx-sms-badge.opted-out::before,
-.dx-sms-badge.sms-failed::before {
-  content: ''; position: absolute; inset: -2px; z-index: -1; border-radius: 4px;
-  background: conic-gradient(from var(--dx-glow-angle),
-    var(--dx-glow-color) 0%, transparent 35%, transparent 65%, var(--dx-glow-color) 100%);
-  animation: dx-glow-rotate 2.2s linear infinite;
-}
-
-/* Keep the legacy class targeting alive for any leftover renders */
 @keyframes sms-fail-blink {
   0%, 100% { color: #cc0000; border-color: #cc0000; box-shadow: 0 0 4px #cc0000; }
   50%       { color: #111;    border-color: #111;    box-shadow: none; }
@@ -355,6 +302,10 @@ html, body {
 .dx-action-btn.primary { background: #cc0000; color: #fff; border-color: #cc0000; }
 .dx-action-btn.primary:hover { background: #a30000; border-color: #a30000; }
 .dx-action-btn.full { width: 100%; }
+.dx-track-note { width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 8px 10px;
+  font-family: 'Barlow', sans-serif; font-size: 13px; border: 1px solid #ccc; border-radius: 0;
+  resize: vertical; color: #111; }
+.dx-track-note:focus { outline: none; border-color: #cc0000; }
 .dx-action-btn:disabled { background: #f3f3f3; border-color: #ddd; color: #aaa; cursor: not-allowed; }
 .dx-action-btn:disabled:hover { background: #f3f3f3; color: #aaa; }
 
@@ -480,25 +431,8 @@ html, body {
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const DB           = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
-const DRIVER_MAP   = {
-  '460 Boom':             'Tyler Begley',
-  '985 Boom':             'Mitch Warczinsky',
-  '392 Boom':             'Tim Bailey',
-  '537 Boom':             'Gary Rogers',
-  '481 Boom':             'Backup',
-  '015':                  'Nick Harris',
-  '320 Moffett':          'Larry Reid',
-  '396 Moffett':          'Mike Desutter',
-  '788 Moffett Tarpside': 'Chad Billot',
-  '750':                  'Tim Bailey',
-};
-function driverFromAsset(asset) {
-  if (!asset) return '';
-  for (const [key, name] of Object.entries(DRIVER_MAP)) {
-    if (asset.includes(key)) return name;
-  }
-  return '';
-}
+// Driver names come from DQ via route.driverName — no hardcoded map needed
+function driverFromAsset(asset) { return ''; }
 const DISPATCH_PIN = '2025';
 const TRACKER_BASE = 'https://kinggregory82.github.io/bcctracker';
 
@@ -604,7 +538,7 @@ function getRoutes() {
             .filter(s => {
               if (s.status === 'complete') return true;
               if (S.dateOffset > 0) return true; // future date — show all pending
-              const hasEta = s.arrivalTime || s.calculatedEta || (s.customerEta && s.customerEta.low);
+              const hasEta = s.arrivalTime || s.seedEta || s.calculatedEta || (s.customerEta && s.customerEta.low);
               const hasStatus = s.deliveryStatus && s.deliveryStatus !== 'Order' && s.deliveryStatus !== 'Scheduled' && s.deliveryStatus !== 'Printed';
               return hasEta || hasStatus;
             })
@@ -617,8 +551,8 @@ function getRoutes() {
         : [],
     }))
     .filter(r => {
-      const hasActivePending = r.stops.some(s => s.status !== 'complete');
-      const hasActiveComplete = r.stops.some(s => s.status === 'complete' && (s.calculatedEta || s.seedEta || s.arrivalTime));
+      const hasActivePending = r.stops.some(s => s.status !== 'complete' && s.status !== 'skipped');
+      const hasActiveComplete = r.stops.some(s => s.status === 'complete' && (s.seedEta || s.calculatedEta || s.arrivalTime));
       return hasActivePending || hasActiveComplete;
     })
     .sort((a,b) => a.id.localeCompare(b.id));
@@ -645,6 +579,8 @@ function getUnscheduled() {
     Object.entries(r.stops).forEach(([stopId, s]) => {
       if (routedStopIds.has(stopId)) return;   // already shown in a route block
       if (s.status === 'complete') return;     // completed work isn't "unscheduled"
+      if (s.status === 'skipped') return;      // skipped stops don't need action
+      if (s.orderDate && s.orderDate !== dk) return;  // only today's unassigned
       out.push({ stopId, ...s });
     });
   });
@@ -680,7 +616,7 @@ function getStats() {
           if (!isNaN(low) && !isNaN(high)) { etaLowMs = low.getTime(); etaHighMs = high.getTime(); }
         }
         if (!etaLowMs) {
-          const anchor = s.calculatedEta || s.seedEta;
+          const anchor = s.seedEta || s.calculatedEta;
           if (anchor) { const anchorMs = new Date(anchor).getTime(); etaLowMs = anchorMs; etaHighMs = anchorMs + 30*60*1000; }
         }
         if (etaLowMs) {
@@ -897,8 +833,9 @@ function routeBlockHTML(r, queued, sel) {
     return sites.length || stops.length;
   }
   const completedStops = r.stops.filter(s => s.status === 'complete');
-  const pendingStops   = r.stops.filter(s => s.status !== 'complete');
+  const pendingStops   = r.stops.filter(s => s.status !== 'complete' && s.status !== 'skipped');
   const completed = uniqueSites(completedStops);
+  const skippedStops  = r.stops.filter(s => s.status === 'skipped');
   const total     = uniqueSites(completedStops) + uniqueSites(pendingStops);
   const pct = total ? Math.round(completed/total*100) : 0;
   return `
@@ -908,7 +845,9 @@ function routeBlockHTML(r, queued, sel) {
           <span class="dx-route-id">Route <b>${esc(r.id)}</b></span>
           <span class="dx-route-meta">
             ${(r.driverName) ? `<b>${esc(r.driverName.split(' ')[0])}</b> &middot; ` : ''}Unit <b>${esc([r.asset, r.assetDescription].filter(Boolean).join(' ')||'—')}</b>
-            ${r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
+            ${r.timeOut ? ` &middot; Departed <b>${fmtTime(r.timeOut)}</b>` : r.startedAt ? ` &middot; Started <b>${esc(r.startedAt)}</b>` : ''}
+            ${r.timeIn ? ` &middot; Returned <b>${fmtTime(r.timeIn)}</b>` : ''}
+            ${r.tripWeight ? ` &middot; <span style="color:#888">${Math.round(r.tripWeight).toLocaleString()} lbs</span>` : ''}
           </span>
         </div>
         <div class="dx-route-head-right">
@@ -938,7 +877,7 @@ function routeBlockHTML(r, queued, sel) {
           <th>Customer ETA</th><th>Arrival</th><th>Status</th><th>On Site</th><th>Timing</th><th>SMS</th><th></th>
         </tr></thead>
         <tbody>
-          ${groupStopsByAddress(r.stops).map(g => g.length === 1 ? stopRowHTML(r.id, g[0], queued.has(g[0].stopId), sel && sel.routeId===r.id && sel.stopId===g[0].stopId) : groupedStopRowHTML(r.id, g, queued, sel)).join('')}
+          ${groupStopsByAddress(r.stops).map(g => g.length === 1 ? stopRowHTML(r.id, g[0], queued.has(g[0].stopId), sel && sel.routeId===r.id && sel.stopId===g[0].stopId, r) : groupedStopRowHTML(r.id, g, queued, sel, r)).join('')}
         </tbody>
       </table>
     </section>`;
@@ -1036,7 +975,7 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
         <div class="dx-customer-sub">${esc(s.address||'')}</div>
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
-      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
+      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || (s.deliveryStatus || '').toLowerCase().includes('arrived')) && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
@@ -1045,7 +984,24 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
     </tr>${photoRow}`;
 }
 
-function stopRowHTML(routeId, s, isQueued, isSelected) {
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 3958.8, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function distanceToStop(s, route) {
+  // Calculate miles from truck's live GPS position to this stop's coords
+  const gpsLat = route?.gpsLat, gpsLon = route?.gpsLon;
+  const stopCoords = s.coords;
+  if (!gpsLat || !gpsLon || !stopCoords || stopCoords.length < 2) return null;
+  const miles = haversine(gpsLat, gpsLon, stopCoords[0], stopCoords[1]);
+  if (miles < 0.1) return null; // Too close to show
+  return miles < 10 ? miles.toFixed(1) : Math.round(miles);
+}
+
+function stopRowHTML(routeId, s, isQueued, isSelected, route) {
   const cls = ['dx-row', s.status||'', isSelected?'selected':'', s.status==='skipped'?'skipped':''].join(' ');
   const pics = (s.pictures||[]).concat(s.signatures||[]);
   const hasPics = pics.length > 0;
@@ -1063,15 +1019,27 @@ function stopRowHTML(routeId, s, isQueued, isSelected) {
       <td class="dx-seq">${s.sequence||''}</td>
       <td class="dx-order">${esc(s.orderNumber||'')}</td>
       <td>
-        <div class="dx-customer">${esc(s.customerName||'')}</div>
-        <div class="dx-customer-sub">${esc(s.address||'')}</div>
+        ${(() => {
+          const sold = (s.soldToName || '').trim();
+          const ship = (s.shipToName || '').trim();
+          const soldDisp = sold || s.customerName || '';
+          const shipDisp = ship || s.customerName || '';
+          const same = soldDisp.toLowerCase() === shipDisp.toLowerCase();
+          const repTag = s.assignedSales ? ` <span style="font-family:'Roboto',sans-serif;font-size:10px;font-weight:600;letter-spacing:.04em;color:#cc0000;background:#fff0f0;padding:1px 6px;border-radius:3px;vertical-align:middle">${esc(s.assignedSales)}</span>` : '';
+          if (same) {
+            return `<div class="dx-customer">${esc(soldDisp)}${repTag}</div>`;
+          }
+          return `<div class="dx-customer">${esc(shipDisp)}${repTag}</div>`
+            + `<div style="font-size:11px;color:#999;margin-top:1px"><span style="color:#bbb;font-weight:600">Sold to:</span> ${esc(soldDisp)}</div>`;
+        })()}
+        <div class="dx-customer-sub">${esc(s.address||'')}${s.weight ? ` <span style="color:#888;font-size:10px">· ${s.weight} lbs</span>` : ''}${s.reference ? ` <span style="color:#888;font-size:10px">· Ref: ${esc(s.reference)}</span>` : ''}${(()=>{const d=s.status!=='complete'&&route?distanceToStop(s,route):null;return d?` <span style="color:#4a9eff;font-size:10px">· ${d} mi away</span>`:'';})()}</div>
       </td>
       <td>${etaCellHTML(s.customerEta, s.etaOverridden, s.calculatedEta)}</td>
-      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || s.deliveryStatus === 'Arrived') && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
+      <td><span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:500;color:#111">${(s.status === 'complete' || (s.deliveryStatus || '').toLowerCase().includes('arrived')) && s.arrivalTime ? fmtTime(s.arrivalTime) : '<span style="color:#ccc">—</span>'}</span></td>
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>${smsCellHTML(s.smsSent, isQueued, s.status === 'pending')}</td>
+      <td>${smsCellHTML(s.smsSent, isQueued, s.status === 'pending', s)}</td>
       <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
     </tr>${photoRow}`;
 }
@@ -1120,58 +1088,92 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   }
   if (deliveryStatus) {
     const ds = deliveryStatus.toLowerCase();
-    if (ds === 'next stop')        return `<span class="dx-badge next">Next Stop</span>`;
-    if (ds === 'arrived')          return `<span class="dx-badge next">Arrived</span>`;
-    if (ds === 'enroute')          return `<span class="dx-badge enroute">En Route</span>`;
-    if (ds === 'ready to depart')  return `<span class="dx-badge enroute">Ready</span>`;
-    if (ds === 'job not ready')    return `<span class="dx-badge skipped">Not Ready</span>`;
-    if (ds === 'returning')        return `<span class="dx-badge skipped">Returning</span>`;
-    if (ds === 'delivery w/issue') return `<span class="dx-badge skipped">Issue</span>`;
-    if (ds === 'cancelled')        return `<span class="dx-badge skipped">Cancelled</span>`;
+    if (ds.includes('arrived'))          return `<span class="dx-badge next">Arrived</span>`;
+    if (ds.includes('next stop'))        return `<span class="dx-badge next">Next Stop</span>`;
+    if (ds.includes('enroute') || ds.includes('en route') || ds.includes('out for delivery')) return `<span class="dx-badge enroute">En Route</span>`;
+    if (ds.includes('ready to depart'))  return `<span class="dx-badge enroute">Ready</span>`;
+    if (ds.includes('job not ready'))    return `<span class="dx-badge skipped">Not Ready</span>`;
+    if (ds.includes('returning'))        return `<span class="dx-badge skipped">Returning</span>`;
+    if (ds.includes('w/issue') || ds.includes('with issue')) return `<span class="dx-badge skipped">Issue</span>`;
+    if (ds.includes('cancelled') || ds.includes('cancel'))   return `<span class="dx-badge skipped">Cancelled</span>`;
   }
   if (status === 'next')    return `<span class="dx-badge next">Next</span>`;
   if (status === 'skipped') return `<span class="dx-badge skipped">Skipped</span>`;
   return `<span class="dx-badge pending">Pending</span>`;
 }
 
-function smsCellHTML(sms, queued, isPending) {
-  // Six distinct statuses. Problem states (rep-only, no-customer #, opted-out,
-  // SMS failed) get a cascading glowing border via CSS — it only stops when
-  // the dispatcher saves a manual phone number on the stop drawer, which
-  // clears the corresponding flag in Firebase for everyone.
-  const advBody  = (sms && sms.advanceBody)  ? esc(sms.advanceBody)  : '';
-  const advPhone = (sms && sms.advancePhone) ? esc(sms.advancePhone) : '';
-  const trkBody  = (sms && sms.trackerBody)  ? esc(sms.trackerBody)  : '';
-  const trkPhone = (sms && sms.trackerPhone) ? esc(sms.trackerPhone) : '';
-  const onclick  = `onclick="smsDetail('${advBody}','${advPhone}','${trkBody}','${trkPhone}')" style="cursor:pointer"`;
+function smsCellHTML(sms, queued, isPending, stop) {
+  if (queued) return `<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued</span>`;
 
-  // 1. Problem states first — highest visibility (these glow)
-  if (sms && sms.noCustomerPhone === true) {
-    return `<span class="dx-sms-badge no-customer-no" ${onclick}>No Customer #</span>`;
-  }
-  if (sms && sms.repOnly === true) {
-    return `<span class="dx-sms-badge rep-only" ${onclick}>Rep Only</span>`;
-  }
-  if (sms && sms.optedOut === true) {
-    return `<span class="dx-sms-badge opted-out" ${onclick}>Opted Out</span>`;
-  }
-  if (sms && sms.fail === true) {
-    return `<span class="dx-sms-badge sms-failed" ${onclick}>SMS Failed</span>`;
-  }
+  const advanceSent = sms && sms.advance === true;
+  const departed    = sms && (sms.departed === true || sms.at);
+  const legacyFail  = sms && sms.fail === true;
 
-  // 2. Successful send (en route departure or tracker link delivered)
-  if (sms && (sms.departed === true || sms.at)) {
-    const at = sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
-    return `<span class="dx-sms-badge advance-sent" ${onclick}><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
+  // Check per-phone departure results (new format)
+  const depResults  = sms && sms.departureResults ? Object.entries(sms.departureResults) : [];
+  const anyFailed   = depResults.some(([,r]) => !r.ok && !r.optout);
+  const anyOptout   = depResults.some(([,r]) => r.optout);
+  const allFailed   = depResults.length > 0 && depResults.every(([,r]) => !r.ok);
+
+  // Build tooltip showing per-phone status (incl. carrier delivery if known)
+  function depTooltip() {
+    if (!depResults.length) return '';
+    const lines = depResults.map(([phone, r]) => {
+      const num = phone.replace('_','.');
+      if (r.optout)  return `${num}: Opted out (STOP)`;
+      if (!r.ok)     return `${num}: FAILED — ${r.error || 'unknown error'}`;
+      const cs = r.carrierStatus;
+      if (cs === 'delivered')   return `${num}: Delivered ✓ (carrier confirmed)`;
+      if (cs === 'undelivered') return `${num}: UNDELIVERED (carrier)`;
+      if (cs === 'sent')        return `${num}: Sent — awaiting carrier`;
+      return `${num}: Sent ✓`;
+    });
+    return lines.join('\n');
   }
 
-  // 3. Advance (3 PM) SMS sent successfully to a real customer phone
-  if (sms && sms.advance === true) {
-    return `<span class="dx-sms-badge advance-sent" ${onclick}><span class="dx-sms-dot"></span>Advance Sent</span>`;
+  // Carrier-confirmed delivery rollup across phones (from the webhook)
+  const carrierStatuses = depResults.map(([,r]) => r.carrierStatus).filter(Boolean);
+  const anyDelivered    = carrierStatuses.includes('delivered');
+  const anyUndelivered  = carrierStatuses.includes('undelivered');
+
+  if (departed || (depResults.length > 0 && !allFailed)) {
+    // Sent — but may have partial failures
+    if (anyFailed) {
+      const tip = depTooltip();
+      const failCount = depResults.filter(([,r]) => !r.ok && !r.optout).length;
+      return `<span class="dx-sms-fail" title="${esc(tip)}" style="cursor:help">${failCount} NUM FAILED</span>`;
+    }
+    if (anyOptout && !depResults.some(([,r]) => r.ok && !r.optout)) {
+      return `<span class="dx-sms-cell pending" title="Customer texted STOP" style="cursor:help">Opted Out</span>`;
+    }
+    const at = sms && sms.at ? (typeof sms.at === 'number' ? fmtTime(sms.at) : sms.at) : null;
+    const tip = depTooltip();
+    // If the carrier reported back (via the delivery webhook), show the real
+    // outcome. "Undelivered" is the important one — it means the text bounced.
+    if (anyUndelivered && !anyDelivered) {
+      return `<span class="dx-sms-fail" title="${esc(tip)}" style="cursor:help">Undelivered</span>`;
+    }
+    if (anyDelivered) {
+      return `<span class="dx-sms-cell sent" title="${esc(tip)}" style="cursor:help"><span class="dx-sms-dot"></span>Delivered${at ? ' · ' + esc(at) : ''}</span>`;
+    }
+    // Sent to SimpleTexting, carrier hasn't reported yet.
+    return `<span class="dx-sms-cell sent" title="${esc(tip)}" style="cursor:help"><span class="dx-sms-dot"></span>${at ? esc(at) : 'Sent'}</span>`;
+  }
+  if (advanceSent) return `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>`;
+  if (allFailed || legacyFail) {
+    const tip = depTooltip();
+    return `<span class="dx-sms-fail" title="${esc(tip)}" style="cursor:help">SMS Failed</span>`;
   }
 
-  // 4. Queued (pending / pre-3pm / about-to-fire) — bundled with what was 'Not Sent'
-  return `<span class="dx-sms-badge queued"><span class="dx-sms-dot"></span>Queued</span>`;
+  // Nothing sent yet — say WHY instead of a bare "Not sent".
+  const hasPhone = stop && (stop.phone || '').replace(/\D/g, '').length >= 10;
+  if (!hasPhone) {
+    return `<span class="dx-sms-cell pending" title="No valid phone number on file — add one under Edit to enable texting" style="cursor:help">No Phone #</span>`;
+  }
+  if (isPending) {
+    return `<span class="dx-sms-cell pending" title="Tracking text sends automatically when the truck departs for this stop" style="cursor:help">Sends on Departure</span>`;
+  }
+  return `<span class="dx-sms-cell pending" title="Queued to send on the next poll cycle" style="cursor:help">Awaiting Send</span>`;
 }
 
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
@@ -1196,8 +1198,10 @@ function timingBadgeHTML(timing) {
 
 function getDeliveryTiming(s) {
   if (s.status !== 'complete') return null;
-  // Use arrivalTime as the actual event — fall back to deliveryTime, then completedAt
-  const actualTs = s.arrivalTime || s.deliveryTime || s.completedAt;
+  // Use deliveryTime (actual completion) as the timing event — not arrivalTime.
+  // Arrival is when the truck pulls up; delivery is when the job is done.
+  // For boom trucks especially, arrival and delivery can be hours apart.
+  const actualTs = s.deliveryTime || s.completedAt || s.arrivalTime;
   if (!actualTs) return null;
 
   // Use the SAME source as the Customer ETA column for the schedule anchor
@@ -1215,7 +1219,9 @@ function getDeliveryTiming(s) {
     }
   }
   if (!etaLowMs) {
-    const anchor = s.calculatedEta || s.seedEta;
+    // Use timingAnchor (calculatedEta snapshotted at completion) if available,
+    // otherwise calculatedEta, then seedEta. This matches what dispatcher showed.
+    const anchor = s.timingAnchor || s.calculatedEta || s.seedEta;
     if (!anchor) return null;
     const anchorMs = new Date(anchor).getTime();
     etaLowMs  = anchorMs;               // on time starts at scheduled arrival
@@ -1259,12 +1265,45 @@ function renderDrawer() {
         <div class="dx-seq-big">${stop.sequence||''}</div>
         <div class="dx-drawer-titles">
           <div class="dx-drawer-title">${esc(stop.customerName||'')}</div>
-          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc(route.asset||'—')}</div>
+          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc(route.asset||'—')}${stop.weight ? ` &middot; ${stop.weight} lbs` : ''}${stop.reference ? ` &middot; Ref: ${esc(stop.reference)}` : ''}</div>
         </div>
         <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
       </div>
       <div class="dx-drawer-intro">Edit what the customer sees on their tracker</div>
       <div class="dx-drawer-body">
+
+        <!-- Sold-To / Ship-To -->
+        ${(() => {
+          const sold = (stop.soldToName || '').trim();
+          const ship = (stop.shipToName || '').trim();
+          // Fall back gracefully if the poller hasn't refreshed both names yet.
+          const soldDisp = sold || stop.customerName || '—';
+          const shipDisp = ship || stop.customerName || '—';
+          const same = soldDisp.toLowerCase() === shipDisp.toLowerCase();
+          return `
+        <div class="dx-edit-block">
+          <div class="dx-edit-label">Customer</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Sold To</div>
+              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(soldDisp)}</div>
+              ${(stop.soldToAddress || '').trim() ? `<div style="font-size:12px;color:#aaa">${esc(stop.soldToAddress)}</div>` : ''}
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship To${same ? ' (same)' : ''}</div>
+              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(shipDisp)}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship-To Address</div>
+              <div style="font-size:13px;color:#ccc">${esc(stop.address || '—')}</div>
+            </div>
+            ${stop.assignedSales ? `<div>
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Sales Rep</div>
+              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(stop.assignedSales)}</div>
+            </div>` : ''}
+          </div>
+        </div>`;
+        })()}
 
         <!-- ETA -->
         <div class="dx-edit-block">
@@ -1297,16 +1336,29 @@ function renderDrawer() {
           <div class="dx-edit-label">Tracking SMS</div>
           <div class="dx-phone-edit">
             <input type="tel" class="dx-input dx-input-phone" id="dx-phone"
-              value="${esc(stop.phone||'')}" placeholder="+19895551234">
+              value="${esc(stop.phone||'')}" placeholder="Enter phone number">
             <button class="dx-action-btn" id="dx-save-phone">Save Phone</button>
           </div>
           <div style="margin-top:6px">
-            ${smsCellHTML(stop.smsSent, queued, stop.status === 'pending')}
+            ${queued
+              ? '<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued &mdash; sends on next poll</span>'
+              : stop.smsSent && stop.smsSent.at
+                ? `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent at ${typeof stop.smsSent.at==='number' ? esc(fmtTime(stop.smsSent.at)) : esc(stop.smsSent.at)}</span>`
+                : stop.smsSent && stop.smsSent.departed === true
+                  ? '<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent</span>'
+                  : stop.smsSent && stop.smsSent.advance === true
+                    ? '<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>'
+                    : stop.smsSent && stop.smsSent.fail === true
+                      ? `<span class="dx-sms-fail">SMS Failed${stop.smsSent.failReason ? ' &mdash; ' + esc(stop.smsSent.failReason) : ''}</span>`
+                      : '<span class="dx-sms-cell unsent">Not yet sent &mdash; will fire on next poll</span>'
+            }
           </div>
+          <textarea class="dx-track-note" id="dx-track-note" rows="2"
+            placeholder="Optional message to include (tracking link is added automatically)"></textarea>
           <button class="dx-action-btn" id="dx-resend-btn" ${queued ? 'disabled' : ''}>
-            ${queued ? 'Queued ✓' : (stop.smsSent && (stop.smsSent.at || stop.smsSent.departed === true)) ? 'Resend Tracking Link' : 'Send Now'}
+            ${queued ? 'Queued ✓' : 'Send Tracking Text'}
           </button>
-          <div class="dx-edit-help">SMS sends once when the route departs. Up to 2-minute delay.</div>
+          <div class="dx-edit-help">Sends the tracking link (plus your optional note) to the customer now.</div>
         </div>
 
         <!-- Read-only fields -->
@@ -1374,43 +1426,48 @@ function renderDrawer() {
   document.getElementById('dx-save-phone').onclick = async () => {
     const phone = document.getElementById('dx-phone').value.trim();
     try {
-      // Save the phone, and atomically clear any problem flags so the glowing
-      // status badge stops globally for every dispatcher watching. Firebase
-      // treats `null` as a delete, so the flags vanish entirely.
-      await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, {
-        phone,
-        'smsSent/repOnly':         null,
-        'smsSent/noCustomerPhone': null,
-        'smsSent/optedOut':        null,
-        'smsSent/fail':            null,
-        'smsSent/failedPhones':    null,
-        'smsSent/manuallyFixedAt': Date.now(),
-      });
+      // Write to the stop (used for today's texts)
+      await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, { phone });
+      // Also persist to a customer-keyed override so it survives route rebuilds
+      // and auto-applies to this customer's future orders. The poller reads
+      // manual_phones/{customerCode} as its highest-priority phone source.
+      const custCode = (stop.customerCode || '').trim();
+      if (custCode) {
+        await dbPatch(`manual_phones/${custCode}`, {
+          phone,
+          savedBy: 'dispatcher',
+          savedAt: Date.now(),
+          customerName: stop.customerName || '',
+        });
+      }
       await logHistory({
         field: 'phone',
         oldValue: stop.phone || '—',
-        newValue: phone,
+        newValue: phone + (custCode ? ' (saved for future orders)' : ''),
         route, stop,
       });
-      toast('PHONE NUMBER UPDATED');
+      toast(custCode ? 'PHONE SAVED — WILL REUSE FOR THIS CUSTOMER' : 'PHONE NUMBER UPDATED');
     } catch(e) { toast(e.message, true); }
   };
 
   document.getElementById('dx-resend-btn').onclick = async () => {
     try {
+      const noteEl = document.getElementById('dx-track-note');
+      const note = noteEl ? noteEl.value.trim() : '';
       await dbPush('resend_queue', {
         routeId:     S.selected.routeId,
         stopId:      S.selected.stopId,
         requestedAt: Date.now(),
         requestedBy: 'dispatcher',
+        message:     note,
       });
       await logHistory({
         field: 'smsSent',
         oldValue: '—',
-        newValue: 'resend queued',
+        newValue: note ? 'tracking text queued (with note)' : 'tracking text queued',
         route, stop,
       });
-      toast('SMS QUEUED — SENDS ON NEXT POLL');
+      toast('TRACKING TEXT QUEUED — SENDS ON NEXT POLL');
     } catch(e) { toast(e.message, true); }
   };
 }
