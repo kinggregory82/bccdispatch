@@ -242,6 +242,19 @@ html, body {
 .dx-drawer-scrim { position: fixed; inset: 0; background: rgba(17,17,17,0.4);
   z-index: 50; animation: dx-fade-in 0.18s ease both; }
 @keyframes dx-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.dx-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(460px, 92vw); background: #fff; border-top: 5px solid #cc0000; z-index: 51;
+  padding: 20px 22px 22px; box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+  animation: dx-pop 0.16s ease both; }
+@keyframes dx-pop { from { transform: translate(-50%, -48%); opacity: 0; } to { transform: translate(-50%, -50%); opacity: 1; } }
+.dx-popup-head { display: flex; align-items: center; justify-content: space-between; }
+.dx-popup-title { font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 700;
+  letter-spacing: 0.04em; color: #111; text-transform: uppercase; }
+.dx-popup-sub { font-family: 'Roboto', sans-serif; font-size: 13px; color: #888; margin: 2px 0 14px; }
+.dx-popup-msg { width: 100%; box-sizing: border-box; padding: 12px; font-family: 'Roboto', sans-serif;
+  font-size: 14px; line-height: 1.4; border: 1px solid #ccc; border-radius: 4px; resize: vertical;
+  color: #111; margin-bottom: 14px; }
+.dx-popup-msg:focus { outline: none; border-color: #cc0000; }
 .dx-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 480px;
   background: #fff; border-left: 5px solid #cc0000; z-index: 51;
   display: flex; flex-direction: column; animation: dx-slide 0.22s ease both; overflow-y: auto; }
@@ -306,6 +319,8 @@ html, body {
   font-family: 'Barlow', sans-serif; font-size: 13px; border: 1px solid #ccc; border-radius: 0;
   resize: vertical; color: #111; }
 .dx-track-note:focus { outline: none; border-color: #cc0000; }
+.dx-track-btns { display: flex; gap: 8px; }
+.dx-track-btns .dx-action-btn { flex: 1; }
 .dx-action-btn:disabled { background: #f3f3f3; border-color: #ddd; color: #aaa; cursor: not-allowed; }
 .dx-action-btn:disabled:hover { background: #f3f3f3; color: #aaa; }
 
@@ -772,7 +787,6 @@ function renderStats() {
     <div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">${s.routes}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Stops</span><span class="dx-stat-value">${s.stops}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Delivered</span><span class="dx-stat-value">${s.delivered}</span></div>
-    <div class="dx-stat"><span class="dx-stat-label">SMS Sent</span><span class="dx-stat-value red">${s.smsSent}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value" style="color:#2e8a3e">${fmt(s.earlyPct)}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">${fmt(s.onTimePct)}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value${s.latePct !== null && s.latePct > 20 ? ' red' : ''}">${fmt(s.latePct)}</span></div>
@@ -874,7 +888,7 @@ function routeBlockHTML(r, queued, sel) {
         </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
-          <th>Customer ETA</th><th>Arrival</th><th>Status</th><th>On Site</th><th>Timing</th><th>SMS</th><th></th>
+          <th>Customer ETA</th><th>Arrival</th><th>Status</th><th>On Site</th><th>Timing</th><th></th>
         </tr></thead>
         <tbody>
           ${groupStopsByAddress(r.stops).map(g => g.length === 1 ? stopRowHTML(r.id, g[0], queued.has(g[0].stopId), sel && sel.routeId===r.id && sel.stopId===g[0].stopId, r) : groupedStopRowHTML(r.id, g, queued, sel, r)).join('')}
@@ -908,7 +922,7 @@ function unscheduledBlockHTML(stops, queued, sel) {
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
-      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Edit ›</button></td>
+      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Text</button></td>
     </tr>`;
   }).join('');
 
@@ -929,7 +943,7 @@ function unscheduledBlockHTML(stops, queued, sel) {
         </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
-          <th>Customer ETA</th><th>Arrival</th><th>Status</th><th>On Site</th><th>Timing</th><th>SMS</th><th></th>
+          <th>Customer ETA</th><th>Arrival</th><th>Status</th><th>On Site</th><th>Timing</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -950,7 +964,6 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
   // Use first stop as representative for ETA/arrival/status
   const s = stops[0];
   const allComplete = stops.every(s => s.status === 'complete');
-  const allSent     = stops.every(s => s.smsSent && (s.smsSent.departed || s.smsSent.advance));
   const isQueued    = stops.some(s => queued.has(s.stopId));
   const isSelected  = sel && stops.some(s => sel.routeId === routeId && sel.stopId === s.stopId);
   const cls = ['dx-row', allComplete ? 'complete' : 'pending', isSelected ? 'selected' : ''].join(' ');
@@ -959,7 +972,7 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
   const orderNums = stops.map(s => s.orderNumber || '').filter(Boolean).join(', ');
   const photoRow = `
     <tr class="dx-photo-row" data-route="${esc(routeId)}">
-      <td colspan="10" style="padding:2px 8px 7px 44px;border-top:none">
+      <td colspan="9" style="padding:2px 8px 7px 44px;border-top:none">
         ${hasPics
           ? `<button onclick='lbOpen(${JSON.stringify(pics)},0)' style="padding:2px 10px;background:#cc0000;color:#fff;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;border-radius:3px;border:none;cursor:pointer">View Photos (${pics.length})</button>`
           : `<button disabled style="padding:2px 10px;background:transparent;color:#aaa;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;border-radius:3px;border:1px solid #ddd;cursor:default">No Photos</button>`
@@ -979,8 +992,7 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>${smsCellHTML(allSent ? {departed:true} : s.smsSent, isQueued, !allComplete)}</td>
-      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
+      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button></td>
     </tr>${photoRow}`;
 }
 
@@ -1007,7 +1019,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
   const hasPics = pics.length > 0;
   const photoRow = `
     <tr class="dx-photo-row" data-route="${esc(routeId)}">
-      <td colspan="10" style="padding:2px 8px 7px 44px;border-top:none">
+      <td colspan="9" style="padding:2px 8px 7px 44px;border-top:none">
         ${hasPics
           ? `<button onclick='lbOpen(${JSON.stringify(pics)},0)' style="padding:2px 10px;background:#cc0000;color:#fff;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;border-radius:3px;border:none;cursor:pointer">View Photos (${pics.length})</button>`
           : `<button disabled style="padding:2px 10px;background:transparent;color:#aaa;font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;border-radius:3px;border:1px solid #ddd;cursor:default">No Photos</button>`
@@ -1039,8 +1051,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>${smsCellHTML(s.smsSent, isQueued, s.status === 'pending', s)}</td>
-      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Edit ›</button></td>
+      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button></td>
     </tr>${photoRow}`;
 }
 
@@ -1253,221 +1264,43 @@ function renderDrawer() {
   const { route, stop } = getSelectedStop();
   if (!stop) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
-  const queued = queuedStopIds().has(stop.stopId);
-  const url    = `${TRACKER_BASE}/?token=${esc(stop.token||'')}`;
-  const eta    = stop.customerEta || { low: '', high: '' };
+  const url = `${TRACKER_BASE}/?token=${esc(stop.token||'')}`;
+  const msg = `BCC Delivery Updates - Track Order Here: ${url}`;
 
   wrap.style.display = 'block';
   wrap.innerHTML = `
     <div class="dx-drawer-scrim" id="dx-scrim"></div>
-    <aside class="dx-drawer" role="dialog">
-      <div class="dx-drawer-head">
-        <div class="dx-seq-big">${stop.sequence||''}</div>
-        <div class="dx-drawer-titles">
-          <div class="dx-drawer-title">${esc(stop.customerName||'')}</div>
-          <div class="dx-drawer-order">${esc(stop.orderNumber||'')} &middot; Route ${esc(route.id)} &middot; Unit ${esc(route.asset||'—')}${stop.weight ? ` &middot; ${stop.weight} lbs` : ''}${stop.reference ? ` &middot; Ref: ${esc(stop.reference)}` : ''}</div>
-        </div>
+    <div class="dx-popup" role="dialog">
+      <div class="dx-popup-head">
+        <div class="dx-popup-title">Create Text</div>
         <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
       </div>
-      <div class="dx-drawer-intro">Edit what the customer sees on their tracker</div>
-      <div class="dx-drawer-body">
+      <div class="dx-popup-sub">${esc(stop.customerName||'')}${stop.orderNumber ? ' &middot; ' + esc(stop.orderNumber) : ''}</div>
+      <textarea class="dx-popup-msg" id="dx-track-note" rows="4">${esc(msg)}</textarea>
+      <button class="dx-action-btn primary full" id="dx-copy-btn">Copy</button>
+    </div>`;
 
-        <!-- Sold-To / Ship-To -->
-        ${(() => {
-          const sold = (stop.soldToName || '').trim();
-          const ship = (stop.shipToName || '').trim();
-          // Fall back gracefully if the poller hasn't refreshed both names yet.
-          const soldDisp = sold || stop.customerName || '—';
-          const shipDisp = ship || stop.customerName || '—';
-          const same = soldDisp.toLowerCase() === shipDisp.toLowerCase();
-          return `
-        <div class="dx-edit-block">
-          <div class="dx-edit-label">Customer</div>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            <div>
-              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Sold To</div>
-              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(soldDisp)}</div>
-              ${(stop.soldToAddress || '').trim() ? `<div style="font-size:12px;color:#aaa">${esc(stop.soldToAddress)}</div>` : ''}
-            </div>
-            <div>
-              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship To${same ? ' (same)' : ''}</div>
-              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(shipDisp)}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Ship-To Address</div>
-              <div style="font-size:13px;color:#ccc">${esc(stop.address || '—')}</div>
-            </div>
-            ${stop.assignedSales ? `<div>
-              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#888">Sales Rep</div>
-              <div style="font-family:'Oswald',sans-serif;font-size:15px;color:#fff">${esc(stop.assignedSales)}</div>
-            </div>` : ''}
-          </div>
-        </div>`;
-        })()}
-
-        <!-- ETA -->
-        <div class="dx-edit-block">
-          <div class="dx-edit-label">Customer ETA Window</div>
-          <div class="dx-eta-edit">
-            <input class="dx-input" id="dx-eta-low" value="${esc(eta.low||'')}" placeholder="1:30 PM">
-            <span class="dx-eta-edit-dash">to</span>
-            <input class="dx-input" id="dx-eta-high" value="${esc(eta.high||'')}" placeholder="2:15 PM">
-          </div>
-          <div class="dx-edit-help">
-            Shown on the customer tracking page.
-            ${stop.etaOverridden ? 'Currently overriding the auto-computed window.' : 'Type to override the auto-computed window.'}
-          </div>
-          <button class="dx-action-btn primary full" id="dx-save-eta">Save ETA</button>
-        </div>
-
-        <!-- Status -->
-        <div class="dx-edit-block">
-          <div class="dx-edit-label">Stop Status</div>
-          <div class="dx-status-picker">
-            ${['pending','next','complete','skipped'].map(s =>
-              `<button class="dx-status-btn${stop.status===s?' active':''}" data-status="${s}">${s}</button>`
-            ).join('')}
-          </div>
-          <div class="dx-edit-help">Drives the headline on the customer tracker.</div>
-        </div>
-
-        <!-- SMS -->
-        <div class="dx-edit-block">
-          <div class="dx-edit-label">Tracking SMS</div>
-          <div class="dx-phone-edit">
-            <input type="tel" class="dx-input dx-input-phone" id="dx-phone"
-              value="${esc(stop.phone||'')}" placeholder="Enter phone number">
-            <button class="dx-action-btn" id="dx-save-phone">Save Phone</button>
-          </div>
-          <div style="margin-top:6px">
-            ${queued
-              ? '<span class="dx-sms-cell queued"><span class="dx-sms-dot"></span>Queued &mdash; sends on next poll</span>'
-              : stop.smsSent && stop.smsSent.at
-                ? `<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent at ${typeof stop.smsSent.at==='number' ? esc(fmtTime(stop.smsSent.at)) : esc(stop.smsSent.at)}</span>`
-                : stop.smsSent && stop.smsSent.departed === true
-                  ? '<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Sent</span>'
-                  : stop.smsSent && stop.smsSent.advance === true
-                    ? '<span class="dx-sms-cell sent"><span class="dx-sms-dot"></span>Advance Sent</span>'
-                    : stop.smsSent && stop.smsSent.fail === true
-                      ? `<span class="dx-sms-fail">SMS Failed${stop.smsSent.failReason ? ' &mdash; ' + esc(stop.smsSent.failReason) : ''}</span>`
-                      : '<span class="dx-sms-cell unsent">Not yet sent &mdash; will fire on next poll</span>'
-            }
-          </div>
-          <textarea class="dx-track-note" id="dx-track-note" rows="2"
-            placeholder="Optional message to include (tracking link is added automatically)"></textarea>
-          <button class="dx-action-btn" id="dx-resend-btn" ${queued ? 'disabled' : ''}>
-            ${queued ? 'Queued ✓' : 'Send Tracking Text'}
-          </button>
-          <div class="dx-edit-help">Sends the tracking link (plus your optional note) to the customer now.</div>
-        </div>
-
-        <!-- Read-only fields -->
-        <div class="dx-readonly-block">
-          <div class="dx-field">
-            <span class="dx-field-label">Delivery Address</span>
-            <span class="dx-field-value">${esc(stop.address||'—')}</span>
-          </div>
-          <div class="dx-field">
-            <span class="dx-field-label">Tracking URL</span>
-            <span class="dx-field-value mono"><a href="${url}" target="_blank">${url}</a></span>
-          </div>
-          ${stop.items && stop.items.length ? `
-          <div class="dx-field">
-            <span class="dx-field-label">Items</span>
-            <div class="dx-items-list">
-              ${stop.items.map(it => `<div class="dx-item"><span class="dx-item-qty">${esc(String(it.qty||''))}</span><span>${esc(it.description||'')}</span></div>`).join('')}
-            </div>
-          </div>` : ''}
-        </div>
-      </div>
-    </aside>`;
-
-  // Events
-  document.getElementById('dx-scrim').onclick       = closeDrawer;
+  document.getElementById('dx-scrim').onclick        = closeDrawer;
   document.getElementById('dx-drawer-close').onclick = closeDrawer;
 
-  document.getElementById('dx-save-eta').onclick = async () => {
-    const low  = document.getElementById('dx-eta-low').value.trim() || '—';
-    const high = document.getElementById('dx-eta-high').value.trim() || '—';
-    const oldEta = stop.customerEta ? `${stop.customerEta.low||'—'} – ${stop.customerEta.high||'—'}` : '—';
+  const copyBtn = document.getElementById('dx-copy-btn');
+  if (copyBtn) copyBtn.onclick = async () => {
+    const noteEl = document.getElementById('dx-track-note');
+    const m = noteEl ? noteEl.value.trim() : '';
+    if (!m) { toast('Nothing to copy', true); return; }
     try {
-      await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`,
-        { customerEta: { low, high }, etaOverridden: true });
-      await logHistory({
-        field: 'customerEta',
-        oldValue: oldEta,
-        newValue: `${low} – ${high}`,
-        route, stop,
-      });
-      toast('CUSTOMER ETA UPDATED');
-    } catch(e) { toast(e.message, true); }
-  };
-
-  wrap.querySelectorAll('.dx-status-btn').forEach(btn => {
-    btn.onclick = async () => {
-      const next  = btn.dataset.status;
-      const patch = { status: next };
-      if (next === 'complete') patch.completedAt = new Date().toISOString();
-      else patch.completedAt = null;
-      try {
-        await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, patch);
-        await logHistory({
-          field: 'status',
-          oldValue: stop.status || 'pending',
-          newValue: next,
-          route, stop,
-        });
-        const labels = { pending:'PENDING', next:'MARKED NEXT', complete:'MARKED COMPLETE', skipped:'MARKED SKIPPED' };
-        toast(labels[next] || 'STATUS UPDATED');
-      } catch(e) { toast(e.message, true); }
-    };
-  });
-
-  document.getElementById('dx-save-phone').onclick = async () => {
-    const phone = document.getElementById('dx-phone').value.trim();
-    try {
-      // Write to this stop (used for today's tracking text)
-      await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, { phone });
-      // Persist to manual_phones keyed by customer code so it sticks for this
-      // customer's future orders. This is the ONLY source of phone numbers.
-      const custCode = (stop.customerCode || '').trim();
-      if (custCode) {
-        await dbPatch(`manual_phones/${custCode}`, {
-          phone,
-          savedBy: 'dispatcher',
-          savedAt: Date.now(),
-          customerName: stop.customerName || '',
-        });
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(m);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = m; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
       }
-      await logHistory({
-        field: 'phone',
-        oldValue: stop.phone || '—',
-        newValue: (phone || '(cleared)') + (custCode ? ' (saved for this customer)' : ''),
-        route, stop,
-      });
-      toast(custCode ? 'PHONE SAVED — WILL REUSE FOR THIS CUSTOMER' : 'PHONE NUMBER UPDATED');
-    } catch(e) { toast(e.message, true); }
-  };
-
-  document.getElementById('dx-resend-btn').onclick = async () => {
-    try {
-      const noteEl = document.getElementById('dx-track-note');
-      const note = noteEl ? noteEl.value.trim() : '';
-      await dbPush('resend_queue', {
-        routeId:     S.selected.routeId,
-        stopId:      S.selected.stopId,
-        requestedAt: Date.now(),
-        requestedBy: 'dispatcher',
-        message:     note,
-      });
-      await logHistory({
-        field: 'smsSent',
-        oldValue: '—',
-        newValue: note ? 'tracking text queued (with note)' : 'tracking text queued',
-        route, stop,
-      });
-      toast('TRACKING TEXT QUEUED — SENDS ON NEXT POLL');
-    } catch(e) { toast(e.message, true); }
+      toast('MESSAGE COPIED');
+    } catch(e) {
+      window.prompt('Copy this message:', m);
+    }
   };
 }
 
@@ -1625,14 +1458,6 @@ document.addEventListener('touchend', function(){ _lbPinchDist=null; },{passive:
     <button class="bcc-lb-btn" id="bcc-lb-prev" onclick="lbPrev()">&#8592; Prev</button>
     <span class="bcc-lb-counter" id="bcc-lb-counter"></span>
     <button class="bcc-lb-btn" id="bcc-lb-next" onclick="lbNext()">Next &#8594;</button>
-  </div>
-</div>
-<div id="bcc-sms-modal" class="bcc-sms-modal" onclick="if(event.target===this)smsDetailClose()">
-  <div class="bcc-sms-box">
-    <button class="bcc-sms-close" onclick="smsDetailClose()">&#x2715;</button>
-    <h3>SMS Communication</h3>
-    <div class="bcc-sms-section" id="bcc-sms-adv"></div>
-    <div class="bcc-sms-section" id="bcc-sms-trk"></div>
   </div>
 </div>
 </body>
