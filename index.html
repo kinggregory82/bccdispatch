@@ -494,6 +494,63 @@ const S = {
   selected:    null,   // { routeId, stopId }
   drawerDirty: false,
 };
+
+// ── Geofence tracker ─────────────────────────────────────────────────────────
+// Tracks which stops the truck is currently inside (entered but not yet left).
+// Key: "routeId:stopId"  Value: ISO string of when the truck entered
+const _geofenceInside = {};
+const GEOFENCE_RADIUS_MI = 0.25;
+
+async function updateGeofence(routesObj) {
+  if (!routesObj) return;
+  const dk = dateKey();
+
+  for (const [routeId, route] of Object.entries(routesObj)) {
+    const gpsLat = route.gpsLat;
+    const gpsLon = route.gpsLon;
+    const gpsTs  = route.gpsUpdatedAt;
+    const stops  = route.stops;
+
+    // Only track when we have a valid live GPS fix
+    if (!gpsLat || !gpsLon || !gpsTs || !stops) continue;
+
+    // Ignore stale GPS — more than 10 minutes old means truck is off or parked out-of-range
+    const gpsAge = (Date.now() - new Date(gpsTs).getTime()) / 60000;
+    if (gpsAge > 10) continue;
+
+    for (const [stopId, stop] of Object.entries(stops)) {
+      if (!stop.coords || stop.coords.length < 2) continue;
+      if (stop.status === 'complete') continue;   // already done — don't overwrite
+      if (stop.status === 'skipped')  continue;
+
+      const key = `${routeId}:${stopId}`;
+      const dist = haversine(gpsLat, gpsLon, stop.coords[0], stop.coords[1]);
+      const inside = dist <= GEOFENCE_RADIUS_MI;
+
+      if (inside && !_geofenceInside[key] && !stop.gpsArrivedAt) {
+        // Truck just entered this stop's geofence — record arrival
+        const arrivedAt = gpsTs; // use the GPS timestamp, not now()
+        _geofenceInside[key] = arrivedAt;
+        try {
+          await dbSet(`routes/${routeId}/stops/${stopId}/gpsArrivedAt`, arrivedAt);
+        } catch(e) { console.warn('gpsArrivedAt write failed:', e.message); }
+
+      } else if (!inside && _geofenceInside[key]) {
+        // Truck just left this stop's geofence — record departure
+        const leftAt = gpsTs;
+        delete _geofenceInside[key];
+        try {
+          await dbSet(`routes/${routeId}/stops/${stopId}/gpsLeftAt`, leftAt);
+        } catch(e) { console.warn('gpsLeftAt write failed:', e.message); }
+
+      } else if (inside && stop.gpsArrivedAt && !_geofenceInside[key]) {
+        // Truck is inside and Firebase already has an arrival (e.g. after page reload)
+        // Re-populate the in-memory tracker so we can still detect departure
+        _geofenceInside[key] = stop.gpsArrivedAt;
+      }
+    }
+  }
+}
 let pollTimer = null;
 let toastTimer = null;
 
@@ -508,6 +565,15 @@ async function dbPatch(path, data) {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+  });
+  if (!r.ok) throw new Error(`DB ${r.status}`);
+  return r.json();
+}
+async function dbSet(path, value) {
+  const r = await fetch(`${DB}/${path}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(value)
   });
   if (!r.ok) throw new Error(`DB ${r.status}`);
   return r.json();
@@ -531,6 +597,11 @@ async function poll() {
     S.routes  = routes  || {};
     S.queue   = queue   || {};
     S.mileage = mileage || {};
+    // Run geofence check against today's routes only — silently, no toast on failure
+    if (isToday()) {
+      const dk = dateKey();
+      updateGeofence(S.routes[dk] ? { [dk]: S.routes[dk] } : null);
+    }
     renderRoutes();
     renderStats();
     renderDrawerIfOpen();
@@ -1222,13 +1293,22 @@ function smsCellHTML(sms, queued, isPending, stop) {
 // ── Stop Drawer ───────────────────────────────────────────────────────────────
 function serviceElapsedHTML(s) {
   if (s.status !== 'complete') return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
-  const start = s.arrivalTime;
-  const end   = s.deliveryTime || s.completedAt;
+
+  // Prefer GPS-based dwell timestamps written by the poller when the truck
+  // entered / exited the stop\u2019s geofence (\u00bc-mile radius).
+  // Falls back to DQ arrivalTime \u2192 deliveryTime / completedAt.
+  const start = s.gpsArrivedAt || s.arrivalTime;
+  const end   = s.gpsLeftAt    || s.deliveryTime || s.completedAt;
+
   if (!start || !end) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+
   const mins = Math.round((new Date(end) - new Date(start)) / 60000);
   if (mins < 0 || mins > 480) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
-  const color = '#111';
-  return `<span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:${color}">${mins}m</span>`;
+
+  // Show "< 1m" instead of "0m" when the dwell was under a minute
+  const label = mins === 0 ? '&lt;1m' : `${mins}m`;
+  const title = start && end ? `On site: ${start} \u2192 ${end}` : '';
+  return `<span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:#111" title="${title}">${label}</span>`;
 }
 
 function timingBadgeHTML(timing) {
