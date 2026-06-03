@@ -1415,10 +1415,10 @@ function renderDrawer(mode) {
       ? (eta.high && eta.high !== '—' ? `${eta.low} - ${eta.high}` : eta.low)
       : 'TBD';
     const addr = stop.address || '';
-    msg = `Your BCC delivery is scheduled for ${dateStr} to ${addr} planned ${etaStr}. We will text again when en route.`;
+    msg = `Good afternoon, this is Ben's Contractor Center. Your delivery to ${addr} is scheduled for ${dateStr}. Current ETA is ${etaStr}. We will text you again when en route.`;
   } else {
     title = 'Create Text';
-    msg = `BCC Delivery Updates - Track Order Here: ${url}`;
+    msg = `Track your BCC delivery here: ${url}`;
   }
 
   wrap.style.display = 'block';
