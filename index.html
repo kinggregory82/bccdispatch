@@ -1412,9 +1412,26 @@ function renderDrawer(mode) {
       dateStr = fmtDate(targetDate());
     }
     const eta = stop.customerEta || {};
-    const etaStr = (eta.low && eta.low !== '—')
-      ? (eta.high && eta.high !== '—' ? `${eta.low} - ${eta.high}` : eta.low)
-      : 'TBD';
+    let etaStr = 'TBD';
+    if (eta.low && eta.low !== '—') {
+      // Manual customerEta override
+      etaStr = (eta.high && eta.high !== '—') ? `${eta.low} - ${eta.high}` : eta.low;
+    } else if (stop.calculatedEta) {
+      // Fall back to calculatedEta formatted as a 30-min window (same as ETA column)
+      const d = new Date(stop.calculatedEta);
+      if (!isNaN(d)) {
+        const low  = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+        const high = new Date(d.getTime() + 30*60000).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+        etaStr = `${low} - ${high}`;
+      }
+    } else if (stop.seedEta) {
+      const d = new Date(stop.seedEta);
+      if (!isNaN(d)) {
+        const low  = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+        const high = new Date(d.getTime() + 30*60000).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+        etaStr = `${low} - ${high}`;
+      }
+    }
     const addr = stop.address || '';
     msg = `Good afternoon, this is Ben's Contractor Center. Your delivery to ${addr} is scheduled for ${dateStr}. Current ETA is ${etaStr}. We will text you again when en route.`;
   } else if (mode === 'driver') {
