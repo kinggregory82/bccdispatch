@@ -237,6 +237,13 @@ html, body {
   font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600;
   color: #888; padding: 4px 8px; cursor: pointer; white-space: nowrap; }
 .dx-more-btn:hover { color: #cc0000; }
+.dx-text-btns { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+.dx-text-btn { padding: 4px 11px; font-family: 'Oswald', sans-serif; font-size: 11px;
+  font-weight: 700; letter-spacing: 0.06em; border-radius: 3px; border: none; cursor: pointer;
+  color: #fff; white-space: nowrap; transition: filter .12s; }
+.dx-text-btn:hover { filter: brightness(1.1); }
+.dx-text-btn.delivery { background: #2e8a3e; }
+.dx-text-btn.advance  { background: #1f6fd0; }
 
 /* ── DRAWER ── */
 .dx-drawer-scrim { position: fixed; inset: 0; background: rgba(17,17,17,0.4);
@@ -820,12 +827,12 @@ function renderRoutes() {
     '<div class="dx-meta-foot">Live &mdash; Firebase REST &middot; polls every 2 min</div>';
 
   // Attach click handlers to all Edit buttons and rows
-  el.querySelectorAll('[data-stop]').forEach(btn => {
+  el.querySelectorAll('button[data-action]').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
-      const { route, stop } = btn.dataset;
+      const { route, stop, action } = btn.dataset;
       S.selected = { routeId: route, stopId: stop };
-      renderDrawer();
+      renderDrawer(action === 'advance' ? 'advance' : 'text');
     };
   });
 }
@@ -883,8 +890,7 @@ function routeBlockHTML(r, queued, sel) {
           <col style="width:220px">
           <col style="width:80px">
           <col style="width:90px">
-          <col style="width:110px">
-          <col style="width:60px">
+          <col style="width:120px">
         </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
@@ -922,7 +928,7 @@ function unscheduledBlockHTML(stops, queued, sel) {
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
-      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Text</button></td>
+      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Advance Text</button></div></td>
     </tr>`;
   }).join('');
 
@@ -939,7 +945,7 @@ function unscheduledBlockHTML(stops, queued, sel) {
         <colgroup>
           <col style="width:44px"><col style="width:140px"><col>
           <col style="width:160px"><col style="width:100px"><col style="width:220px">
-          <col style="width:80px"><col style="width:90px"><col style="width:110px"><col style="width:60px">
+          <col style="width:80px"><col style="width:90px"><col style="width:120px">
         </colgroup>
         <thead><tr>
           <th>#</th><th>Order</th><th>Customer</th>
@@ -992,7 +998,7 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button></td>
+      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button></div></td>
     </tr>${photoRow}`;
 }
 
@@ -1051,7 +1057,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td><button class="dx-more-btn" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button></td>
+      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button></div></td>
     </tr>${photoRow}`;
 }
 
@@ -1258,21 +1264,45 @@ function getSelectedStop() {
   return { route, stop };
 }
 
-function renderDrawer() {
+function renderDrawer(mode) {
+  mode = mode || S._drawerMode || 'text';
+  S._drawerMode = mode;
   const wrap = document.getElementById('dx-drawer-wrap');
   if (!wrap) return;
   const { route, stop } = getSelectedStop();
   if (!stop) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
   const url = `${TRACKER_BASE}/?token=${esc(stop.token||'')}`;
-  const msg = `BCC Delivery Updates - Track Order Here: ${url}`;
+
+  let msg, title;
+  if (mode === 'advance') {
+    title = 'Create Advance Text';
+    // Pretty date from the route's delivery date (YYYY-MM-DD), fallback to selected day
+    let dateStr = '';
+    const rd = (route && route.date) ? route.date : '';
+    if (rd && /^\d{4}-\d{2}-\d{2}$/.test(rd)) {
+      const [y,m,d] = rd.split('-').map(Number);
+      dateStr = fmtDate(new Date(y, m-1, d));
+    } else {
+      dateStr = fmtDate(targetDate());
+    }
+    const eta = stop.customerEta || {};
+    const etaStr = (eta.low && eta.low !== '—')
+      ? (eta.high && eta.high !== '—' ? `${eta.low} - ${eta.high}` : eta.low)
+      : 'TBD';
+    const addr = stop.address || '';
+    msg = `Your BCC delivery is scheduled for ${dateStr} to ${addr} planned ${etaStr}. We will text again when en route.`;
+  } else {
+    title = 'Create Text';
+    msg = `BCC Delivery Updates - Track Order Here: ${url}`;
+  }
 
   wrap.style.display = 'block';
   wrap.innerHTML = `
     <div class="dx-drawer-scrim" id="dx-scrim"></div>
     <div class="dx-popup" role="dialog">
       <div class="dx-popup-head">
-        <div class="dx-popup-title">Create Text</div>
+        <div class="dx-popup-title">${esc(title)}</div>
         <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
       </div>
       <div class="dx-popup-sub">${esc(stop.customerName||'')}${stop.orderNumber ? ' &middot; ' + esc(stop.orderNumber) : ''}</div>
