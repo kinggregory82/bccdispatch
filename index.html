@@ -1426,11 +1426,10 @@ function renderDrawer() {
   document.getElementById('dx-save-phone').onclick = async () => {
     const phone = document.getElementById('dx-phone').value.trim();
     try {
-      // Write to the stop (used for today's texts)
+      // Write to this stop (used for today's tracking text)
       await dbPatch(`routes/${S.selected.routeId}/stops/${S.selected.stopId}`, { phone });
-      // Also persist to a customer-keyed override so it survives route rebuilds
-      // and auto-applies to this customer's future orders. The poller reads
-      // manual_phones/{customerCode} as its highest-priority phone source.
+      // Persist to manual_phones keyed by customer code so it sticks for this
+      // customer's future orders. This is the ONLY source of phone numbers.
       const custCode = (stop.customerCode || '').trim();
       if (custCode) {
         await dbPatch(`manual_phones/${custCode}`, {
@@ -1443,7 +1442,7 @@ function renderDrawer() {
       await logHistory({
         field: 'phone',
         oldValue: stop.phone || '—',
-        newValue: phone + (custCode ? ' (saved for future orders)' : ''),
+        newValue: (phone || '(cleared)') + (custCode ? ' (saved for this customer)' : ''),
         route, stop,
       });
       toast(custCode ? 'PHONE SAVED — WILL REUSE FOR THIS CUSTOMER' : 'PHONE NUMBER UPDATED');
