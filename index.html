@@ -1294,20 +1294,29 @@ function smsCellHTML(sms, queued, isPending, stop) {
 function serviceElapsedHTML(s) {
   if (s.status !== 'complete') return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
 
-  // Prefer GPS-based dwell timestamps written by the poller when the truck
-  // entered / exited the stop\u2019s geofence (\u00bc-mile radius).
-  // Falls back to DQ arrivalTime \u2192 deliveryTime / completedAt.
+  const dash = '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+
+  // 1. Best: DQ\'s authoritative orderStopTime (seconds) — not derived from GPS pings
+  if (s.orderStopTime) {
+    const mins = Math.round(parseFloat(s.orderStopTime) / 60);
+    if (mins >= 1 && mins <= 240) {
+      return `<span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:#111" title="DQ recorded stop time">${mins}m</span>`;
+    }
+  }
+
+  // 2. GPS geofence timestamps from the poller (gpsArrivedAt / gpsLeftAt)
+  // Falls back to DQ arrivalTime → deliveryTime / completedAt
   const start = s.gpsArrivedAt || s.arrivalTime;
   const end   = s.gpsLeftAt    || s.deliveryTime || s.completedAt;
 
-  if (!start || !end) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+  if (!start || !end) return dash;
 
   const mins = Math.round((new Date(end) - new Date(start)) / 60000);
-  if (mins < 0 || mins > 480) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+  // Discard < 1 min (GPS fired too early) and > 4 hrs (forgotten clock-out)
+  if (mins < 1 || mins > 240) return dash;
 
-  // Show "< 1m" instead of "0m" when the dwell was under a minute
-  const label = mins === 0 ? '&lt;1m' : `${mins}m`;
-  const title = start && end ? `On site: ${start} \u2192 ${end}` : '';
+  const label = `${mins}m`;
+  const title = `On site: ${start} → ${end}`;
   return `<span style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:600;color:#111" title="${title}">${label}</span>`;
 }
 
