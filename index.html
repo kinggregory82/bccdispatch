@@ -455,6 +455,32 @@ html, body {
 const DB           = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
 // Driver names come from DQ via route.driverName — no hardcoded map needed
 function driverFromAsset(asset) { return ''; }
+// ── Language Detection & i18n ─────────────────────────────────────────────
+const _dLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase().slice(0,2);
+const _DT = {
+  en: {
+    incorrectPin: 'Incorrect PIN',
+    msgCopied: 'MESSAGE COPIED',
+    nothingToCopy: 'Nothing to copy',
+    pollerSeed: 'The poller will seed routes when DQ has them.',
+    pickAnotherDay: 'Pick another day with the arrows above.',
+    advanceSms: 'Advance SMS', trackerSms: 'Tracker SMS',
+    noAdvanceSms: 'No advance SMS', noTrackerSms: 'No tracker SMS sent yet',
+    sentTo: 'Sent to:',
+  },
+  es: {
+    incorrectPin: 'PIN incorrecto',
+    msgCopied: 'MENSAJE COPIADO',
+    nothingToCopy: 'Nada que copiar',
+    pollerSeed: 'El sistema agregará rutas cuando DQ las tenga.',
+    pickAnotherDay: 'Seleccione otro día con las flechas arriba.',
+    advanceSms: 'SMS Adelantado', trackerSms: 'SMS Rastreador',
+    noAdvanceSms: 'Sin SMS adelantado', noTrackerSms: 'No se ha enviado SMS rastreador',
+    sentTo: 'Enviado a:',
+  }
+};
+const DT = _DT[_dLang] || _DT['en'];
+
 const DISPATCH_PIN = '2025';
 const TRACKER_BASE = 'https://bcctracker.com';
 
@@ -710,7 +736,7 @@ function renderPin() {
       renderApp();
       startPolling();
     } else {
-      errEl.textContent = 'Incorrect PIN';
+      errEl.textContent = DT.incorrectPin;
       errEl.style.display = 'block';
       input.value = '';
       input.focus();
@@ -815,7 +841,7 @@ function renderRoutes() {
       <div class="dx-empty">
         <div class="dx-empty-code">&#8709;</div>
         <div class="dx-empty-msg">No routes for ${esc(fmtDate(targetDate()))}.<br>
-          ${isToday() ? 'The poller will seed routes when DQ has them.' : 'Pick another day with the arrows above.'}
+          ${isToday() ? DT.pollerSeed : DT.pickAnotherDay}
         </div>
       </div>`;
     return;
@@ -1317,7 +1343,7 @@ function renderDrawer(mode) {
   if (copyBtn) copyBtn.onclick = async () => {
     const noteEl = document.getElementById('dx-track-note');
     const m = noteEl ? noteEl.value.trim() : '';
-    if (!m) { toast('Nothing to copy', true); return; }
+    if (!m) { toast(DT.nothingToCopy, true); return; }
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(m);
@@ -1327,7 +1353,7 @@ function renderDrawer(mode) {
         document.body.appendChild(ta); ta.focus(); ta.select();
         document.execCommand('copy'); document.body.removeChild(ta);
       }
-      toast('MESSAGE COPIED');
+      toast(DT.msgCopied);
     } catch(e) {
       window.prompt('Copy this message:', m);
     }
@@ -1417,13 +1443,13 @@ function smsDetail(advBody, advPhone, trkBody, trkPhone) {
   const adv = document.getElementById('bcc-sms-adv');
   const trk = document.getElementById('bcc-sms-trk');
   adv.innerHTML = advBody
-    ? '<div class="bcc-sms-label">Advance SMS</div><div class="bcc-sms-body">' + advBody + '</div>'
-      + (advPhone ? '<div class="bcc-sms-phone">Sent to: ' + advPhone + '</div>' : '')
-    : '<div class="bcc-sms-label" style="color:#444">No advance SMS</div>';
+    ? '<div class="bcc-sms-label">' + DT.advanceSms + '</div><div class="bcc-sms-body">' + advBody + '</div>'
+      + (advPhone ? '<div class="bcc-sms-phone">' + DT.sentTo + ' ' + advPhone + '</div>' : '')
+    : '<div class="bcc-sms-label" style="color:#444">' + DT.noAdvanceSms + '</div>';
   trk.innerHTML = trkBody
-    ? '<div class="bcc-sms-label">Tracker SMS</div><div class="bcc-sms-body">' + trkBody + '</div>'
-      + (trkPhone ? '<div class="bcc-sms-phone">Sent to: ' + trkPhone + '</div>' : '')
-    : '<div class="bcc-sms-label" style="color:#444">No tracker SMS sent yet</div>';
+    ? '<div class="bcc-sms-label">' + DT.trackerSms + '</div><div class="bcc-sms-body">' + trkBody + '</div>'
+      + (trkPhone ? '<div class="bcc-sms-phone">' + DT.sentTo + ' ' + trkPhone + '</div>' : '')
+    : '<div class="bcc-sms-label" style="color:#444">' + DT.noTrackerSms + '</div>';
   el.classList.add('open');
 }
 function smsDetailClose() { document.getElementById('bcc-sms-modal').classList.remove('open'); }
