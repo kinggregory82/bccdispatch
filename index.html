@@ -244,6 +244,7 @@ html, body {
 .dx-text-btn:hover { filter: brightness(1.1); }
 .dx-text-btn.delivery { background: #2e8a3e; }
 .dx-text-btn.advance  { background: #1f6fd0; }
+.dx-text-btn.driver   { background: #c47a00; }
 
 /* ── DRAWER ── */
 .dx-drawer-scrim { position: fixed; inset: 0; background: rgba(17,17,17,0.4);
@@ -929,7 +930,7 @@ function renderRoutes() {
       e.stopPropagation();
       const { route, stop, action } = btn.dataset;
       S.selected = { routeId: route, stopId: stop };
-      renderDrawer(action === 'advance' ? 'advance' : 'text');
+      renderDrawer(action === 'advance' ? 'advance' : action === 'driver' ? 'driver' : 'text');
     };
   });
 }
@@ -1025,7 +1026,7 @@ function unscheduledBlockHTML(stops, queued, sel) {
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
-      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Advance Text</button></div></td>
+      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Advance Text</button><button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Text Driver</button></div></td>
     </tr>`;
   }).join('');
 
@@ -1095,7 +1096,7 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button></div></td>
+      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button><button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Text Driver</button></div></td>
     </tr>${photoRow}`;
 }
 
@@ -1154,7 +1155,7 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button></div></td>
+      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button><button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Text Driver</button></div></td>
     </tr>${photoRow}`;
 }
 
@@ -1416,6 +1417,15 @@ function renderDrawer(mode) {
       : 'TBD';
     const addr = stop.address || '';
     msg = `Good afternoon, this is Ben's Contractor Center. Your delivery to ${addr} is scheduled for ${dateStr}. Current ETA is ${etaStr}. We will text you again when en route.`;
+  } else if (mode === 'driver') {
+    title = 'Text Driver';
+    const driverName = (route && route.driverName) || 'Driver';
+    const driverPhone = (route && route.driverPhone) || '';
+    const orderNum = stop.orderNumber || '';
+    const addr = stop.address || '';
+    msg = driverPhone
+      ? `To: ${driverPhone}\n\n${driverName} — Order ${orderNum} at ${addr}`
+      : `(No driver phone on file for ${driverName})`;
   } else {
     title = 'Create Text';
     msg = `Track your BCC delivery here: ${url}`;
