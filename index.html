@@ -1411,6 +1411,55 @@ function getSelectedStop() {
   return { route, stop };
 }
 
+async function shortenUrl(url) {
+  try {
+    const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url));
+    if (r.ok) {
+      const short = (await r.text()).trim();
+      if (short.startsWith('http')) return short;
+    }
+  } catch(e) {}
+  return url; // fallback to original if TinyURL fails
+}
+
+function drawerHTML(title, msg, stop, route) {
+  return `
+    <div class="dx-drawer-scrim" id="dx-scrim"></div>
+    <div class="dx-popup" role="dialog">
+      <div class="dx-popup-head">
+        <div class="dx-popup-title">${esc(title)}</div>
+        <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
+      </div>
+      <div class="dx-popup-sub">${esc(stop.customerName||'')}${stop.orderNumber ? ' &middot; ' + esc(stop.orderNumber) : ''}</div>
+      <textarea class="dx-popup-msg" id="dx-track-note" rows="4">${esc(msg)}</textarea>
+      <button class="dx-action-btn primary full" id="dx-copy-btn">Copy</button>
+    </div>`;
+}
+
+function attachDrawerHandlers() {
+  document.getElementById('dx-scrim').onclick        = closeDrawer;
+  document.getElementById('dx-drawer-close').onclick = closeDrawer;
+  const copyBtn = document.getElementById('dx-copy-btn');
+  if (copyBtn) copyBtn.onclick = async () => {
+    const noteEl = document.getElementById('dx-track-note');
+    const m = noteEl ? noteEl.value.trim() : '';
+    if (!m) { toast(DT.nothingToCopy, true); return; }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(m);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = m; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      }
+      toast(DT.msgCopied);
+    } catch(e) {
+      window.prompt('Copy this message:', m);
+    }
+  };
+}
+
 function renderDrawer(mode) {
   mode = mode || S._drawerMode || 'text';
   S._drawerMode = mode;
@@ -1468,43 +1517,23 @@ function renderDrawer(mode) {
   } else {
     title = 'Create Text';
     msg = `Track your BCC delivery here: ${url}`;
+    // Show popup immediately with full URL, then swap in short link async
+    wrap.style.display = 'block';
+    wrap.innerHTML = drawerHTML(title, msg, stop, route);
+    attachDrawerHandlers();
+    // Shorten URL in background and update textarea
+    shortenUrl(url).then(short => {
+      const ta = document.getElementById('dx-track-note');
+      if (ta && ta.value.includes(url)) {
+        ta.value = ta.value.replace(url, short);
+      }
+    });
+    return; // already rendered above
   }
 
   wrap.style.display = 'block';
-  wrap.innerHTML = `
-    <div class="dx-drawer-scrim" id="dx-scrim"></div>
-    <div class="dx-popup" role="dialog">
-      <div class="dx-popup-head">
-        <div class="dx-popup-title">${esc(title)}</div>
-        <button class="dx-drawer-close" id="dx-drawer-close">&times;</button>
-      </div>
-      <div class="dx-popup-sub">${esc(stop.customerName||'')}${stop.orderNumber ? ' &middot; ' + esc(stop.orderNumber) : ''}</div>
-      <textarea class="dx-popup-msg" id="dx-track-note" rows="4">${esc(msg)}</textarea>
-      <button class="dx-action-btn primary full" id="dx-copy-btn">Copy</button>
-    </div>`;
-
-  document.getElementById('dx-scrim').onclick        = closeDrawer;
-  document.getElementById('dx-drawer-close').onclick = closeDrawer;
-
-  const copyBtn = document.getElementById('dx-copy-btn');
-  if (copyBtn) copyBtn.onclick = async () => {
-    const noteEl = document.getElementById('dx-track-note');
-    const m = noteEl ? noteEl.value.trim() : '';
-    if (!m) { toast(DT.nothingToCopy, true); return; }
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(m);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = m; ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-      }
-      toast(DT.msgCopied);
-    } catch(e) {
-      window.prompt('Copy this message:', m);
-    }
-  };
+  wrap.innerHTML = drawerHTML(title, msg, stop, route);
+  attachDrawerHandlers();
 }
 
 // ── History logging ───────────────────────────────────────────────────────────
