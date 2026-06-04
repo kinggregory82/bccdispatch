@@ -237,12 +237,12 @@ html, body {
   font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600;
   color: #888; padding: 4px 8px; cursor: pointer; white-space: nowrap; }
 .dx-more-btn:hover { color: #cc0000; }
-.dx-text-btns { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
-.dx-inline-btns { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-.dx-items-btn { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#333;color:#ccc;font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;border-radius:4px;border:none;cursor:default;white-space:nowrap; }
-.dx-photos-btn { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;border-radius:4px;border:none;cursor:pointer;white-space:nowrap; }
-.dx-photos-btn.has-photos { background:#8b0000;color:#fff;cursor:pointer; }
-.dx-photos-btn.no-photos { background:transparent;color:#aaa;border:1px solid #ddd;cursor:default; }
+.dx-text-btns { display: none; }
+.dx-stop-actions { display:flex; flex-direction:row; align-items:stretch; gap:4px; justify-content:flex-end; height:100%; }
+.dx-photos-btn { display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 12px;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;border-radius:3px;border:none;cursor:pointer;white-space:nowrap;align-self:stretch; }
+.dx-photos-btn.has-photos { background:#8b0000;color:#fff; }
+.dx-photos-btn.no-photos { background:#2a2a2a;color:#555;cursor:default;border:1px solid #333; }
+.dx-text-btn { display:inline-flex;align-items:center;justify-content:center;padding:0 10px;font-size:10px;font-weight:700;font-family:'Oswald',sans-serif;border-radius:3px;border:none;cursor:pointer;white-space:nowrap;align-self:stretch; }
 .dx-text-btn { padding: 4px 11px; font-family: 'Oswald', sans-serif; font-size: 11px;
   font-weight: 700; letter-spacing: 0.06em; border-radius: 3px; border: none; cursor: pointer;
   color: #fff; white-space: nowrap; transition: filter .12s; }
@@ -1036,7 +1036,14 @@ function unscheduledBlockHTML(stops, queued, sel) {
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
       <td><span style="color:#ccc">—</span></td>
-      <td><div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Advance Text</button><button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Text Driver</button></div></td>
+      <td style="padding:6px 8px;">
+        <div class="dx-stop-actions">
+          <button class="dx-photos-btn no-photos" disabled>NO PHOTOS</button>
+          <button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Text</button>
+          <button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Create Advance Text</button>
+          <button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="UNASSIGNED">Text Driver</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
 
@@ -1099,15 +1106,16 @@ function groupedStopRowHTML(routeId, stops, queued, sel) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>
-        <div class="dx-inline-btns" style="margin-bottom:6px">
-          ${itemCount ? `<button class="dx-items-btn" title="Line items">&#128230; ${itemCount} ITEM${itemCount===1?'':`S`}</button>` : ''}
+      <td style="padding:6px 8px;">
+        <div class="dx-stop-actions">
           ${hasPics
             ? `<button class="dx-photos-btn has-photos" onclick='lbOpen(${JSON.stringify(pics)},0)'>&#128247; ${pics.length} PHOTO${pics.length===1?'':'S'}</button>`
             : `<button class="dx-photos-btn no-photos" disabled>NO PHOTOS</button>`
           }
+          <button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button>
+          <button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button>
+          <button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Text Driver</button>
         </div>
-        <div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button><button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Text Driver</button></div>
       </td>
     </tr>`;
 }
@@ -1159,15 +1167,16 @@ function stopRowHTML(routeId, s, isQueued, isSelected, route) {
       <td>${statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)}</td>
       <td>${serviceElapsedHTML(s)}</td>
       <td>${timingBadgeHTML(getDeliveryTiming(s))}</td>
-      <td>
-        <div class="dx-inline-btns" style="margin-bottom:6px">
-          ${itemCount ? `<button class="dx-items-btn">&#128230; ${itemCount} ITEM${itemCount===1?'':'S'}</button>` : ''}
+      <td style="padding:6px 8px;">
+        <div class="dx-stop-actions">
           ${hasPics
             ? `<button class="dx-photos-btn has-photos" onclick='lbOpen(${JSON.stringify(pics)},0)'>&#128247; ${pics.length} PHOTO${pics.length===1?'':'S'}</button>`
             : `<button class="dx-photos-btn no-photos" disabled>NO PHOTOS</button>`
           }
+          <button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button>
+          <button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button>
+          <button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Text Driver</button>
         </div>
-        <div class="dx-text-btns"><button class="dx-text-btn delivery" data-action="text" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Text</button><button class="dx-text-btn advance" data-action="advance" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Create Advance Text</button><button class="dx-text-btn driver" data-action="driver" data-stop="${esc(s.stopId)}" data-route="${esc(routeId)}">Text Driver</button></div>
       </td>
     </tr>`;
 }
