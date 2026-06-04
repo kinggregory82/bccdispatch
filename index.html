@@ -717,7 +717,12 @@ function getStats() {
     todayRoutes.forEach(r => {
       Object.values(r.stops || {}).forEach(s => {
         sameDayTotal++;
-        if (s.orderDate && s.orderDate === todayYMD) sameDay++;
+        // dqOrderDate = YYYY-MM-DD when the order was created in DQ
+        // routeDate   = the delivery date (YYYY-MM-DD)
+        // Same-day = order was created on the same day it was delivered
+        const routeDate = (r.date || '').substring(0, 10);
+        const orderCreated = (s.dqOrderDate || '').substring(0, 10);
+        if (orderCreated && routeDate && orderCreated === routeDate) sameDay++;
       });
     });
   }
