@@ -449,6 +449,12 @@ html, body {
   border:2px solid #333; cursor:zoom-in; transition:transform .15s ease;
   transform-origin:center center; user-select:none; }
 .bcc-lb-img.zoomed { cursor:zoom-out; }
+.bcc-lb-dl-bar { display:flex; align-items:center; gap:10px; margin-top:10px; }
+.bcc-lb-dl-btn { background:#1a1a1a; color:#fff; border:1px solid #444;
+  font-family:'Oswald',sans-serif; font-size:12px; font-weight:700; letter-spacing:.08em;
+  padding:6px 16px; cursor:pointer; border-radius:2px; transition:background .12s; }
+.bcc-lb-dl-btn:hover { background:#cc0000; border-color:#cc0000; }
+.bcc-lb-dl-btn:disabled { background:#333; color:#666; border-color:#333; cursor:default; }
 </style>
 </head>
 <body>
@@ -1585,6 +1591,8 @@ let _lbUrls = [], _lbIdx = 0;
 function lbOpen(urls, idx) {
   _lbUrls = urls; _lbIdx = idx;
   document.getElementById('bcc-lb').classList.add('open');
+  const dlAll = document.getElementById('bcc-lb-dl-all');
+  if (dlAll) dlAll.style.display = urls.length > 1 ? 'inline-block' : 'none';
   lbRender();
 }
 function lbClose() { document.getElementById('bcc-lb').classList.remove('open'); }
@@ -1621,11 +1629,50 @@ function lbResetZoom(){
   const img=document.getElementById('bcc-lb-img');
   if(img){ img.style.transform='scale(1)'; img.classList.remove('zoomed'); }
 }
+async function lbDownload(url, filename) {
+  const btn = document.getElementById('bcc-lb-dl-one');
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename || 'delivery-photo.jpg';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch(e) {
+    alert('Download failed — try right-clicking the image and choosing "Save image as".');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ Download'; }
+  }
+}
+
+async function lbDownloadAll() {
+  const btn = document.getElementById('bcc-lb-dl-all');
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
+  for (let i = 0; i < _lbUrls.length; i++) {
+    try {
+      const resp = await fetch(_lbUrls[i]);
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `delivery-photo-${i+1}.jpg`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      if (i < _lbUrls.length - 1) await new Promise(r => setTimeout(r, 400));
+    } catch(e) { /* skip failed */ }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '⬇ Download All'; }
+}
+
 function lbRender(){
   document.getElementById('bcc-lb-img').src=_lbUrls[_lbIdx];
   document.getElementById('bcc-lb-counter').textContent=(_lbIdx+1)+' / '+_lbUrls.length;
   document.getElementById('bcc-lb-prev').disabled=_lbIdx===0;
   document.getElementById('bcc-lb-next').disabled=_lbIdx===_lbUrls.length-1;
+  // Update download button target
+  const dlBtn = document.getElementById('bcc-lb-dl-one');
+  if (dlBtn) dlBtn.onclick = () => lbDownload(_lbUrls[_lbIdx], `delivery-photo-${_lbIdx+1}.jpg`);
   lbResetZoom();
 }
 // Scroll to zoom
@@ -1674,6 +1721,10 @@ document.addEventListener('touchend', function(){ _lbPinchDist=null; },{passive:
     <button class="bcc-lb-btn" id="bcc-lb-prev" onclick="lbPrev()">&#8592; Prev</button>
     <span class="bcc-lb-counter" id="bcc-lb-counter"></span>
     <button class="bcc-lb-btn" id="bcc-lb-next" onclick="lbNext()">Next &#8594;</button>
+  </div>
+  <div class="bcc-lb-dl-bar">
+    <button class="bcc-lb-dl-btn" id="bcc-lb-dl-one" onclick="lbDownload(_lbUrls[_lbIdx],'delivery-photo-'+(_lbIdx+1)+'.jpg')">&#11015; Download</button>
+    <button class="bcc-lb-dl-btn" id="bcc-lb-dl-all" onclick="lbDownloadAll()" style="display:none">&#11015; Download All</button>
   </div>
 </div>
 </body>
