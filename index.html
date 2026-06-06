@@ -488,7 +488,7 @@ const _DT = {
 const DT = _DT[_dLang] || _DT['en'];
 
 const DISPATCH_PIN = '2025';
-const TRACKER_BASE = 'https://kinggregory82.github.io/bcctracker';
+const TRACKER_BASE = 'https://bccsms-27c55.web.app';
 
 // ── State ───────────────────────────────────────────────────────────────────
 const S = {
@@ -1411,15 +1411,7 @@ function getSelectedStop() {
   return { route, stop };
 }
 
-async function shortenUrl(url) {
-  try {
-    const r = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url));
-    if (r.ok) {
-      const short = (await r.text()).trim();
-      if (short.startsWith('http')) return short;
-    }
   } catch(e) {}
-  return url; // fallback to original if TinyURL fails
 }
 
 function drawerHTML(title, msg, stop, route) {
@@ -1521,8 +1513,8 @@ function renderDrawer(mode) {
     wrap.style.display = 'block';
     wrap.innerHTML = drawerHTML(title, msg, stop, route);
     attachDrawerHandlers();
-    // Shorten URL in background and update textarea
-    shortenUrl(url).then(short => {
+    // Send tracker URL directly
+    Promise.resolve(url).then(short => {
       const ta = document.getElementById('dx-track-note');
       if (ta && ta.value.includes(url)) {
         ta.value = ta.value.replace(url, short);
