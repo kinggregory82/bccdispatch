@@ -659,7 +659,7 @@ function getRoutes() {
       id, ...r,
       stops: r.stops
         ? Object.entries(r.stops)
-            .map(([stopId, s]) => ({ stopId, ...s }))
+            .map(([stopId, s]) => ({ stopId, ...s, _routeDate: r.date ? r.date.substring(0,10) : '' }))
             .filter(s => {
               if (s.status === 'complete') return true;
               if (S.dateOffset > 0) return true; // future date — show all pending
@@ -712,6 +712,16 @@ function getUnscheduled() {
   return out.sort((a,b) =>
     (a.orderNumber||'').localeCompare(b.orderNumber||''));
 }
+function to24(timeStr) {
+  // Convert "7:10 AM" / "10:30 PM" to "07:10:00" for ISO date parsing
+  if (!timeStr) return '00:00:00';
+  const m = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return '00:00:00';
+  let h = parseInt(m[1]), min = m[2], ampm = m[3].toUpperCase();
+  if (ampm === 'PM' && h !== 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return String(h).padStart(2,'0') + ':' + min + ':00';
+}
 function getStats() {
   const routes  = getRoutes();
   const todayYMD = new Date().toISOString().slice(0, 10);
@@ -740,9 +750,10 @@ function getStats() {
         const actualTs = s.arrivalTime || s.deliveryTime || s.completedAt;
         let etaLowMs, etaHighMs;
         if (s.customerEta && s.customerEta.low && s.customerEta.low !== '—') {
-          const today = new Date().toDateString();
-          const low  = new Date(`${today} ${s.customerEta.low}`);
-          const high = new Date(`${today} ${s.customerEta.high || s.customerEta.low}`);
+          // Use the route date, not today, so historical routes compare correctly
+          const routeDateStr = r.date ? r.date.substring(0,10) : new Date().toISOString().slice(0,10);
+          const low  = new Date(`${routeDateStr}T${to24(s.customerEta.low)}`);
+          const high = new Date(`${routeDateStr}T${to24(s.customerEta.high || s.customerEta.low)}`);
           if (!isNaN(low) && !isNaN(high)) { etaLowMs = low.getTime(); etaHighMs = high.getTime(); }
         }
         if (!etaLowMs) {
@@ -1373,10 +1384,11 @@ function getDeliveryTiming(s) {
   // seedEta is frozen at seed time and never overwritten — most accurate for timing
   let etaLowMs, etaHighMs;
   if (s.customerEta && s.customerEta.low && s.customerEta.low !== '—') {
-    // Parse the manual override time strings (e.g. "7:30 AM") against today's date
-    const today = new Date().toDateString();
-    const low  = new Date(`${today} ${s.customerEta.low}`);
-    const high = new Date(`${today} ${s.customerEta.high || s.customerEta.low}`);
+    // Parse the manual override time strings (e.g. "7:30 AM") against the route date
+    // Using today causes wrong comparisons for historical routes and overnight edge cases
+    const routeDateStr = (s._routeDate || new Date().toISOString().slice(0,10));
+    const low  = new Date(`${routeDateStr}T${to24(s.customerEta.low)}`);
+    const high = new Date(`${routeDateStr}T${to24(s.customerEta.high || s.customerEta.low)}`);
     if (!isNaN(low) && !isNaN(high)) {
       etaLowMs  = low.getTime();
       etaHighMs = high.getTime();
