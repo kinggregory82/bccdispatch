@@ -757,7 +757,7 @@ function getStats() {
           if (!isNaN(low) && !isNaN(high)) { etaLowMs = low.getTime(); etaHighMs = high.getTime(); }
         }
         if (!etaLowMs) {
-          const anchor = s.seedEta || s.calculatedEta;
+          const anchor = s.timingAnchor || s.calculatedEta || s.seedEta;
           if (anchor) { const anchorMs = new Date(anchor).getTime(); etaLowMs = anchorMs; etaHighMs = anchorMs + 30*60*1000; }
         }
         if (etaLowMs) {
@@ -765,6 +765,11 @@ function getStats() {
           if (actualMs < etaLowMs)       early++;
           else if (actualMs <= etaHighMs) onTime++;
           else                            late++;
+        } else if (s.timing) {
+          // Use poller-calculated timing directly — most accurate
+          if (s.timing === 'early')  early++;
+          else if (s.timing === 'ontime') onTime++;
+          else if (s.timing === 'late')   late++;
         }
       }
     }
@@ -1371,6 +1376,9 @@ function timingBadgeHTML(timing) {
 
 function getDeliveryTiming(s) {
   if (s.status !== 'complete') return null;
+  // Use poller-calculated timing if available — single source of truth
+  if (s.timing === 'early' || s.timing === 'ontime' || s.timing === 'late') return s.timing;
+  // Fall back to client-side calculation
   // Use deliveryTime (actual completion) as the timing event — not arrivalTime.
   // Arrival is when the truck pulls up; delivery is when the job is done.
   // For boom trucks, arrival and delivery can be hours apart (5+ hrs on a roof job).
@@ -1381,7 +1389,7 @@ function getDeliveryTiming(s) {
 
   // Use the SAME source as the Customer ETA column for the schedule anchor
   // Priority: manual customerEta → seedEta (original prediction) → calculatedEta
-  // seedEta is frozen at seed time and never overwritten — most accurate for timing
+  // calculatedEta updates as route progresses — most accurate for timing. seedEta is last resort.
   let etaLowMs, etaHighMs;
   if (s.customerEta && s.customerEta.low && s.customerEta.low !== '—') {
     // Parse the manual override time strings (e.g. "7:30 AM") against the route date
