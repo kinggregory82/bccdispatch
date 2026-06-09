@@ -737,7 +737,8 @@ function getStats() {
         // Same-day = order was created on the same day it was delivered
         const routeDate = (r.date || '').substring(0, 10);
         const orderCreated = (s.dqOrderDate || '').substring(0, 10);
-        if (orderCreated && routeDate && orderCreated === routeDate) sameDay++;
+        const shipDate = (s.orderDate || routeDate || '').substring(0, 10);
+        if (orderCreated && shipDate && orderCreated === shipDate) sameDay++;
       });
     });
   }
@@ -921,7 +922,7 @@ function renderStats() {
     <div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value" style="color:#2e8a3e">${fmt(s.earlyPct)}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">${fmt(s.onTimePct)}</span></div>
     <div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value${s.latePct !== null && s.latePct > 20 ? ' red' : ''}">${fmt(s.latePct)}</span></div>
-    <div class="dx-stat"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">${s.sameDay !== undefined ? s.sameDay : '—'}</span></div>
+    <div class="dx-stat"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">${s.sameDay ?? '—'}</span></div>
     <div class="dx-stat" title="${esc(vehicleTip)}" style="cursor:help"><span class="dx-stat-label">Miles</span><span class="dx-stat-value">${s.totalMiles || '—'}</span></div>`;
 }
 
