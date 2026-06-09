@@ -732,13 +732,16 @@ function getStats() {
     todayRoutes.forEach(r => {
       Object.values(r.stops || {}).forEach(s => {
         sameDayTotal++;
-        // dqOrderDate = YYYY-MM-DD when the order was created in DQ
-        // routeDate   = the delivery date (YYYY-MM-DD)
-        // Same-day = order was created on the same day it was delivered
+        // Same day = order entered after 4 PM the prior day or on the ship date itself
         const routeDate = (r.date || '').substring(0, 10);
-        const orderCreated = (s.dqOrderDate || '').substring(0, 10);
-        const shipDate = (s.orderDate || routeDate || '').substring(0, 10);
-        if (orderCreated && shipDate && orderCreated === shipDate) sameDay++;
+        if (s.dqOrderDate && routeDate) {
+          const entered = new Date(s.dqOrderDate);
+          const shipDate = new Date(routeDate + 'T00:00:00');
+          const cutoff = new Date(shipDate);
+          cutoff.setDate(cutoff.getDate() - 1);
+          cutoff.setHours(16, 0, 0, 0); // 4:00 PM prior day
+          if (entered >= cutoff) sameDay++;
+        }
       });
     });
   }
