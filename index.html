@@ -157,6 +157,10 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .dx-timing.early  { color: #1f7d3a; background: #eaf6ee; border: 1px solid #b8dec5; }
 .dx-timing.ontime { color: #1a1a1a; background: #f3f3f3; border: 1px solid #d0d0d0; }
 .dx-timing.late   { color: #cc0000; background: #fff0f0; border: 1px solid #f5c2c2; }
+.dx-act-btn { padding:3px 8px; background:#fff; color:#333; font-family:'Oswald',sans-serif;
+  font-size:10px; font-weight:700; border-radius:3px; border:1px solid #bbb;
+  cursor:pointer; margin-right:4px; white-space:nowrap; }
+.dx-act-btn:hover { background:#f5f5f5; border-color:#888; }
 .dx-eta { display: flex; align-items: baseline; gap: 4px; }
 .dx-eta-window { font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 600; color: #111; white-space: nowrap; }
 .dx-eta-dash { color: #aaa; font-size: 12px; }
@@ -211,7 +215,7 @@ let pollTimer = null;
 
 const ymd = d => { const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dy=String(d.getDate()).padStart(2,'0'); return y+'-'+m+'-'+dy; };
 const fmtDate = d => d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-const fmtTime = ts => { if(!ts)return '—'; const d=new Date(ts); if(isNaN(d))return '—'; return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}); };
+const fmtTime = ts => { if(!ts)return '\u2014'; const d=new Date(ts); if(isNaN(d))return '\u2014'; return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}); };
 const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 function targetDate() { const d=new Date(); d.setDate(d.getDate()+S.dateOffset); return d; }
@@ -269,15 +273,15 @@ function renderStats(routes, dk, mil) {
     '<div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">'+tr.length+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Stops</span><span class="dx-stat-value">'+stops+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Delivered</span><span class="dx-stat-value">'+delivered+'</span></div>'+
-    '<div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value red">'+(ep!==null?ep+'%':'—')+'</span></div>'+
-    '<div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">'+(op!==null?op+'%':'—')+'</span></div>'+
-    '<div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value"'+(lp>20?' style="color:#cc0000"':'')+' >'+(lp!==null?lp+'%':'—')+'</span></div>'+
+    '<div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value red">'+(ep!==null?ep+'%':'\u2014')+'</span></div>'+
+    '<div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">'+(op!==null?op+'%':'\u2014')+'</span></div>'+
+    '<div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value"'+(lp>20?' style="color:#cc0000"':'')+' >'+(lp!==null?lp+'%':'\u2014')+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">'+sameDay+'</span></div>'+
     (miles>0?'<div class="dx-stat"><span class="dx-stat-label">Miles</span><span class="dx-stat-value">'+miles.toLocaleString()+'</span></div>':'');
 }
 
 function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
-  const ts = deliveryTime ? fmtTime(deliveryTime) : completedAt ? fmtTime(completedAt) : '—';
+  const ts = deliveryTime ? fmtTime(deliveryTime) : completedAt ? fmtTime(completedAt) : '\u2014';
   if (status==='complete') {
     const ds=(deliveryStatus||'').toLowerCase();
     const label = ds.includes('no') || ds.includes('sig') ? 'DELIVERED NO/SIG' : 'DELIVERED';
@@ -291,26 +295,26 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
 }
 
 function timingBadgeHTML(timing) {
-  if(!timing) return '<span style="color:#555;font-family:\'Oswald\',sans-serif;font-size:11px">—</span>';
+  if(!timing) return '<span style="color:#555;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
   const map = {early:['EARLY','early'], ontime:['ON TIME','ontime'], late:['LATE','late']};
-  const [label, cls] = map[timing] || ['—',''];
+  const [label, cls] = map[timing] || ['\u2014',''];
   return '<span class="dx-timing '+cls+'">'+label+'</span>';
 }
 
 function onSiteHTML(s) {
-  if(!s.gpsArrivedAt || !s.gpsLeftAt) return '<span style="color:#ccc">—</span>';
+  if(!s.gpsArrivedAt || !s.gpsLeftAt) return '<span style="color:#ccc">\u2014</span>';
   const arr=new Date(s.gpsArrivedAt), left=new Date(s.gpsLeftAt);
-  if(isNaN(arr)||isNaN(left)) return '<span style="color:#ccc">—</span>';
+  if(isNaN(arr)||isNaN(left)) return '<span style="color:#ccc">\u2014</span>';
   const mins=Math.round((left-arr)/60000);
   return '<span style="font-family:\'Oswald\',sans-serif;font-size:13px">'+mins+'m</span>';
 }
 
 function etaHTML(s) {
   const eta = s.calculatedEta || s.seedEta;
-  if(!eta) return '<span style="color:#ccc">—</span>';
+  if(!eta) return '<span style="color:#ccc">\u2014</span>';
   const d=new Date(eta);
-  if(isNaN(d)) return '<span style="color:#ccc">—</span>';
-  if(d.getTime() < Date.now()-2*3600000) return '<span style="color:#ccc">—</span>';
+  if(isNaN(d)) return '<span style="color:#ccc">\u2014</span>';
+  if(d.getTime() < Date.now()-2*3600000) return '<span style="color:#ccc">\u2014</span>';
   const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
   const low=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
   const high=new Date(d.getTime()+30*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
@@ -340,7 +344,7 @@ function renderRoutes(routes, dk) {
     const dqId = route.dqRouteId || routeId;
     const asset = (route.asset||'').toUpperCase();
     const desc = (route.assetDescription||'').toUpperCase();
-    const driver = route.driverName || '—';
+    const driver = route.driverName || '\u2014';
 
     const rows = stops.map((s,i)=>{
       const pics = s.pictures || [];
@@ -358,20 +362,19 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:15px;font-weight:700;color:#cc0000;width:36px;text-align:center">'+((s.sequence)||i+1)+'</td>'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:12px;font-weight:600;color:#333;white-space:nowrap">'+esc(s.orderNumber||'')+'</td>'
         +'<td style="padding:12px 14px;overflow:hidden">'
-          +'<div class="dx-customer-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.customerName||'—')+'</div>'
+          +'<div class="dx-customer-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.customerName||'\u2014')+'</div>'
           +'<div class="dx-customer-addr">'+esc(s.address||'')+(wt?' <span style="color:#bbb;font-size:11px">&middot; '+wt+'</span>':'')+'</div>'
         +'</td>'
         +'<td style="padding:12px 14px">'+etaHTML(s)+'</td>'
-        +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'—')+'</td>'
+        +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'\u2014')+'</td>'
         +'<td style="padding:12px 14px">'+statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)+'</td>'
         +'<td style="padding:12px 14px">'+onSiteHTML(s)+'</td>'
         +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing)+'</td>'
-        +'<td style="padding:12px 14px;white-space:nowrap;overflow:hidden">'
-          +'<button onclick="openTpl(\'advance\',this)" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||'')+'" data-date="'+esc(route.date||'')+'" style="padding:3px 8px;background:#fff;color:#333;font-family:\\'Oswald\\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #bbb;cursor:pointer;margin-right:4px">Advance Text</button>'
-          +'<button onclick="openTpl(\'track\',this)" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||'')+'" data-date="'+esc(route.date||'')+'" style="padding:3px 8px;background:#fff;color:#333;font-family:\\'Oswald\\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #bbb;cursor:pointer;margin-right:4px">Tracking Link</button>'
-          +'<button onclick="openTpl(\'driver\',this)" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" style="padding:3px 8px;background:#fff;color:#333;font-family:\\'Oswald\\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #bbb;cursor:pointer;margin-right:4px">Text Driver</button>'
-          +photoBtn
-        +'</td>'
+        +'<td style="padding:12px 14px;white-space:nowrap">'
+          +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Advance Text</button> '
+          +'<button class="dx-act-btn" data-type="track" data-order="'+esc(s.orderNumber||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'" data-address="'+esc(s.address||'')+'">Tracking Link</button> '
+          +'<button class="dx-act-btn" data-type="driver" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'">Text Driver</button>'
+          +'</td>'
         +'</tr>';
     }).join('');
 
@@ -469,67 +472,70 @@ function renderApp() {
 renderPin();
 
 
-// ── Text Template Modal ───────────────────────────────────────
-function fmtDate(dateStr) {
+// -- Text Template Modal ---------------------------------------
+function fmtDateStr(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  var d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
 }
 function fmtEtaWindow(isoStr) {
   if (!isoStr) return '';
   try {
-    const d = new Date(isoStr);
+    var d = new Date(isoStr);
     if (isNaN(d)) return '';
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const low = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
-    const high = new Date(d.getTime() + 30 * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var low = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:tz });
+    var high = new Date(d.getTime()+30*60000).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:tz });
     return low + ' - ' + high;
-  } catch { return ''; }
+  } catch(e) { return ''; }
 }
-function openTpl(type, btn) {
-  const d = btn.dataset;
-  const order = d.order || '';
-  const customer = d.customer || '';
-  const address = d.address || '';
-  const eta = d.eta || '';
-  const date = d.date || '';
-  const token = d.token || '';
-  const modal = document.getElementById('tpl-modal');
-  const title = document.getElementById('tpl-title');
-  const body = document.getElementById('tpl-body');
-  let msg = '', t = '';
+function openTplFromBtn(btn) {
+  var type = btn.getAttribute('data-type');
+  var order = btn.getAttribute('data-order') || '';
+  var customer = btn.getAttribute('data-customer') || '';
+  var address = btn.getAttribute('data-address') || '';
+  var eta = btn.getAttribute('data-eta') || '';
+  var date = btn.getAttribute('data-date') || '';
+  var token = btn.getAttribute('data-token') || '';
+  var msg = '', title = '';
   if (type === 'advance') {
-    t = 'Advance Text';
-    const etaWindow = fmtEtaWindow(eta);
-    const fdate = fmtDate(date);
-    msg = 'Your delivery to ' + address + ' is scheduled for ' + fdate + '.'
-      + (etaWindow ? ' Current ETA is ' + etaWindow + '.' : '')
-      + ' We will text you again when en route.';
+    title = 'Advance Text';
+    var etaWin = fmtEtaWindow(eta);
+    var fdate = fmtDateStr(date);
+    msg = 'Your delivery to ' + address + ' is scheduled for ' + fdate + '.';
+    if (etaWin) msg += ' Current ETA is ' + etaWin + '.';
+    msg += ' We will text you again when en route.';
   } else if (type === 'track') {
-    t = 'Tracking Link';
-    const url = token ? 'https://bccsms-27c55.web.app/?token=' + token : 'https://bccsms-27c55.web.app/';
+    title = 'Tracking Link';
+    var url = token ? 'https://bccsms-27c55.web.app/?token=' + token : 'https://bccsms-27c55.web.app/';
     msg = 'Track your BCC delivery here: ' + url;
   } else if (type === 'driver') {
-    t = 'Text Driver';
+    title = 'Text Driver';
     msg = 'Order: ' + order + '\nCustomer: ' + customer + '\nAddress: ' + address;
   }
-  title.textContent = t;
-  body.value = msg;
-  modal.style.display = 'flex';
-  body.focus();
-  body.select();
+  document.getElementById('tpl-title').textContent = title;
+  document.getElementById('tpl-body').value = msg;
+  document.getElementById('tpl-modal').style.display = 'flex';
+  setTimeout(function() {
+    var ta = document.getElementById('tpl-body');
+    ta.focus(); ta.select();
+  }, 50);
 }
 function closeTpl() {
   document.getElementById('tpl-modal').style.display = 'none';
 }
 function copyTpl() {
-  const body = document.getElementById('tpl-body');
-  body.select();
+  var ta = document.getElementById('tpl-body');
+  ta.select();
   document.execCommand('copy');
-  const btn = document.getElementById('tpl-copy-btn');
+  var btn = document.getElementById('tpl-copy-btn');
   btn.textContent = 'Copied!';
-  setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
 }
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.dx-act-btn');
+  if (btn) { e.stopPropagation(); openTplFromBtn(btn); }
+});
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeTpl();
 });
