@@ -221,11 +221,18 @@ const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 function targetDate() { const d=new Date(); d.setDate(d.getDate()+S.dateOffset); return d; }
 function dateKey() { return ymd(targetDate()); }
 
+function pickDate(val) {
+  if (!val) return;
+  var todayMs = new Date(ymd(new Date()) + "T12:00:00").getTime();
+  var pickedMs = new Date(val + "T12:00:00").getTime();
+  S.dateOffset = Math.round((pickedMs - todayMs) / 86400000);
+  refreshDate();
+}
 function refreshDate() {
   const el = document.getElementById('sv-date-value');
   if (el) el.textContent = fmtDate(targetDate());
   const nextBtn = document.getElementById('sv-next-btn');
-  if (nextBtn) nextBtn.disabled = S.dateOffset >= 1;
+  if (nextBtn) nextBtn.disabled = false;
   loadAndRender();
 }
 
@@ -234,33 +241,23 @@ async function loadAndRender() {
   if (main) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    // After 3 PM on today's view, also fetch tomorrow's pre-seeded routes
-    const now = new Date();
-    const isToday = S.dateOffset === 0;
-    const after3pm = now.getHours() >= 15;
-    const tmrw = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate()+1));
-    const fetches = [
+    const [live, arch, mil, ua] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/routes/UNASSIGNED.json').then(r=>r.json()).catch(()=>null),
-      (isToday && after3pm) ? fetch(DB+'/routes.json?orderBy="date"&equalTo="'+tmrw+'"').then(r=>r.json()).catch(()=>({})) : Promise.resolve(null),
-    ];
-    const [live, arch, mil, ua, tmrwLive] = await Promise.all(fetches);
+    ]);
     const routes = live || {};
     if (arch && typeof arch==='object') Object.entries(arch).forEach(([id,r])=>{if(!routes[id])routes[id]=r});
     if (ua) routes['UNASSIGNED'] = ua;
-    // Merge tomorrow's routes if after 3 PM
-    if (tmrwLive && typeof tmrwLive==='object') {
-      Object.entries(tmrwLive).forEach(([id,r])=>{ if(r && !routes[id]) routes[id]=r; });
-    }
     renderStats(routes, dk, mil);
-    renderRoutes(routes, dk, tmrwLive && after3pm ? tmrw : null);
+    renderRoutes(routes, dk);
   } catch(e) {
     const main = document.getElementById('sv-routes');
     if (main) main.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">Error: '+esc(e.message)+'</div></div>';
   }
 }
+
 
 function renderStats(routes, dk, mil) {
   const el = document.getElementById('sv-stats');
@@ -341,32 +338,20 @@ function etaHTML(s) {
   return '<div class="dx-eta"><span class="dx-eta-window">'+low+' <span class="dx-eta-dash">&ndash;</span> '+high+'</span></div>';
 }
 
-function renderRoutes(routes, dk, tomorrowKey) {
+function renderRoutes(routes, dk) {
   const main = document.getElementById('sv-routes');
   if (!main) return;
   const tr = Object.entries(routes)
-    .filter(([id,r])=>r&&(r.date===dk||(tomorrowKey&&r.date===tomorrowKey))&&id!=='UNASSIGNED')
-    .sort((a,b)=>{ if(a[1].date!==b[1].date) return a[1].date.localeCompare(b[1].date); return a[0].localeCompare(b[0]); });
+    .filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED')
+    .sort((a,b)=>a[0].localeCompare(b[0]));
   if (!tr.length) {
     main.innerHTML='<div class="dx-empty"><div class="dx-empty-icon">&#128666;</div><div class="dx-empty-msg">No routes for this date</div></div>';
     return;
   }
   // Group today vs tomorrow
-  let lastDate = null;
   main.innerHTML = tr.map(([routeId, route])=>{
     var banner = '';
-    if (tomorrowKey && route.date !== lastDate) {
-      lastDate = route.date;
-      if (route.date === tomorrowKey) {
-        var td = new Date(tomorrowKey + 'T12:00:00');
-        var tdStr = td.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-        banner = '<div style="margin:8px 0 4px;padding:8px 14px;background:#1a1a1a;border-radius:4px;display:flex;align-items:center;gap:10px">'
-          + '<span style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#cc0000">TOMORROW</span>'
-          + '<span style="font-family:Oswald,sans-serif;font-size:11px;letter-spacing:.1em;color:#888;text-transform:uppercase">&mdash; Pre-Seeded Routes &mdash; ' + tdStr + '</span>'
-          + '</div>';
-      }
-    }
-    const stops = Object.values(route.stops||{})
+        const stops = Object.values(route.stops||{})
       .filter(s=>s&&s.orderNumber)
       .sort((a,b)=>{ const sd=(a.sequence||0)-(b.sequence||0); if(sd!==0)return sd; return (a.orderNumber||'').localeCompare(b.orderNumber||''); });
     const done = stops.filter(s=>s.status==='complete').length;
@@ -488,7 +473,8 @@ function renderApp() {
           <span class="dx-date-label">Showing</span>
           <span class="dx-date-value" id="sv-date-value"></span>
         </div>
-        <button id="sv-next-btn" onclick="if(S.dateOffset<0){S.dateOffset++; refreshDate();}" disabled title="Next day">&#8250;</button>
+        <button id="sv-next-btn" onclick="S.dateOffset++; refreshDate();" title="Next day">&#8250;</button>
+        <button onclick="openCalPicker()" title="Jump to date" style="background:#fff;border:1px solid #ddd;color:#555;font-size:16px;width:34px;height:34px;border-radius:3px;cursor:pointer;margin-left:8px;display:flex;align-items:center;justify-content:center">&#128197;</button>
       </div>
       <div class="dx-stats" id="sv-stats"></div>
     </div>
@@ -658,6 +644,21 @@ document.addEventListener('keydown',function(e){
         <button onclick="copyTpl()" id="tpl-copy-btn" style="padding:8px 20px;background:#cc0000;color:#fff;border:none;border-radius:4px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Copy</button>
         <button onclick="closeTpl()" style="padding:8px 20px;background:#eee;color:#555;border:none;border-radius:4px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Close</button>
       </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="cal-modal" style="display:none;position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:6px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;flex-direction:column;gap:16px;min-width:280px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1a1a1a">Jump to Date</span>
+      <button onclick="closeCalPicker()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:20px;line-height:1">&times;</button>
+    </div>
+    <input type="date" id="cal-picker-input" style="width:100%;padding:10px;font-size:15px;border:1px solid #ddd;border-radius:4px;outline:none;font-family:'Roboto',sans-serif">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="goToPickedDate()" style="padding:8px 20px;background:#cc0000;color:#fff;border:none;border-radius:4px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Go</button>
+      <button onclick="closeCalPicker()" style="padding:8px 20px;background:#eee;color:#555;border:none;border-radius:4px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Cancel</button>
     </div>
   </div>
 </div>
