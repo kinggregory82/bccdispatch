@@ -380,9 +380,9 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;overflow:hidden">'
           +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
           +'<span class="dx-customer-name">'+esc(s.customerName||'\u2014')+'</span>'
-          +(s.assignedSales?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #ddd;border-radius:2px;color:#555;white-space:nowrap">'+esc(s.assignedSales)+'</span>':'')
-          +(wt?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #ddd;border-radius:2px;color:#555;white-space:nowrap">'+wt+'</span>':'')
-          +(s.distanceMiles?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #ddd;border-radius:2px;color:#555;white-space:nowrap">'+s.distanceMiles+' mi</span>':'')
+          +(s.assignedSales?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #f5c2c2;border-radius:2px;color:#cc0000;background:#fff0f0;white-space:nowrap">'+esc(s.assignedSales)+'</span>':'')
+          +(wt?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #bfdbfe;border-radius:2px;color:#1d4ed8;background:#eff6ff;white-space:nowrap">'+wt+'</span>':'')
+          +(s.distanceMiles?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #bbf7d0;border-radius:2px;color:#15803d;background:#f0fdf4;white-space:nowrap">'+s.distanceMiles+' mi</span>':'')
           +'</div>'
           +'<div class="dx-customer-addr">'+esc(s.address||'')+'</div>'
         +'</td>'
@@ -526,7 +526,7 @@ function openTplFromBtn(btn) {
     title = 'Advance Text';
     var etaWin = fmtEtaWindow(eta);
     var fdate = fmtDateStr(date);
-    msg = 'Your delivery to ' + address + ' is scheduled for ' + fdate + '.';
+    msg = 'Good afternoon - This is Ben\'s Contractor Center. Your delivery to ' + address + ' is scheduled for ' + fdate + '.';
     if (etaWin) msg += ' Current ETA is ' + etaWin + '.';
     msg += ' We will text you again when en route.';
   } else if (type === 'track') {
