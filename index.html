@@ -250,10 +250,19 @@ function renderRoutes(routes,key){
       const k=sk(s);
       const pics=s.pictures||[];
       const hasPics=pics.length>0;
-      const pj=hasPics?JSON.stringify(pics).replace(/"/g,'&quot;'):'';
-      const ord=(s.orderNumber||'').replace(/^\d+-/,'').replace(/-\d+$/,'');
+      const num=s.orderNumber||'';
+      const parts=num.split('-');
+      const ord=parts.length>=3?parts.slice(1,parts.length-1).join('-'):num;
       const wt=s.weight?s.weight.toLocaleString()+' lbs':'';
-      return '<tr><td class="st-ord">'+ord+'</td>'
+      let photoBtn;
+      if(hasPics){
+        const pj=JSON.stringify(pics).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        photoBtn='<button class="act-btn photos" onclick="openPhotos(\\''+num+'\\',\\''+pj+'\\')">&#128247; '+pics.length+'</button>';
+      } else {
+        photoBtn='<button class="act-btn photos" disabled>&#128247; 0</button>';
+      }
+      return '<tr>'
+        +'<td class="st-ord">'+esc(ord)+'</td>'
         +'<td class="st-cust">'+esc(s.customerName)+'</td>'
         +'<td class="st-addr">'+esc(s.address)+'</td>'
         +'<td class="st-wt">'+wt+'</td>'
@@ -262,9 +271,7 @@ function renderRoutes(routes,key){
         +'<button class="act-btn" disabled>&#9993; Advance</button>'
         +'<button class="act-btn" disabled>&#128279; Track</button>'
         +'<button class="act-btn" disabled>&#128241; Driver</button>'
-        +(hasPics
-          ? '<button class="act-btn photos" onclick="openPhotos(\''+esc(s.orderNumber||'')+'\',\''+pj+'\')">&#128247; '+pics.length+'</button>'
-          : '<button class="act-btn photos" disabled>&#128247; 0</button>')
+        +photoBtn
         +'</td></tr>';
     }).join('');
     return '<div class="route-card"><div class="route-hdr">'
