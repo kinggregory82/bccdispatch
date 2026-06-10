@@ -374,6 +374,7 @@ function renderRoutes(routes, dk) {
           +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Advance Text</button> '
           +'<button class="dx-act-btn" data-type="track" data-order="'+esc(s.orderNumber||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'" data-address="'+esc(s.address||'')+'">Tracking Link</button> '
           +'<button class="dx-act-btn" data-type="driver" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'">Text Driver</button>'
+          +photoBtn
           +'</td>'
         +'</tr>';
     }).join('');
