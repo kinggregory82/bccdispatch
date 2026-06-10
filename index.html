@@ -367,9 +367,9 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px">'+onSiteHTML(s)+'</td>'
         +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing)+'</td>'
         +'<td style="padding:12px 14px;white-space:nowrap;overflow:hidden">'
-          +'<button disabled style="padding:3px 8px;background:#eee;color:#aaa;font-family:\'Oswald\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #ddd;cursor:not-allowed;margin-right:4px">Advance Text</button>'
-          +'<button disabled style="padding:3px 8px;background:#eee;color:#aaa;font-family:\'Oswald\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #ddd;cursor:not-allowed;margin-right:4px">Tracking Link</button>'
-          +'<button disabled style="padding:3px 8px;background:#eee;color:#aaa;font-family:\'Oswald\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #ddd;cursor:not-allowed;margin-right:4px">Text Driver</button>'
+          +'<button onclick="openTpl(\'advance\',this)" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||'')+'" data-date="'+esc(route.date||'')+'" style="padding:3px 8px;background:#fff;color:#333;font-family:\\'Oswald\\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #bbb;cursor:pointer;margin-right:4px">Advance Text</button>'
+          +'<button onclick="openTpl(\'track\',this)" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||'')+'" data-date="'+esc(route.date||'')+'" style="padding:3px 8px;background:#fff;color:#333;font-family:\\'Oswald\\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #bbb;cursor:pointer;margin-right:4px">Tracking Link</button>'
+          +'<button onclick="openTpl(\'driver\',this)" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" style="padding:3px 8px;background:#fff;color:#333;font-family:\\'Oswald\\',sans-serif;font-size:10px;font-weight:700;border-radius:3px;border:1px solid #bbb;cursor:pointer;margin-right:4px">Text Driver</button>'
           +photoBtn
         +'</td>'
         +'</tr>';
@@ -387,7 +387,7 @@ function renderRoutes(routes, dk) {
           +'<div class="dx-progress-bar-wrap"><div class="dx-progress-bar-fill" style="width:'+pct+'%"></div></div>'
         +'</div>'
       +'</div>'
-      +'<table style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:44px"><col style="width:145px"><col><col style="width:130px"><col style="width:90px"><col style="width:200px"><col style="width:70px"><col style="width:90px"><col style="width:290px"></colgroup>'
+      +'<table style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col><col style="width:110px"><col style="width:80px"><col style="width:185px"><col style="width:60px"><col style="width:80px"><col style="width:260px"></colgroup>'
         +'<thead><tr style="background:#f9f9f9;border-bottom:2px solid #eee">'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:center">#</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Order</th>'
@@ -468,6 +468,72 @@ function renderApp() {
 
 renderPin();
 
+
+// ── Text Template Modal ───────────────────────────────────────
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+function fmtEtaWindow(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d)) return '';
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const low = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+    const high = new Date(d.getTime() + 30 * 60000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+    return low + ' - ' + high;
+  } catch { return ''; }
+}
+function openTpl(type, btn) {
+  const d = btn.dataset;
+  const order = d.order || '';
+  const customer = d.customer || '';
+  const address = d.address || '';
+  const eta = d.eta || '';
+  const date = d.date || '';
+  const token = d.token || '';
+  const modal = document.getElementById('tpl-modal');
+  const title = document.getElementById('tpl-title');
+  const body = document.getElementById('tpl-body');
+  let msg = '', t = '';
+  if (type === 'advance') {
+    t = 'Advance Text';
+    const etaWindow = fmtEtaWindow(eta);
+    const fdate = fmtDate(date);
+    msg = 'Your delivery to ' + address + ' is scheduled for ' + fdate + '.'
+      + (etaWindow ? ' Current ETA is ' + etaWindow + '.' : '')
+      + ' We will text you again when en route.';
+  } else if (type === 'track') {
+    t = 'Tracking Link';
+    const url = token ? 'https://bccsms-27c55.web.app/?token=' + token : 'https://bccsms-27c55.web.app/';
+    msg = 'Track your BCC delivery here: ' + url;
+  } else if (type === 'driver') {
+    t = 'Text Driver';
+    msg = 'Order: ' + order + '\nCustomer: ' + customer + '\nAddress: ' + address;
+  }
+  title.textContent = t;
+  body.value = msg;
+  modal.style.display = 'flex';
+  body.focus();
+  body.select();
+}
+function closeTpl() {
+  document.getElementById('tpl-modal').style.display = 'none';
+}
+function copyTpl() {
+  const body = document.getElementById('tpl-body');
+  body.select();
+  document.execCommand('copy');
+  const btn = document.getElementById('tpl-copy-btn');
+  btn.textContent = 'Copied!';
+  setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeTpl();
+});
+
 // Photo lightbox
 let _lbUrls=[], _lbIdx=0;
 function lbOpen(urls,idx){ _lbUrls=urls; _lbIdx=idx; document.getElementById('bcc-lb').classList.add('open'); lbRender(); }
@@ -497,5 +563,23 @@ document.addEventListener('keydown',function(e){
     <button class="bcc-lb-btn" id="bcc-lb-next" onclick="lbNext()">Next &#8594;</button>
   </div>
 </div>
+
+<div id="tpl-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.6);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:6px;width:min(560px,95vw);box-shadow:0 8px 32px rgba(0,0,0,.3);display:flex;flex-direction:column;overflow:hidden">
+    <div style="background:linear-gradient(180deg,#1a1a1a,#0c0c0c);padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <span id="tpl-title" style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fff"></span>
+      <button onclick="closeTpl()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:20px;line-height:1">&times;</button>
+    </div>
+    <div style="padding:18px">
+      <div style="font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#999;margin-bottom:6px">Message Template</div>
+      <textarea id="tpl-body" rows="6" style="width:100%;padding:12px;font-family:'Roboto',sans-serif;font-size:13px;border:1px solid #ddd;border-radius:4px;resize:vertical;outline:none;line-height:1.6"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+        <button onclick="copyTpl()" id="tpl-copy-btn" style="padding:8px 20px;background:#cc0000;color:#fff;border:none;border-radius:4px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Copy</button>
+        <button onclick="closeTpl()" style="padding:8px 20px;background:#eee;color:#555;border:none;border-radius:4px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
