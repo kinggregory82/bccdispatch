@@ -620,6 +620,37 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape')lbClose();
 });
 
+
+
+// -- Calendar Picker --
+function openCalPicker() {
+  var modal = document.getElementById('cal-modal');
+  var input = document.getElementById('cal-picker-input');
+  if (!modal || !input) return;
+  input.value = dateKey();
+  modal.style.display = 'flex';
+  setTimeout(function(){ input.focus(); }, 50);
+}
+function closeCalPicker() {
+  var modal = document.getElementById('cal-modal');
+  if (modal) modal.style.display = 'none';
+}
+function goToPickedDate() {
+  var val = document.getElementById('cal-picker-input').value;
+  if (!val) return;
+  var todayMs = new Date(ymd(new Date()) + 'T12:00:00').getTime();
+  var pickedMs = new Date(val + 'T12:00:00').getTime();
+  S.dateOffset = Math.round((pickedMs - todayMs) / 86400000);
+  closeCalPicker();
+  refreshDate();
+}
+document.addEventListener('keydown', function(e) {
+  var modal = document.getElementById('cal-modal');
+  if (!modal || modal.style.display === 'none') return;
+  if (e.key === 'Escape') closeCalPicker();
+  if (e.key === 'Enter') goToPickedDate();
+});
+
 </script>
 <div id="bcc-lb" class="bcc-lb-overlay" onclick="if(event.target===this)lbClose()">
   <button class="bcc-lb-close" onclick="lbClose()">&#x2715;</button>
