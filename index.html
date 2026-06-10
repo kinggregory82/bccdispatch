@@ -188,9 +188,16 @@ let dateOffset=0,_photos=[],_pi=0;
 // PIN
 document.getElementById('pin').addEventListener('keydown',function(e){if(e.key==='Enter')checkPin()});
 function checkPin(){
-  const v=document.getElementById('pin').value.trim();
-  if(v===PIN){document.getElementById('login').style.display='none';load();}
-  else{document.getElementById('pin-err').textContent='Incorrect PIN';document.getElementById('pin').value='';}
+  try{
+    const v=document.getElementById('pin').value.trim();
+    if(v===PIN){
+      document.getElementById('login').style.display='none';
+      load();
+    } else {
+      document.getElementById('pin-err').textContent='Incorrect PIN';
+      document.getElementById('pin').value='';
+    }
+  } catch(e){ alert('Error: '+e.message); }
 }
 function lockScreen(){document.getElementById('pin').value='';document.getElementById('pin-err').textContent='';document.getElementById('login').style.display='flex';}
 
