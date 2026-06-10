@@ -225,7 +225,7 @@ function refreshDate() {
   const el = document.getElementById('sv-date-value');
   if (el) el.textContent = fmtDate(targetDate());
   const nextBtn = document.getElementById('sv-next-btn');
-  if (nextBtn) nextBtn.disabled = S.dateOffset >= 0;
+  if (nextBtn) nextBtn.disabled = S.dateOffset >= 1;
   loadAndRender();
 }
 
@@ -234,17 +234,28 @@ async function loadAndRender() {
   if (main) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua] = await Promise.all([
+    // After 3 PM on today's view, also fetch tomorrow's pre-seeded routes
+    const now = new Date();
+    const isToday = S.dateOffset === 0;
+    const after3pm = now.getHours() >= 15;
+    const tmrw = ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate()+1));
+    const fetches = [
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/routes/UNASSIGNED.json').then(r=>r.json()).catch(()=>null),
-    ]);
+      (isToday && after3pm) ? fetch(DB+'/routes.json?orderBy="date"&equalTo="'+tmrw+'"').then(r=>r.json()).catch(()=>({})) : Promise.resolve(null),
+    ];
+    const [live, arch, mil, ua, tmrwLive] = await Promise.all(fetches);
     const routes = live || {};
     if (arch && typeof arch==='object') Object.entries(arch).forEach(([id,r])=>{if(!routes[id])routes[id]=r});
     if (ua) routes['UNASSIGNED'] = ua;
+    // Merge tomorrow's routes if after 3 PM
+    if (tmrwLive && typeof tmrwLive==='object') {
+      Object.entries(tmrwLive).forEach(([id,r])=>{ if(r && !routes[id]) routes[id]=r; });
+    }
     renderStats(routes, dk, mil);
-    renderRoutes(routes, dk);
+    renderRoutes(routes, dk, tmrwLive && after3pm ? tmrw : null);
   } catch(e) {
     const main = document.getElementById('sv-routes');
     if (main) main.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">Error: '+esc(e.message)+'</div></div>';
@@ -315,7 +326,7 @@ function onSiteHTML(s) {
   const arr=new Date(arrStr), left=new Date(leftStr);
   if(isNaN(arr)||isNaN(left)||left<=arr) return '<span style=\"color:#ccc\">\u2014</span>';
   const mins=Math.round((left-arr)/60000);
-  if(mins<=0||mins>600) return '<span style=\"color:#ccc\">\u2014</span>';
+  if(mins<2||mins>600) return '<span style=\"color:#ccc\">\u2014</span>';
   return '<span style=\"font-family:\'Oswald\',sans-serif;font-size:13px\">'+mins+'m</span>';
 }
 function etaHTML(s) {
@@ -330,20 +341,34 @@ function etaHTML(s) {
   return '<div class="dx-eta"><span class="dx-eta-window">'+low+' <span class="dx-eta-dash">&ndash;</span> '+high+'</span></div>';
 }
 
-function renderRoutes(routes, dk) {
+function renderRoutes(routes, dk, tomorrowKey) {
   const main = document.getElementById('sv-routes');
   if (!main) return;
   const tr = Object.entries(routes)
-    .filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED')
-    .sort((a,b)=>a[0].localeCompare(b[0]));
+    .filter(([id,r])=>r&&(r.date===dk||(tomorrowKey&&r.date===tomorrowKey))&&id!=='UNASSIGNED')
+    .sort((a,b)=>{ if(a[1].date!==b[1].date) return a[1].date.localeCompare(b[1].date); return a[0].localeCompare(b[0]); });
   if (!tr.length) {
     main.innerHTML='<div class="dx-empty"><div class="dx-empty-icon">&#128666;</div><div class="dx-empty-msg">No routes for this date</div></div>';
     return;
   }
+  // Group today vs tomorrow
+  let lastDate = null;
   main.innerHTML = tr.map(([routeId, route])=>{
+    var banner = '';
+    if (tomorrowKey && route.date !== lastDate) {
+      lastDate = route.date;
+      if (route.date === tomorrowKey) {
+        var td = new Date(tomorrowKey + 'T12:00:00');
+        var tdStr = td.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+        banner = '<div style="margin:8px 0 4px;padding:8px 14px;background:#1a1a1a;border-radius:4px;display:flex;align-items:center;gap:10px">'
+          + '<span style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#cc0000">TOMORROW</span>'
+          + '<span style="font-family:Oswald,sans-serif;font-size:11px;letter-spacing:.1em;color:#888;text-transform:uppercase">&mdash; Pre-Seeded Routes &mdash; ' + tdStr + '</span>'
+          + '</div>';
+      }
+    }
     const stops = Object.values(route.stops||{})
       .filter(s=>s&&s.orderNumber)
-      .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+      .sort((a,b)=>{ const sd=(a.sequence||0)-(b.sequence||0); if(sd!==0)return sd; return (a.orderNumber||'').localeCompare(b.orderNumber||''); });
     const done = stops.filter(s=>s.status==='complete').length;
     const pct = stops.length ? Math.round(done/stops.length*100) : 0;
     const dqId = route.dqRouteId || routeId;
@@ -384,7 +409,7 @@ function renderRoutes(routes, dk) {
         +'</tr>';
     }).join('');
 
-    return '<div style="background:#fff;border:1px solid #e0e0e0;border-radius:3px;margin-bottom:16px;overflow-x:auto">'
+    return banner+'<div style="background:#fff;border:1px solid #e0e0e0;border-radius:3px;margin-bottom:16px;overflow-x:auto">'
       +'<div style="background:linear-gradient(180deg,#1a1a1a 0%,#0c0c0c 100%);padding:12px 18px;display:flex;align-items:center;gap:12px">'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#888">ROUTE</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:20px;font-weight:700;color:#cc0000;letter-spacing:.04em">'+dqId+'</span>'
