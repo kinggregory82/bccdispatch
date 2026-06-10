@@ -287,10 +287,16 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
     const label = ds.includes('no') || ds.includes('sig') ? 'DELIVERED NO/SIG' : 'DELIVERED';
     return '<span class="dx-badge complete">'+label+' &ndash; '+esc(ts)+'</span>';
   }
-  const ds=(deliveryStatus||status||'').toLowerCase();
+  // Use deliveryStatus for in-progress states, but only if it's explicitly set
+  const ds=(deliveryStatus||'').toLowerCase();
   if(ds.includes('next stop')||ds.includes('nextstop')) return '<span class="dx-badge next">NEXT STOP</span>';
   if(ds.includes('arrived')) return '<span class="dx-badge enroute">ARRIVED</span>';
   if(ds.includes('enroute')||ds.includes('en route')) return '<span class="dx-badge enroute">EN ROUTE</span>';
+  // Fall back to checking status field
+  const st=(status||'').toLowerCase();
+  if(st.includes('next')) return '<span class="dx-badge next">NEXT STOP</span>';
+  if(st.includes('arrived')) return '<span class="dx-badge enroute">ARRIVED</span>';
+  if(st.includes('enroute')||st.includes('en route')) return '<span class="dx-badge enroute">EN ROUTE</span>';
   return '<span class="dx-badge pending">PENDING</span>';
 }
 
@@ -302,13 +308,16 @@ function timingBadgeHTML(timing) {
 }
 
 function onSiteHTML(s) {
-  if(!s.gpsArrivedAt || !s.gpsLeftAt) return '<span style="color:#ccc">\u2014</span>';
-  const arr=new Date(s.gpsArrivedAt), left=new Date(s.gpsLeftAt);
-  if(isNaN(arr)||isNaN(left)) return '<span style="color:#ccc">\u2014</span>';
+  // Try GPS dwell first, then fall back to arrivalTime + deliveryTime/completedAt
+  const arrStr = s.gpsArrivedAt || s.arrivalTime;
+  const leftStr = s.gpsLeftAt || s.deliveryTime || s.completedAt;
+  if(!arrStr || !leftStr) return '<span style=\"color:#ccc\">\u2014</span>';
+  const arr=new Date(arrStr), left=new Date(leftStr);
+  if(isNaN(arr)||isNaN(left)||left<=arr) return '<span style=\"color:#ccc\">\u2014</span>';
   const mins=Math.round((left-arr)/60000);
-  return '<span style="font-family:\'Oswald\',sans-serif;font-size:13px">'+mins+'m</span>';
+  if(mins<=0||mins>600) return '<span style=\"color:#ccc\">\u2014</span>';
+  return '<span style=\"font-family:\'Oswald\',sans-serif;font-size:13px\">'+mins+'m</span>';
 }
-
 function etaHTML(s) {
   const eta = s.calculatedEta || s.seedEta;
   if(!eta) return '<span style="color:#ccc">\u2014</span>';
@@ -334,11 +343,7 @@ function renderRoutes(routes, dk) {
   main.innerHTML = tr.map(([routeId, route])=>{
     const stops = Object.values(route.stops||{})
       .filter(s=>s&&s.orderNumber)
-      .sort((a,b)=>{
-        if(a.arrivalTime&&b.arrivalTime) return a.arrivalTime.localeCompare(b.arrivalTime);
-        if(a.arrivalTime) return -1; if(b.arrivalTime) return 1;
-        return (a.sequence||0)-(b.sequence||0);
-      });
+      .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
     const done = stops.filter(s=>s.status==='complete').length;
     const pct = stops.length ? Math.round(done/stops.length*100) : 0;
     const dqId = route.dqRouteId || routeId;
@@ -543,8 +548,14 @@ document.addEventListener('keydown', function(e) {
 
 // Photo lightbox
 let _lbUrls=[], _lbIdx=0;
+let _lbScale=1, _lbPinchDist=null;
+function lbResetZoom(){
+  _lbScale=1;
+  const img=document.getElementById('bcc-lb-img');
+  if(img){img.style.transform='scale(1)';img.classList.remove('zoomed');}
+}
 function lbOpen(urls,idx){ _lbUrls=urls; _lbIdx=idx; document.getElementById('bcc-lb').classList.add('open'); lbRender(); }
-function lbClose(){ document.getElementById('bcc-lb').classList.remove('open'); }
+function lbClose(){ document.getElementById('bcc-lb').classList.remove('open'); lbResetZoom(); }
 function lbPrev(){ if(_lbIdx>0){_lbIdx--; lbRender();} }
 function lbNext(){ if(_lbIdx<_lbUrls.length-1){_lbIdx++; lbRender();} }
 function lbRender(){
@@ -552,7 +563,45 @@ function lbRender(){
   document.getElementById('bcc-lb-counter').textContent=(_lbIdx+1)+' / '+_lbUrls.length;
   document.getElementById('bcc-lb-prev').disabled=_lbIdx===0;
   document.getElementById('bcc-lb-next').disabled=_lbIdx===_lbUrls.length-1;
+  lbResetZoom();
 }
+// Scroll to zoom
+document.addEventListener('wheel', function(e){
+  const img=document.getElementById('bcc-lb-img');
+  if(!document.getElementById('bcc-lb').classList.contains('open')||!img) return;
+  e.preventDefault();
+  _lbScale=Math.min(5,Math.max(1,_lbScale-(e.deltaY>0?0.2:-0.2)));
+  img.style.transform='scale('+_lbScale+')';
+  img.classList.toggle('zoomed',_lbScale>1);
+},{passive:false});
+// Click to toggle zoom
+document.addEventListener('click',function(e){
+  if(e.target.id!=='bcc-lb-img') return;
+  if(_lbScale>1){lbResetZoom();}
+  else{_lbScale=2.5;e.target.style.transform='scale(2.5)';e.target.classList.add('zoomed');}
+});
+// Pinch to zoom
+document.addEventListener('touchstart',function(e){
+  if(!document.getElementById('bcc-lb').classList.contains('open')) return;
+  if(e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    _lbPinchDist=Math.hypot(dx,dy);
+  }
+},{passive:true});
+document.addEventListener('touchmove',function(e){
+  if(!document.getElementById('bcc-lb').classList.contains('open')||!_lbPinchDist) return;
+  if(e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    const dist=Math.hypot(dx,dy);
+    _lbScale=Math.min(5,Math.max(1,_lbScale*(dist/_lbPinchDist)));
+    _lbPinchDist=dist;
+    const img=document.getElementById('bcc-lb-img');
+    if(img){img.style.transform='scale('+_lbScale+')';img.classList.toggle('zoomed',_lbScale>1);}
+  }
+},{passive:true});
+document.addEventListener('touchend',function(){_lbPinchDist=null;},{passive:true});
 document.addEventListener('keydown',function(e){
   if(!document.getElementById('bcc-lb').classList.contains('open'))return;
   if(e.key==='ArrowLeft')lbPrev();
