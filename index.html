@@ -355,6 +355,7 @@ function renderRoutes(routes, dk) {
       .filter(s=>s&&s.orderNumber)
       .sort((a,b)=>{ const sd=(a.sequence||0)-(b.sequence||0); if(sd!==0)return sd; return (a.orderNumber||'').localeCompare(b.orderNumber||''); });
     const done = stops.filter(s=>s.status==='complete').length;
+    const totalWt = stops.reduce((sum,s)=>sum+(s.weight||0),0);
     const pct = stops.length ? Math.round(done/stops.length*100) : 0;
     const dqId = route.dqRouteId || routeId;
     const asset = (route.asset||'').toUpperCase();
@@ -379,6 +380,10 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;overflow:hidden">'
           +'<div class="dx-customer-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.customerName||'\u2014')+'</div>'
           +'<div class="dx-customer-addr">'+esc(s.address||'')+(wt?' <span style="color:#bbb;font-size:11px">&middot; '+wt+'</span>':'')+'</div>'
+          +'<div style="display:flex;gap:12px;margin-top:3px">'
+          +(s.assignedSales?'<span style="font-family:\'Oswald\',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#aaa">'+esc(s.assignedSales)+'</span>':'')
+          +(s.distanceMiles?'<span style="font-family:\'Oswald\',sans-serif;font-size:10px;color:#aaa">'+s.distanceMiles+' mi</span>':'')
+          +'</div>'
         +'</td>'
         +'<td style="padding:12px 14px">'+etaHTML(s)+'</td>'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'\u2014')+'</td>'
@@ -399,8 +404,9 @@ function renderRoutes(routes, dk) {
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#888">ROUTE</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:20px;font-weight:700;color:#cc0000;letter-spacing:.04em">'+dqId+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#bbb">'+asset+' '+desc+'</span>'
-        +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;color:#666;margin-left:4px">&mdash; '+esc(driver)+'</span>'
+        +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;color:#bbb;margin-left:4px">&mdash; '+esc(driver)+'</span>'
         +'<div style="flex:1"></div>'
+        +(totalWt>0?'<span style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;color:#888;margin-right:16px">'+totalWt.toLocaleString()+' LBS</span>':'')
         +'<div class="dx-route-progress">'
           +'<span style="color:#aaa">'+done+' of '+stops.length+' stops done</span>'
           +'<div class="dx-progress-bar-wrap"><div class="dx-progress-bar-fill" style="width:'+pct+'%"></div></div>'
