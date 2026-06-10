@@ -378,12 +378,13 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:15px;font-weight:700;color:#cc0000;width:36px;text-align:center">'+((s.sequence)||i+1)+'</td>'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:12px;font-weight:600;color:#333;white-space:nowrap">'+esc(s.orderNumber||'')+'</td>'
         +'<td style="padding:12px 14px;overflow:hidden">'
-          +'<div class="dx-customer-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.customerName||'\u2014')+'</div>'
-          +'<div class="dx-customer-addr">'+esc(s.address||'')+(wt?' <span style="color:#bbb;font-size:11px">&middot; '+wt+'</span>':'')+'</div>'
-          +'<div style="display:flex;gap:12px;margin-top:3px">'
-          +(s.assignedSales?'<span style="font-family:\'Oswald\',sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#aaa">'+esc(s.assignedSales)+'</span>':'')
-          +(s.distanceMiles?'<span style="font-family:\'Oswald\',sans-serif;font-size:10px;color:#aaa">'+s.distanceMiles+' mi</span>':'')
+          +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+          +'<span class="dx-customer-name">'+esc(s.customerName||'\u2014')+'</span>'
+          +(s.assignedSales?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #ddd;border-radius:2px;color:#555;white-space:nowrap">'+esc(s.assignedSales)+'</span>':'')
+          +(wt?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #ddd;border-radius:2px;color:#555;white-space:nowrap">'+wt+'</span>':'')
+          +(s.distanceMiles?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #ddd;border-radius:2px;color:#555;white-space:nowrap">'+s.distanceMiles+' mi</span>':'')
           +'</div>'
+          +'<div class="dx-customer-addr">'+esc(s.address||'')+'</div>'
         +'</td>'
         +'<td style="padding:12px 14px">'+etaHTML(s)+'</td>'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'\u2014')+'</td>'
