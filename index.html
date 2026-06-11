@@ -200,6 +200,38 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
   transform-origin:center center; user-select:none; }
 .bcc-lb-img.zoomed { cursor:zoom-out; }
 
+
+/* ── Mobile responsive ── */
+.dx-stop-card { display:none; }
+@media (max-width:900px) {
+  .dx-subbar { height:auto; flex-wrap:wrap; padding:8px 12px; gap:8px; }
+  .dx-stats { flex-wrap:wrap; gap:8px 16px; padding:4px 0; }
+  .dx-stat { margin-right:0; }
+  .dx-stat-value { font-size:16px; }
+  .dx-main { padding:8px; }
+  .dx-stop-table { display:none !important; }
+  .dx-stop-card { display:block; border-bottom:1px solid #f0ede8; padding:10px 14px; }
+  .dx-card-top { display:flex; align-items:flex-start; gap:10px; margin-bottom:5px; }
+  .dx-card-seq { font-family:Oswald,sans-serif; font-size:18px; font-weight:700; color:#cc0000; min-width:22px; padding-top:1px; }
+  .dx-card-main { flex:1; min-width:0; }
+  .dx-card-order { font-family:Oswald,sans-serif; font-size:10px; color:#aaa; letter-spacing:.06em; margin-bottom:2px; }
+  .dx-card-row { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .dx-card-name { font-family:Oswald,sans-serif; font-size:14px; font-weight:700; color:#1a1a1a; }
+  .dx-card-addr { font-size:11px; color:#888; margin-top:3px; }
+  .dx-card-mid { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
+  .dx-card-eta { font-family:Oswald,sans-serif; font-size:11px; color:#555; }
+  .dx-card-arr { font-family:Oswald,sans-serif; font-size:11px; color:#555; }
+  .dx-card-actions { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+  .dx-card-actions button, .dx-card-actions a {
+    padding:6px 10px; font-size:11px; font-family:Oswald,sans-serif; font-weight:700;
+    letter-spacing:.05em; text-transform:uppercase; border-radius:3px;
+    border:1px solid #ddd; background:#fff; color:#333; cursor:pointer;
+    text-decoration:none; display:inline-flex; align-items:center; gap:3px;
+  }
+  .dx-card-actions .photos-btn { background:#cc0000; color:#fff; border-color:#cc0000; }
+  .dx-card-actions .track-btn { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+  .dx-datenav button { font-size:22px; }
+}
 </style>
 </head>
 <body>
@@ -356,6 +388,54 @@ function renderRoutes(routes, dk) {
       .sort((a,b)=>{ const sd=(a.sequence||0)-(b.sequence||0); if(sd!==0)return sd; return (a.orderNumber||'').localeCompare(b.orderNumber||''); });
     const done = stops.filter(s=>s.status==='complete').length;
     const totalWt = stops.reduce((sum,s)=>sum+(s.weight||0),0);
+    const cards = stops.map((s,i)=>{
+      const arrTime = s.arrivalTime||s.gpsArrivedAt;
+      const pics = s.pictures||[];
+      const wt = s.weight?s.weight.toLocaleString()+' lbs':'';
+      const pj = pics.length ? JSON.stringify(pics) : '';
+      const photoBtn = pics.length
+        ? '<button class="dx-card-actions photos-btn dx-lb-btn" data-pics="'+encodeURIComponent(pj)+'">&#128247; '+pics.length+'</button>'
+        : '';
+      const trackBtn = s.token
+        ? '<a href="https://bccsms-27c55.web.app/?token='+s.token+'" target="_blank" class="track-btn">&#128225; Track</a>'
+        : '';
+      const etaStr = (()=>{
+        const eta=s.calculatedEta||s.seedEta;
+        if(!eta)return '';
+        const d=new Date(eta);
+        if(isNaN(d))return '';
+        const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const lo=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
+        const hi=new Date(d.getTime()+30*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
+        return lo+' \u2013 '+hi;
+      })();
+      return '<div class="dx-stop-card">'
+        +'<div class="dx-card-top">'
+          +'<div class="dx-card-seq">'+(s.sequence||i+1)+'</div>'
+          +'<div class="dx-card-main">'
+            +'<div class="dx-card-order">'+esc(s.orderNumber||'')+'</div>'
+            +'<div class="dx-card-row">'
+              +'<span class="dx-card-name">'+esc(s.customerName||'\u2014')+'</span>'
+              +(s.assignedSales?'<span style="padding:1px 5px;font-family:Oswald,sans-serif;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1px solid #f5c2c2;border-radius:2px;color:#cc0000;background:#fff0f0">'+esc(s.assignedSales)+'</span>':'')
+              +(wt?'<span style="padding:1px 5px;font-family:Oswald,sans-serif;font-size:9px;font-weight:700;border:1px solid #bfdbfe;border-radius:2px;color:#1d4ed8;background:#eff6ff">'+wt+'</span>':'')
+            +'</div>'
+            +'<div class="dx-card-addr">'+esc(s.address||'')+'</div>'
+          +'</div>'
+        +'</div>'
+        +'<div class="dx-card-mid">'
+          +statusBadgeHTML(s.status,s.completedAt,s.deliveryStatus,s.deliveryTime)
+          +timingBadgeHTML(s.timing)
+          +(arrTime?'<span class="dx-card-arr">'+fmtTime(arrTime)+'</span>':'')
+          +(etaStr?'<span class="dx-card-eta">ETA: '+etaStr+'</span>':'')
+        +'</div>'
+        +'<div class="dx-card-actions">'
+          +trackBtn
+          +photoBtn
+          +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Adv Text</button>'
+          +'<button class="dx-act-btn" data-type="driver" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'">Txt Driver</button>'
+        +'</div>'
+        +'</div>';
+    }).join('');
     const pct = stops.length ? Math.round(done/stops.length*100) : 0;
     const dqId = route.dqRouteId || routeId;
     const asset = (route.asset||'').toUpperCase();
@@ -396,6 +476,7 @@ function renderRoutes(routes, dk) {
           +'<button class="dx-act-btn" data-type="track" data-order="'+esc(s.orderNumber||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'" data-address="'+esc(s.address||'')+'">Track Link</button> '
           +'<button class="dx-act-btn" data-type="driver" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'">Txt Driver</button>'
           +photoBtn
+          +(s.token?'<a href="https://bccsms-27c55.web.app/?token='+s.token+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;padding:3px 8px;background:#fff;color:#2563eb;font-size:13px;border-radius:3px;border:1px solid #bfdbfe;cursor:pointer;margin-left:4px;text-decoration:none;vertical-align:middle" title="Open tracking link">&#128225;</a>':'')
           +'</td>'
         +'</tr>';
     }).join('');
@@ -413,7 +494,7 @@ function renderRoutes(routes, dk) {
           +'<div class="dx-progress-bar-wrap"><div class="dx-progress-bar-fill" style="width:'+pct+'%"></div></div>'
         +'</div>'
       +'</div>'
-      +'<div style="overflow-x:auto"><table style="width:100%;min-width:1241px;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col style="width:260px"><col style="width:118px"><col style="width:80px"><col style="width:185px"><col style="width:65px"><col style="width:82px"><col style="width:285px"></colgroup>'
+      +'<div class="dx-stop-table" style="overflow-x:auto"><table style="width:100%;min-width:1341px;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col style="width:260px"><col style="width:118px"><col style="width:80px"><col style="width:185px"><col style="width:65px"><col style="width:82px"><col style="width:385px"></colgroup>'
         +'<thead><tr style="background:#f9f9f9;border-bottom:2px solid #eee">'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:center">#</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Order</th>'
@@ -428,6 +509,7 @@ function renderRoutes(routes, dk) {
         +'<tbody>'+rows+'</tbody>'
       +'</table>'
       +'</div>'  // close overflow-x:auto
+      +'<div class="dx-stop-cards">'+cards+'</div>'
       +'</div>';
   }).join('');
 }
@@ -558,8 +640,14 @@ function copyTpl() {
   setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
 }
 document.addEventListener('click', function(e) {
-  var btn = e.target.closest('.dx-act-btn');
-  if (btn) { e.stopPropagation(); openTplFromBtn(btn); }
+  var btn = e.target.closest('.dx-act-btn, .dx-lb-btn');
+  if (!btn) return;
+  e.stopPropagation();
+  if (btn.dataset.pics) {
+    try { lbOpen(JSON.parse(decodeURIComponent(btn.dataset.pics)), 0); } catch(ex) {}
+    return;
+  }
+  if (btn.classList.contains('dx-act-btn')) openTplFromBtn(btn);
 });
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeTpl();
