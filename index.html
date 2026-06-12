@@ -232,6 +232,17 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
   .dx-card-actions .track-btn { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
   .dx-datenav button { font-size:22px; }
 }
+
+@keyframes bccLogoFade {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes bccCardFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bcc-login-logo { animation: bccLogoFade 0.7s cubic-bezier(0.22,1,0.36,1) forwards; }
+.bcc-login-card { animation: bccCardFade 0.7s cubic-bezier(0.22,1,0.36,1) 0.5s both; }
 </style>
 </head>
 <body>
@@ -517,15 +528,17 @@ function renderRoutes(routes, dk) {
 function renderPin() {
   document.getElementById('root').innerHTML = `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center">
-      <div style="background:rgba(0,0,0,0.82);border-radius:8px;padding:40px;width:320px;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-        <div class="dx-product" style="text-align:center">
-          <span class="dx-product-name" style="display:block;font-size:22px">Dispatch</span>
-          <span class="dx-product-sub" style="display:block">Tracking Interface</span>
+      <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="bcc-login-logo" style="text-align:center;margin-bottom:8px">
+          <span style="display:block;font-family:'Oswald',sans-serif;font-size:24px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#cc0000">Dispatch</span>
+          <span style="display:block;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#aaa;margin-top:4px">Tracking Interface</span>
         </div>
+        <div class="bcc-login-card" style="background:rgba(0,0,0,0.82);border-radius:8px;padding:32px 40px;width:320px;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
         <input id="sv-pin" type="text" inputmode="numeric" maxlength="4" placeholder="Enter PIN" autocomplete="off"
           style="width:100%;padding:13px;font-size:24px;font-family:'Oswald',sans-serif;text-align:center;letter-spacing:.3em;border:2px solid rgba(255,255,255,0.4);border-radius:4px;outline:none;background:rgba(255,255,255,0.12);color:#fff">
         <div id="sv-pin-err" style="color:#ff6b6b;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.06em;text-transform:uppercase;min-height:16px;text-align:center"></div>
         <button id="sv-pin-btn" style="width:100%;padding:13px;background:#cc0000;color:#fff;border:none;border-radius:4px;font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Unlock</button>
+      </div>
       </div>
     </div>`;
   const input = document.getElementById('sv-pin');
@@ -576,7 +589,7 @@ function renderApp() {
   pollTimer = setInterval(loadAndRender, 120000);
 }
 
-renderPin();
+document.fonts.ready.then(() => renderPin());
 
 
 // -- Text Template Modal ---------------------------------------
