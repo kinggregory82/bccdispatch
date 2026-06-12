@@ -470,7 +470,7 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'\u2014')+'</td>'
         +'<td style="padding:12px 14px">'+statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)+'</td>'
         +'<td style="padding:12px 14px">'+onSiteHTML(s)+'</td>'
-        +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing)+'</td>'
+        +'<td style="padding:12px 14px">'+(s.calculatedEta||s.seedEta?timingBadgeHTML(s.timing):timingBadgeHTML(null))+'</td>'
         +'<td style="padding:12px 14px;white-space:nowrap">'
           +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Adv. Text</button> '
           +'<button class="dx-act-btn" data-type="track" data-order="'+esc(s.orderNumber||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'" data-address="'+esc(s.address||'')+'">Track Link</button> '
