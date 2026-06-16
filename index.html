@@ -310,9 +310,11 @@ function renderStats(routes, dk, mil) {
   tr.forEach(([,r])=>{ Object.values(r.stops||{}).forEach(s=>{
     if(!s||!s.orderNumber) return; stops++;
     if(s.status==='complete') delivered++;
-    if(s.timing==='early'){early++;eligible++}
-    if(s.timing==='ontime'){onTime++;eligible++}
-    if(s.timing==='late'){late++;eligible++}
+    if(s.customerEta){
+      if(s.timing==='early'){early++;eligible++}
+      if(s.timing==='ontime'){onTime++;eligible++}
+      if(s.timing==='late'){late++;eligible++}
+    }
     const rd=(r.date||'').substring(0,10);
     if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu)sameDay++}
   })});
@@ -351,8 +353,8 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   return '<span class="dx-badge pending">PENDING</span>';
 }
 
-function timingBadgeHTML(timing) {
-  if(!timing) return '<span style="color:#555;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
+function timingBadgeHTML(timing, s) {
+  if(!timing || !(s && s.customerEta)) return '<span style="color:#555;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
   const map = {early:['EARLY','early'], ontime:['ON TIME','ontime'], late:['LATE','late']};
   const [label, cls] = map[timing] || ['\u2014',''];
   return '<span class="dx-timing '+cls+'">'+label+'</span>';
@@ -435,7 +437,7 @@ function renderRoutes(routes, dk) {
         +'</div>'
         +'<div class="dx-card-mid">'
           +statusBadgeHTML(s.status,s.completedAt,s.deliveryStatus,s.deliveryTime)
-          +timingBadgeHTML(s.timing)
+          +timingBadgeHTML(s.timing, s)
           +(arrTime?'<span class="dx-card-arr">'+fmtTime(arrTime)+'</span>':'')
           +(etaStr?'<span class="dx-card-eta">ETA: '+etaStr+'</span>':'')
         +'</div>'
@@ -481,7 +483,7 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'\u2014')+'</td>'
         +'<td style="padding:12px 14px">'+statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)+'</td>'
         +'<td style="padding:12px 14px">'+onSiteHTML(s)+'</td>'
-        +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing)+'</td>'
+        +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing, s)+'</td>'
         +'<td style="padding:12px 14px;white-space:nowrap">'
           +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Adv. Text</button> '
           +'<button class="dx-act-btn" data-type="track" data-order="'+esc(s.orderNumber||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'" data-address="'+esc(s.address||'')+'">Track Link</button> '
