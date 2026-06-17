@@ -322,6 +322,12 @@ function renderStats(routes, dk, mil) {
   const op=eligible>0?Math.round(onTime/eligible*100):null;
   const lp=eligible>0?Math.round(late/eligible*100):null;
   const miles=mil&&mil.date===dk?(mil.total||0):0;
+
+  // Unassigned orders
+  const ua = routes['UNASSIGNED'];
+  const uaStops = ua && ua.stops ? Object.values(ua.stops).filter(s=>s&&s.orderNumber) : [];
+  const uaCount = uaStops.length;
+
   el.innerHTML =
     '<div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">'+tr.length+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Stops</span><span class="dx-stat-value">'+stops+'</span></div>'+
@@ -330,7 +336,11 @@ function renderStats(routes, dk, mil) {
     '<div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">'+(op!==null?op+'%':'\u2014')+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value"'+(lp>20?' style="color:#cc0000"':'')+' >'+(lp!==null?lp+'%':'\u2014')+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">'+sameDay+'</span></div>'+
-    (miles>0?'<div class="dx-stat"><span class="dx-stat-label">Miles</span><span class="dx-stat-value">'+miles.toLocaleString()+'</span></div>':'');
+    (miles>0?'<div class="dx-stat"><span class="dx-stat-label">Miles</span><span class="dx-stat-value">'+miles.toLocaleString()+'</span></div>':'')+
+    (uaCount>0?'<div class="dx-stat dx-stat-clickable" onclick="showUnassignedModal()" style="cursor:pointer" title="Click to view unscheduled orders"><span class="dx-stat-label">Unscheduled</span><span class="dx-stat-value" style="color:#c41230">'+uaCount+'</span></div>':'');
+
+  // Store for modal
+  window._uaStops = uaStops;
 }
 
 function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
@@ -353,8 +363,8 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   return '<span class="dx-badge pending">PENDING</span>';
 }
 
-function timingBadgeHTML(timing, s) {
-  if(!timing || !(s && s.customerEta)) return '<span style="color:#555;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
+function timingBadgeHTML(timing) {
+  if(!timing) return '<span style="color:#555;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
   const map = {early:['EARLY','early'], ontime:['ON TIME','ontime'], late:['LATE','late']};
   const [label, cls] = map[timing] || ['\u2014',''];
   return '<span class="dx-timing '+cls+'">'+label+'</span>';
@@ -437,7 +447,7 @@ function renderRoutes(routes, dk) {
         +'</div>'
         +'<div class="dx-card-mid">'
           +statusBadgeHTML(s.status,s.completedAt,s.deliveryStatus,s.deliveryTime)
-          +timingBadgeHTML(s.timing, s)
+          +timingBadgeHTML(s.timing)
           +(arrTime?'<span class="dx-card-arr">'+fmtTime(arrTime)+'</span>':'')
           +(etaStr?'<span class="dx-card-eta">ETA: '+etaStr+'</span>':'')
         +'</div>'
@@ -483,7 +493,7 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'\u2014')+'</td>'
         +'<td style="padding:12px 14px">'+statusBadgeHTML(s.status, s.completedAt, s.deliveryStatus, s.deliveryTime)+'</td>'
         +'<td style="padding:12px 14px">'+onSiteHTML(s)+'</td>'
-        +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing, s)+'</td>'
+        +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing)+'</td>'
         +'<td style="padding:12px 14px;white-space:nowrap">'
           +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Adv. Text</button> '
           +'<button class="dx-act-btn" data-type="track" data-order="'+esc(s.orderNumber||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'" data-address="'+esc(s.address||'')+'">Track Link</button> '
@@ -805,5 +815,48 @@ document.addEventListener('keydown', function(e) {
   </div>
 </div>
 
+<!-- Unassigned orders modal -->
+<div id="ua-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;max-width:860px;width:95%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.25)">
+    <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700;letter-spacing:.5px;color:#111">UNSCHEDULED ORDERS</div>
+      <button onclick="document.getElementById('ua-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1">&times;</button>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <table id="ua-table" style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead style="position:sticky;top:0;background:#333;color:#fff">
+          <tr>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Order #</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Customer</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Ship To</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Rep</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Req Date</th>
+          </tr>
+        </thead>
+        <tbody id="ua-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function showUnassignedModal() {
+  const stops = window._uaStops || [];
+  const tbody = document.getElementById('ua-tbody');
+  tbody.innerHTML = stops.length ? stops.sort((a,b)=>(a.customerName||'').localeCompare(b.customerName||'')).map((s,i)=>
+    '<tr style="border-bottom:1px solid #f0f0f0;background:'+(i%2?'#fafafa':'#fff')+'">' +
+    '<td style="padding:8px 12px;font-weight:600">'+esc(s.orderNumber||'')+'</td>'+
+    '<td style="padding:8px 12px">'+esc(s.customerName||'')+'</td>'+
+    '<td style="padding:8px 12px;color:#555">'+esc(s.address||'')+'</td>'+
+    '<td style="padding:8px 12px;color:#555">'+esc(s.assignedSales||'—')+'</td>'+
+    '<td style="padding:8px 12px;color:#555">'+esc((s.reqDate||s.dqOrderDate||'').slice(0,10))+'</td>'+
+    '</tr>'
+  ).join('') : '<tr><td colspan="5" style="padding:24px;text-align:center;color:#888">No unscheduled orders</td></tr>';
+  document.getElementById('ua-modal').style.display = 'flex';
+}
+document.getElementById('ua-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+</script>
 </body>
 </html>
