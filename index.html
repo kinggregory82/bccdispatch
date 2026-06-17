@@ -841,12 +841,9 @@ document.addEventListener('keydown', function(e) {
 
 <script>
 function showUnassignedModal() {
-  const dk = dateKey();
-  const stops = (window._uaStops || []).filter(s => {
-    const rd = (s.reqDate || s.dqOrderDate || '').slice(0,10);
-    return !rd || rd === dk;
-  });
+  const stops = window._uaStops || [];
   const tbody = document.getElementById('ua-tbody');
+  if (!tbody) return;
   tbody.innerHTML = stops.length ? stops.sort((a,b)=>(a.customerName||'').localeCompare(b.customerName||'')).map((s,i)=>
     '<tr style="border-bottom:1px solid #f0f0f0;background:'+(i%2?'#fafafa':'#fff')+'">' +
     '<td style="padding:8px 12px;font-weight:600">'+esc(s.orderNumber||'')+'</td>'+
@@ -855,8 +852,9 @@ function showUnassignedModal() {
     '<td style="padding:8px 12px;color:#555">'+esc(s.assignedSales||'—')+'</td>'+
     '<td style="padding:8px 12px;color:#555">'+esc((s.reqDate||s.dqOrderDate||'').slice(0,10))+'</td>'+
     '</tr>'
-  ).join('') : '<tr><td colspan="5" style="padding:24px;text-align:center;color:#888">No unscheduled orders</td></tr>';
-  document.getElementById('ua-modal').style.display = 'flex';
+  ).join('') : '<tr><td colspan="5" style="padding:24px;text-align:center;color:#888">No unscheduled orders ('+stops.length+')</td></tr>';
+  const modal = document.getElementById('ua-modal');
+  modal.style.display = 'flex';
 }
 document.getElementById('ua-modal').addEventListener('click', function(e) {
   if (e.target === this) this.style.display = 'none';
