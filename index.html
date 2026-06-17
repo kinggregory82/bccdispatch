@@ -841,7 +841,11 @@ document.addEventListener('keydown', function(e) {
 
 <script>
 function showUnassignedModal() {
-  const stops = window._uaStops || [];
+  const dk = dateKey();
+  const stops = (window._uaStops || []).filter(s => {
+    const rd = (s.reqDate || s.dqOrderDate || '').slice(0,10);
+    return !rd || rd === dk;
+  });
   const tbody = document.getElementById('ua-tbody');
   tbody.innerHTML = stops.length ? stops.sort((a,b)=>(a.customerName||'').localeCompare(b.customerName||'')).map((s,i)=>
     '<tr style="border-bottom:1px solid #f0f0f0;background:'+(i%2?'#fafafa':'#fff')+'">' +
