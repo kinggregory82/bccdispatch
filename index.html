@@ -844,7 +844,7 @@ function showUnassignedModal() {
   const dk = dateKey();
   const stops = (window._uaStops || []).filter(s => {
     const rd = (s.reqDate || s.dqOrderDate || '').slice(0,10);
-    return rd === dk;
+    return !rd || rd === dk;
   });
   const tbody = document.getElementById('ua-tbody');
   if (!tbody) return;
