@@ -450,6 +450,7 @@ function renderRoutes(routes, dk) {
           +trackBtn
           +photoBtn
           +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Adv Text</button>'
+          +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'">Same Day</button>'
           +'<button class="dx-act-btn" data-type="driver" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'">Txt Driver</button>'
         +'</div>'
         +'</div>';
@@ -491,6 +492,7 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing)+'</td>'
         +'<td style="padding:12px 14px;white-space:nowrap">'
           +'<button class="dx-act-btn" data-type="advance" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'">Adv. Text</button> '
+          +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'">Same Day</button> '
           +'<button class="dx-act-btn" data-type="track" data-order="'+esc(s.orderNumber||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'" data-date="'+esc(route.date||'')+'" data-address="'+esc(s.address||'')+'">Track Link</button> '
           +'<button class="dx-act-btn" data-type="driver" data-order="'+esc(s.orderNumber||'')+'" data-customer="'+esc(s.customerName||'')+'" data-address="'+esc(s.address||'')+'">Txt Driver</button>'
           +photoBtn
@@ -632,6 +634,11 @@ function openTplFromBtn(btn) {
     msg = 'Good afternoon - This is Ben\'s Contractor Center. Your delivery to ' + address + ' is scheduled for ' + fdate + '.';
     if (etaWin) msg += ' Current ETA is ' + etaWin + '.';
     msg += ' We will text you again when en route.';
+  } else if (type === 'sameday') {
+    title = 'Same Day Text';
+    var fdate = fmtDateStr(date);
+    var url = token ? 'https://bccsms-27c55.web.app/?token=' + token : 'https://bccsms-27c55.web.app/';
+    msg = 'Your delivery to ' + address + ' is scheduled for ' + fdate + '.  Track your BCC delivery here: ' + url;
   } else if (type === 'track') {
     title = 'Tracking Link';
     var url = token ? 'https://bccsms-27c55.web.app/?token=' + token : 'https://bccsms-27c55.web.app/';
