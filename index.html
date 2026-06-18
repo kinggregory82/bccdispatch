@@ -301,7 +301,7 @@ async function loadAndRender(silent=false) {
 function renderStats(routes, dk, mil) {
   const el = document.getElementById('sv-stats');
   if (!el) return;
-  const tr = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED');
+  const tr = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
   let stops=0, delivered=0, early=0, onTime=0, late=0, eligible=0, sameDay=0;
   tr.forEach(([,r])=>{ const rd=(r.date||'').substring(0,10); Object.values(r.stops||{}).forEach(s=>{
     if(!s||!s.orderNumber) return; stops++;
@@ -392,7 +392,7 @@ function renderRoutes(routes, dk) {
   const main = document.getElementById('sv-routes');
   if (!main) return;
   const tr = Object.entries(routes)
-    .filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED')
+    .filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS')
     .sort((a,b)=>a[0].localeCompare(b[0]));
   if (!tr.length) {
     main.innerHTML='<div class="dx-empty"><div class="dx-empty-icon">&#128666;</div><div class="dx-empty-msg">No routes for this date</div></div>';
