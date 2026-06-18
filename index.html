@@ -183,7 +183,10 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .bcc-lb-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999;
   display:none; align-items:center; justify-content:center; flex-direction:column; }
 .bcc-lb-overlay.open { display:flex; }
-.bcc-lb-img { max-width:90vw; max-height:80vh; object-fit:contain; border:2px solid #333; }
+.bcc-lb-img { max-width:90vw; max-height:80vh; object-fit:contain;
+  border:2px solid #333; cursor:zoom-in; transition:transform .15s ease;
+  transform-origin:center center; user-select:none; }
+.bcc-lb-img.zoomed { cursor:zoom-out; }
 .bcc-lb-nav { display:flex; align-items:center; gap:24px; margin-top:16px; }
 .bcc-lb-btn { background:#cc0000; color:#fff; border:none; font-family:'Oswald',sans-serif;
   font-size:13px; font-weight:700; letter-spacing:.08em; padding:6px 18px; cursor:pointer; }
@@ -192,13 +195,6 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .bcc-lb-close { position:absolute; top:16px; right:20px; color:#aaa; font-size:28px;
   cursor:pointer; line-height:1; background:none; border:none; }
 .bcc-lb-close:hover { color:#fff; }
-
-
-/* ── Lightbox zoom ── */
-.bcc-lb-img { max-width:90vw; max-height:80vh; object-fit:contain;
-  border:2px solid #333; cursor:zoom-in; transition:transform .15s ease;
-  transform-origin:center center; user-select:none; }
-.bcc-lb-img.zoomed { cursor:zoom-out; }
 
 
 /* ── Mobile responsive ── */
@@ -279,9 +275,9 @@ function refreshDate() {
   loadAndRender();
 }
 
-async function loadAndRender() {
+async function loadAndRender(silent=false) {
   const main = document.getElementById('sv-routes');
-  if (main) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
+  if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
     const [live, arch, mil, ua] = await Promise.all([
@@ -307,15 +303,12 @@ function renderStats(routes, dk, mil) {
   if (!el) return;
   const tr = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED');
   let stops=0, delivered=0, early=0, onTime=0, late=0, eligible=0, sameDay=0;
-  tr.forEach(([,r])=>{ Object.values(r.stops||{}).forEach(s=>{
+  tr.forEach(([,r])=>{ const rd=(r.date||'').substring(0,10); Object.values(r.stops||{}).forEach(s=>{
     if(!s||!s.orderNumber) return; stops++;
     if(s.status==='complete') delivered++;
-    if(s.customerEta){
-      if(s.timing==='early'){early++;eligible++}
-      if(s.timing==='ontime'){onTime++;eligible++}
-      if(s.timing==='late'){late++;eligible++}
-    }
-    const rd=(r.date||'').substring(0,10);
+    if(s.timing==='early'){early++;eligible++}
+    else if(s.timing==='ontime'){onTime++;eligible++}
+    else if(s.timing==='late'){late++;eligible++}
     if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu)sameDay++}
   })});
   const ep=eligible>0?Math.round(early/eligible*100):null;
@@ -598,7 +591,7 @@ function renderApp() {
     </main>`;
   document.getElementById('sv-lock-btn').onclick = ()=>{ S.authed=false; S.dateOffset=0; clearInterval(pollTimer); renderPin(); };
   refreshDate();
-  pollTimer = setInterval(loadAndRender, 120000);
+  pollTimer = setInterval(()=>loadAndRender(true), 120000);
 }
 
 document.fonts.ready.then(() => renderPin());
