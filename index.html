@@ -306,9 +306,11 @@ function renderStats(routes, dk, mil) {
   tr.forEach(([,r])=>{ const rd=(r.date||'').substring(0,10); Object.values(r.stops||{}).forEach(s=>{
     if(!s||!s.orderNumber) return; stops++;
     if(s.status==='complete') delivered++;
-    if(s.timing==='early'){early++;eligible++}
-    else if(s.timing==='ontime'){onTime++;eligible++}
-    else if(s.timing==='late'){late++;eligible++}
+    if(s.customerEta){
+      if(s.timing==='early'){early++;eligible++}
+      else if(s.timing==='ontime'){onTime++;eligible++}
+      else if(s.timing==='late'){late++;eligible++}
+    }
     if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu)sameDay++}
   })});
   const ep=eligible>0?Math.round(early/eligible*100):null;
