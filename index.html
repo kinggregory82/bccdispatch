@@ -307,7 +307,8 @@ function renderStats(routes, dk, mil) {
   tr.forEach(([,r])=>{ const rd=(r.date||'').substring(0,10); Object.values(r.stops||{}).forEach(s=>{
     if(!s||!s.orderNumber) return; stops++;
     if(s.status==='complete') delivered++;
-    if(s.customerEta){
+    const _eta = (s.customerEta||'').toString().trim();
+    if(_eta && _eta!=='null' && _eta!=='undefined'){
       if(s.timing==='early'){early++;eligible++}
       else if(s.timing==='ontime'){onTime++;eligible++}
       else if(s.timing==='late'){late++;eligible++}
@@ -361,9 +362,11 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
 }
 
 function timingBadgeHTML(timing, customerEta) {
-  if(!timing || !customerEta) return '<span style="color:#555;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
+  const eta = (customerEta || '').toString().trim();
+  if(!timing || !eta || eta==='null' || eta==='undefined') return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
   const map = {early:['EARLY','early'], ontime:['ON TIME','ontime'], late:['LATE','late']};
   const [label, cls] = map[timing] || ['\u2014',''];
+  if(!cls) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
   return '<span class="dx-timing '+cls+'">'+label+'</span>';
 }
 
