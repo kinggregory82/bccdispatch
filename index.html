@@ -331,7 +331,7 @@ function renderStats(routes, dk, mil) {
     '<div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value red">'+(ep!==null?ep+'%':'\u2014')+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">'+(op!==null?op+'%':'\u2014')+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value"'+(lp>20?' style="color:#cc0000"':'')+' >'+(lp!==null?lp+'%':'\u2014')+'</span></div>'+
-    '<div class="dx-stat'+(sameDay>0?' dx-stat-clickable':'')+(sameDay>0?' onclick="showSameDayModal()" style="cursor:pointer" title="Click to view same day orders"':'')+' ><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">'+sameDay+'</span></div>'+
+    (sameDay>0?'<div class="dx-stat dx-stat-clickable" onclick="showSameDayModal()" style="cursor:pointer" title="Click to view same day orders"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">'+sameDay+'</span></div>':'<div class="dx-stat"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">'+sameDay+'</span></div>')+
     (miles>0?'<div class="dx-stat"><span class="dx-stat-label">Miles</span><span class="dx-stat-value">'+miles.toLocaleString()+'</span></div>':'')+
     (uaCount>0?'<div class="dx-stat dx-stat-clickable" onclick="showUnassignedModal()" style="cursor:pointer" title="Click to view unscheduled orders"><span class="dx-stat-label">Unscheduled</span><span class="dx-stat-value" style="color:#c41230">'+uaCount+'</span></div>':'');
 
