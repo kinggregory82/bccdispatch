@@ -386,7 +386,8 @@ function etaHTML(s) {
   if(!eta) return '<span style="color:#ccc">\u2014</span>';
   const d=new Date(eta);
   if(isNaN(d)) return '<span style="color:#ccc">\u2014</span>';
-  if(d.getTime() < Date.now()-2*3600000) return '<span style="color:#ccc">\u2014</span>';
+  // Only hide stale ETAs for pending stops — completed stops always show their ETA window
+  if(s.status !== 'complete' && d.getTime() < Date.now()-2*3600000) return '<span style="color:#ccc">\u2014</span>';
   const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
   const low=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
   const high=new Date(d.getTime()+30*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
