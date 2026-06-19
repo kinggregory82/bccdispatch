@@ -303,6 +303,7 @@ function renderStats(routes, dk, mil) {
   if (!el) return;
   const tr = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
   let stops=0, delivered=0, early=0, onTime=0, late=0, eligible=0, sameDay=0;
+  const sameDayStops = [];
   tr.forEach(([,r])=>{ const rd=(r.date||'').substring(0,10); Object.values(r.stops||{}).forEach(s=>{
     if(!s||!s.orderNumber) return; stops++;
     if(s.status==='complete') delivered++;
@@ -311,7 +312,7 @@ function renderStats(routes, dk, mil) {
       else if(s.timing==='ontime'){onTime++;eligible++}
       else if(s.timing==='late'){late++;eligible++}
     }
-    if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu)sameDay++}
+    if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu){sameDay++;sameDayStops.push({...s, routeDate:rd});}}
   })});
   const ep=eligible>0?Math.round(early/eligible*100):null;
   const op=eligible>0?Math.round(onTime/eligible*100):null;
@@ -330,12 +331,13 @@ function renderStats(routes, dk, mil) {
     '<div class="dx-stat"><span class="dx-stat-label">Early</span><span class="dx-stat-value red">'+(ep!==null?ep+'%':'\u2014')+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">On Time</span><span class="dx-stat-value">'+(op!==null?op+'%':'\u2014')+'</span></div>'+
     '<div class="dx-stat"><span class="dx-stat-label">Late</span><span class="dx-stat-value"'+(lp>20?' style="color:#cc0000"':'')+' >'+(lp!==null?lp+'%':'\u2014')+'</span></div>'+
-    '<div class="dx-stat"><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">'+sameDay+'</span></div>'+
+    '<div class="dx-stat'+(sameDay>0?' dx-stat-clickable':'')+(sameDay>0?' onclick="showSameDayModal()" style="cursor:pointer" title="Click to view same day orders"':'')+' ><span class="dx-stat-label">Same Day</span><span class="dx-stat-value">'+sameDay+'</span></div>'+
     (miles>0?'<div class="dx-stat"><span class="dx-stat-label">Miles</span><span class="dx-stat-value">'+miles.toLocaleString()+'</span></div>':'')+
     (uaCount>0?'<div class="dx-stat dx-stat-clickable" onclick="showUnassignedModal()" style="cursor:pointer" title="Click to view unscheduled orders"><span class="dx-stat-label">Unscheduled</span><span class="dx-stat-value" style="color:#c41230">'+uaCount+'</span></div>':'');
 
   // Store for modal
   window._uaStops = uaStops;
+  window._sameDayStops = sameDayStops;
 }
 
 function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
@@ -818,6 +820,27 @@ document.addEventListener('keydown', function(e) {
 </div>
 
 <!-- Unassigned orders modal -->
+<div id="sd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;max-width:760px;width:95%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.25)">
+    <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700;letter-spacing:.5px;color:#111">SAME DAY ORDERS</div>
+      <button onclick="document.getElementById('sd-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1">&times;</button>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead style="position:sticky;top:0;background:#333;color:#fff">
+          <tr>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Order #</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Delivery Address</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Salesman</th>
+          </tr>
+        </thead>
+        <tbody id="sd-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div id="ua-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:8px;max-width:860px;width:95%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.25)">
     <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -862,6 +885,22 @@ function showUnassignedModal() {
   const modal = document.getElementById('ua-modal');
   modal.style.display = 'flex';
 }
+function showSameDayModal() {
+  const stops = (window._sameDayStops || []).slice().sort((a,b)=>(a.customerName||'').localeCompare(b.customerName||''));
+  const tbody = document.getElementById('sd-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = stops.length ? stops.map((s,i)=>
+    '<tr style="border-bottom:1px solid #f0f0f0;background:'+(i%2?'#fafafa':'#fff')+'">' +
+    '<td style="padding:8px 12px;font-weight:600">'+esc(s.orderNumber||'')+'</td>'+
+    '<td style="padding:8px 12px;color:#555">'+esc(s.address||s.shipToAddress||'')+'</td>'+
+    '<td style="padding:8px 12px;color:#555">'+esc(s.assignedSales||s.salesRep||'—')+'</td>'+
+    '</tr>'
+  ).join('') : '<tr><td colspan="3" style="padding:24px;text-align:center;color:#888">No same day orders</td></tr>';
+  document.getElementById('sd-modal').style.display = 'flex';
+}
+document.getElementById('sd-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
 document.getElementById('ua-modal').addEventListener('click', function(e) {
   if (e.target === this) this.style.display = 'none';
 });
