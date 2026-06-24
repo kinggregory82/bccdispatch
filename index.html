@@ -389,8 +389,8 @@ function etaHTML(s) {
   // Only hide stale ETAs for pending stops — completed stops always show their ETA window
   if(s.status !== 'complete' && d.getTime() < Date.now()-2*3600000) return '<span style="color:#ccc">\u2014</span>';
   const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const low=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
-  const high=new Date(d.getTime()+30*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
+  const low=new Date(d.getTime()-15*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
+  const high=new Date(d.getTime()+15*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
   return '<div class="dx-eta"><span class="dx-eta-window">'+low+' <span class="dx-eta-dash">&ndash;</span> '+high+'</span></div>';
 }
 
@@ -429,8 +429,8 @@ function renderRoutes(routes, dk) {
         const d=new Date(eta);
         if(isNaN(d))return '';
         const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const lo=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
-        const hi=new Date(d.getTime()+30*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
+        const lo=new Date(d.getTime()-15*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
+        const hi=new Date(d.getTime()+15*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:tz});
         return lo+' \u2013 '+hi;
       })();
       return '<div class="dx-stop-card">'
