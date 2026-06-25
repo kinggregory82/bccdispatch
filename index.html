@@ -345,6 +345,9 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   const ts = deliveryTime ? fmtTime(deliveryTime) : completedAt ? fmtTime(completedAt) : '\u2014';
   if (status==='complete') {
     const ds=(deliveryStatus||'').toLowerCase();
+    if (ds === 'not delivered') {
+      return '<span class="dx-badge" style="background:#7f1d1d;color:#fca5a5;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.1em;padding:3px 10px;border-radius:3px">NOT DELIVERED &ndash; '+esc(ts)+'</span>';
+    }
     const label = ds.includes('no') || ds.includes('sig') ? 'DELIVERED NO/SIG' : 'DELIVERED';
     return '<span class="dx-badge complete">'+label+' &ndash; '+esc(ts)+'</span>';
   }
