@@ -249,6 +249,187 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
 const PIN = '2025';
 
+// ── ETR (Estimated Time of Return) — ported from the fleet page ──────────
+// Uses the same chained calculation: live GPS -> remaining stops (with
+// per-stop service time) -> yard, falling back to last-completed-stop
+// anchoring when there's no live GPS.
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmVuc2dyZWF0b3V0ZG9vcnMiLCJhIjoiY21wbzBqdmh4MDB6ZjJybzhjNnhrdHphdyJ9.ppB9r_WJZwwT6u0lSO0xpw';
+const YARD = { lng: -83.0857, lat: 43.3447 };
+let etrGeocodeCache = {}, etrDriveTimeCache = {};
+const etrStopToStopCache = {};
+const etrLastGpsFor = {};
+
+function etrHaversineKm(a, b) {
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng/2)**2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+}
+async function etrGeocode(addr) {
+  if (!addr) return null;
+  let clean = addr.trim()
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*MI\s*$/i, ', MI')
+    .replace(/\bRD\.\s/gi, 'RD ')
+    .replace(/\bST\.\s/gi, 'ST ')
+    .replace(/\bDR\.\s/gi, 'DR ')
+    .replace(/\bAVE\.\s/gi, 'AVE ')
+    .replace(/\bHWY\.\s/gi, 'HWY ')
+    .replace(/N\.\s(?=\w)/g, 'N ')
+    .replace(/S\.\s(?=\w)/g, 'S ')
+    .replace(/E\.\s(?=\w)/g, 'E ')
+    .replace(/W\.\s(?=\w)/g, 'W ')
+    .replace(/([A-Z]+),([A-Z])/g, '$1, $2');
+  if (!/,/.test(clean)) clean = clean + ', MI';
+  if (etrGeocodeCache[clean] !== undefined) return etrGeocodeCache[clean];
+  try {
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(clean)}.json`
+              + `?access_token=${MAPBOX_TOKEN}&country=US&limit=1&proximity=${YARD.lng},${YARD.lat}`;
+    const j = await (await fetch(url)).json();
+    const f = j.features?.[0];
+    const result = f ? { lng: f.center[0], lat: f.center[1] } : null;
+    etrGeocodeCache[clean] = result;
+    etrGeocodeCache[addr] = result;
+    return result;
+  } catch { etrGeocodeCache[clean] = null; etrGeocodeCache[addr] = null; return null; }
+}
+async function etrDriveMinutes(fromCoords, toCoords) {
+  const key = `${Math.round(fromCoords.lat*100)},${Math.round(fromCoords.lng*100)}->${Math.round(toCoords.lat*100)},${Math.round(toCoords.lng*100)}`;
+  if (etrDriveTimeCache[key] !== undefined) return etrDriveTimeCache[key];
+  try {
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving`
+              + `/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}`
+              + `?access_token=${MAPBOX_TOKEN}&overview=false`;
+    const j = await (await fetch(url)).json();
+    const secs = j.routes?.[0]?.duration;
+    const mins = secs ? Math.round(secs / 60) : null;
+    etrDriveTimeCache[key] = mins;
+    return mins;
+  } catch { return null; }
+}
+function etrFmtTime(d) {
+  const h = d.getHours(), m = d.getMinutes();
+  return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`;
+}
+async function etrFromLastStop(lastStop) {
+  if (!lastStop || !lastStop.address) return null;
+  try {
+    const fromCoords = lastStop.coords
+      ? { lat: lastStop.coords[0], lng: lastStop.coords[1] }
+      : await etrGeocode(lastStop.address);
+    if (!fromCoords) return null;
+    const driveMins = await etrDriveMinutes(fromCoords, YARD);
+    if (driveMins === null) return null;
+    const anchor = lastStop.completedAt ? new Date(lastStop.completedAt) : new Date();
+    return etrFmtTime(new Date(anchor.getTime() + driveMins * 60000));
+  } catch { return null; }
+}
+// Computes the chained ETR for a single route: GPS (or last completed stop)
+// -> each remaining stop (drive + service time) -> yard.
+async function computeRouteEtr(routeId, route) {
+  const allStops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
+  if (!allStops.length) return null;
+  const allDone = allStops.every(s=>s.status==='complete');
+  if (allDone) return null; // nothing left to return from — no ETR needed
+
+  const remainingStops = allStops
+    .filter(s=>s.status!=='complete')
+    .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+
+  const gpsLat = route.gpsLat, gpsLon = route.gpsLon, gpsUpdated = route.gpsUpdatedAt;
+  const gpsStatus = route.gpsStatus || 'PARKED';
+  const gpsAge = gpsUpdated ? (Date.now() - new Date(gpsUpdated).getTime()) / 60000 : 999;
+  const gpsStale = gpsStatus === 'MOVING' ? gpsAge > 10 : gpsAge > 120;
+  const truckCoords = (gpsLat && gpsLon && !gpsStale) ? { lng: gpsLon, lat: gpsLat } : null;
+
+  if (!truckCoords) {
+    const lastDone = [...allStops].reverse().find(s => s.status === 'complete');
+    return lastDone ? await etrFromLastStop(lastDone) : null;
+  }
+  if (!remainingStops.length) {
+    const driveMins = await etrDriveMinutes(truckCoords, YARD);
+    return driveMins !== null ? etrFmtTime(new Date(Date.now() + driveMins * 60000)) : null;
+  }
+
+  let etaMins = 0;
+  const firstStop = remainingStops[0];
+  const onSiteNow = !!(firstStop.arrivalTime && !firstStop.completedAt);
+  const elapsedAtStop = onSiteNow
+    ? Math.max(0, Math.round((Date.now() - new Date(firstStop.arrivalTime).getTime()) / 60000))
+    : 0;
+
+  for (let i = 0; i < remainingStops.length; i++) {
+    const stop = remainingStops[i];
+    const stopCoords = stop.coords ? { lat: stop.coords[0], lng: stop.coords[1] } : await etrGeocode(stop.address);
+    if (!stopCoords) { etaMins += 30; continue; }
+
+    let driveMins;
+    if (i === 0) {
+      if (onSiteNow) {
+        driveMins = 0;
+      } else {
+        const prev = etrLastGpsFor[routeId];
+        const moved = !prev || etrHaversineKm(truckCoords, prev) > 0.5;
+        if (!moved && prev.toNextMins != null) {
+          driveMins = prev.toNextMins;
+        } else {
+          driveMins = await etrDriveMinutes(truckCoords, stopCoords);
+          etrLastGpsFor[routeId] = { ...truckCoords, toNextMins: driveMins };
+        }
+      }
+    } else {
+      const prevStop = remainingStops[i - 1];
+      const cacheKey = `${prevStop.orderNumber}\u2192${stop.orderNumber}`;
+      if (etrStopToStopCache[cacheKey] != null) {
+        driveMins = etrStopToStopCache[cacheKey];
+      } else {
+        const prevCoords = prevStop.coords ? { lat: prevStop.coords[0], lng: prevStop.coords[1] } : await etrGeocode(prevStop.address);
+        driveMins = prevCoords ? await etrDriveMinutes(prevCoords, stopCoords) : null;
+        etrStopToStopCache[cacheKey] = driveMins;
+      }
+    }
+    if (driveMins !== null) etaMins += driveMins;
+
+    const svcMins = route.avgServiceMinutes || 20;
+    if (i === 0 && onSiteNow) {
+      etaMins += Math.max(0, svcMins - elapsedAtStop);
+    } else {
+      etaMins += svcMins;
+    }
+  }
+
+  const lastStop = remainingStops[remainingStops.length - 1];
+  const yardKey = `${lastStop.orderNumber}\u2192YARD`;
+  let yardMins;
+  if (etrStopToStopCache[yardKey] != null) {
+    yardMins = etrStopToStopCache[yardKey];
+  } else {
+    const lastCoords = lastStop.coords ? { lat: lastStop.coords[0], lng: lastStop.coords[1] } : await etrGeocode(lastStop.address);
+    yardMins = lastCoords ? await etrDriveMinutes(lastCoords, YARD) : null;
+    etrStopToStopCache[yardKey] = yardMins;
+  }
+  if (yardMins !== null) etaMins += yardMins;
+
+  return etaMins > 0 ? etrFmtTime(new Date(Date.now() + etaMins * 60000)) : null;
+}
+// Kicks off ETR computation for every visible route and fills in the
+// placeholder badges once each one resolves (badges render instantly;
+// times stream in as Mapbox calls finish, same as the fleet page).
+async function loadRouteEtrs(routes, dk) {
+  const entries = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
+  for (const [routeId, route] of entries) {
+    const el = document.getElementById('etr-'+routeId);
+    if (!el) continue;
+    try {
+      const etr = await computeRouteEtr(routeId, route);
+      const target = document.getElementById('etr-'+routeId);
+      if (!target) continue;
+      if (etr) { target.textContent = 'ETR '+etr; target.style.display=''; }
+      else { target.style.display='none'; }
+    } catch { /* leave hidden on failure */ }
+  }
+}
+
 let S = { authed: false, dateOffset: 0 };
 let pollTimer = null;
 
@@ -291,6 +472,7 @@ async function loadAndRender(silent=false) {
     if (ua) routes['UNASSIGNED'] = ua;
     renderStats(routes, dk, mil);
     renderRoutes(routes, dk);
+    loadRouteEtrs(routes, dk);
   } catch(e) {
     const main = document.getElementById('sv-routes');
     if (main) main.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">Error: '+esc(e.message)+'</div></div>';
@@ -434,7 +616,12 @@ function renderRoutes(routes, dk) {
     var banner = '';
         const stops = Object.values(route.stops||{})
       .filter(s=>s&&s.orderNumber)
-      .sort((a,b)=>{ const sd=(a.sequence||0)-(b.sequence||0); if(sd!==0)return sd; return (a.orderNumber||'').localeCompare(b.orderNumber||''); });
+      .sort((a,b)=>{
+        const ad = a.status==='complete' ? 1 : 0;
+        const bd = b.status==='complete' ? 1 : 0;
+        if(ad!==bd) return ad-bd; // active deliveries first, completed sink to bottom
+        const sd=(a.sequence||0)-(b.sequence||0); if(sd!==0)return sd; return (a.orderNumber||'').localeCompare(b.orderNumber||'');
+      });
     const done = stops.filter(s=>s.status==='complete').length;
     const totalWt = stops.reduce((sum,s)=>sum+(s.weight||0),0);
     const isMobileView = window.matchMedia('(max-width:900px)').matches;
@@ -539,6 +726,7 @@ function renderRoutes(routes, dk) {
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:20px;font-weight:700;color:#cc0000;letter-spacing:.04em">'+dqId+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#bbb">'+asset+' '+desc+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;color:#bbb;margin-left:4px">&mdash; '+esc(driver)+'</span>'
+        +'<span id="etr-'+routeId+'" style="display:none;font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;color:#b45309;background:rgba(180,83,9,0.15);border:1px solid rgba(180,83,9,0.4);border-radius:3px;padding:3px 8px;margin-left:8px;white-space:nowrap">&#127968; ETR \u2014</span>'
         +'<div style="flex:1"></div>'
         +(totalWt>0?'<span style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;color:#888;margin-right:16px">'+totalWt.toLocaleString()+' LBS</span>':'')
         +'<div class="dx-route-progress">'
