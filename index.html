@@ -309,9 +309,10 @@ function renderStats(routes, dk, mil) {
     if(s.status==='complete') delivered++;
     const _eta = (s.calculatedEta||s.seedEta||'').toString().trim();
     if(_eta && _eta!=='null' && _eta!=='undefined'){
-      if(s.timing==='early'){early++;eligible++}
-      else if(s.timing==='ontime'){onTime++;eligible++}
-      else if(s.timing==='late'){late++;eligible++}
+      const t = computeTiming(s);
+      if(t==='early'){early++;eligible++}
+      else if(t==='ontime'){onTime++;eligible++}
+      else if(t==='late'){late++;eligible++}
     }
     if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu){sameDay++;sameDayStops.push({...s, routeDate:rd});}}
   })});
@@ -364,11 +365,32 @@ function statusBadgeHTML(status, completedAt, deliveryStatus, deliveryTime) {
   return '<span class="dx-badge pending">PENDING</span>';
 }
 
-function timingBadgeHTML(timing, s) {
+function computeTiming(s) {
+  // Determine early/ontime/late by comparing actual arrival to the displayed
+  // ETA window (same +/-15min window shown in the Customer ETA column).
   const eta = (s.calculatedEta||s.seedEta||'').toString().trim();
-  if(!timing || !eta || eta==='null' || eta==='undefined') return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
+  if(!eta || eta==='null' || eta==='undefined') return null;
+  const etaDate = new Date(eta);
+  if(isNaN(etaDate)) return null;
+  const arrStr = s.arrivalTime || s.gpsArrivedAt;
+  if(!arrStr){
+    // No actual arrival yet to compare — fall back to whatever was stored.
+    return (s.timing==='early'||s.timing==='ontime'||s.timing==='late') ? s.timing : null;
+  }
+  const arr = new Date(arrStr);
+  if(isNaN(arr)) return (s.timing==='early'||s.timing==='ontime'||s.timing==='late') ? s.timing : null;
+  const low = etaDate.getTime()-15*60000;
+  const high = etaDate.getTime()+15*60000;
+  const t = arr.getTime();
+  if(t < low) return 'early';
+  if(t > high) return 'late';
+  return 'ontime';
+}
+function timingBadgeHTML(timing, s) {
+  const computed = computeTiming(s);
+  if(!computed) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
   const map = {early:['EARLY','early'], ontime:['ON TIME','ontime'], late:['LATE','late']};
-  const [label, cls] = map[timing] || ['\u2014',''];
+  const [label, cls] = map[computed] || ['\u2014',''];
   if(!cls) return '<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>';
   return '<span class="dx-timing '+cls+'">'+label+'</span>';
 }
@@ -487,11 +509,16 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px">'
           +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
           +'<span class="dx-customer-name">'+esc(s.customerName||'\u2014')+'</span>'
-          +(s.assignedSales?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #f5c2c2;border-radius:2px;color:#cc0000;background:#fff0f0;white-space:nowrap">'+esc(s.assignedSales)+'</span>':'')
-          +(wt?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #bfdbfe;border-radius:2px;color:#1d4ed8;background:#eff6ff;white-space:nowrap">'+wt+'</span>':'')
           +(s.distanceMiles?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #bbf7d0;border-radius:2px;color:#15803d;background:#f0fdf4;white-space:nowrap">'+s.distanceMiles+' mi</span>':'')
           +'</div>'
           +'<div class="dx-customer-addr">'+esc(s.address||'')+'</div>'
+        +'</td>'
+        +'<td style="padding:12px 14px">'
+          +'<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">'
+          +(s.assignedSales?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #f5c2c2;border-radius:2px;color:#cc0000;background:#fff0f0;white-space:nowrap">'+esc(s.assignedSales)+'</span>':'')
+          +(wt?'<span style="padding:1px 6px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #bfdbfe;border-radius:2px;color:#1d4ed8;background:#eff6ff;white-space:nowrap">'+wt+'</span>':'')
+          +(!s.assignedSales&&!wt?'<span style="color:#ccc;font-family:\'Oswald\',sans-serif;font-size:11px">\u2014</span>':'')
+          +'</div>'
         +'</td>'
         +'<td style="padding:12px 14px">'+etaHTML(s)+'</td>'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:500">'+(arrTime?fmtTime(arrTime):'\u2014')+'</td>'
@@ -501,7 +528,7 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;white-space:nowrap">'
           +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'">Text</button> '
           +photoBtn
-          +(s.token?'<a href="https://bccsms-27c55.web.app/?token='+s.token+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;padding:3px 8px;background:#fff;color:#2563eb;font-size:13px;border-radius:3px;border:1px solid #bfdbfe;cursor:pointer;margin-left:4px;text-decoration:none;vertical-align:middle" title="Open tracking link">&#128225;</a>':'')
+          +(s.token?'<a href="https://bccsms-27c55.web.app/?token='+s.token+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:3px 8px;background:#fff;color:#2563eb;font-size:13px;border-radius:3px;border:1px solid #bfdbfe;cursor:pointer;margin-left:4px;text-decoration:none;vertical-align:middle" title="Open tracking link">&#128225; Track</a>':'')
           +'</td>'
         +'</tr>';
     }).join('');
@@ -519,11 +546,12 @@ function renderRoutes(routes, dk) {
           +'<div class="dx-progress-bar-wrap"><div class="dx-progress-bar-fill" style="width:'+pct+'%"></div></div>'
         +'</div>'
       +'</div>'
-      +'<div class="dx-stop-table" style="overflow-x:auto"><table style="width:100%;min-width:1341px;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col style="width:260px"><col style="width:118px"><col style="width:80px"><col style="width:185px"><col style="width:65px"><col style="width:82px"><col style="width:385px"></colgroup>'
+      +'<div class="dx-stop-table" style="overflow-x:auto"><table style="width:100%;min-width:1316px;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col style="width:230px"><col style="width:140px"><col style="width:118px"><col style="width:80px"><col style="width:185px"><col style="width:65px"><col style="width:82px"><col style="width:250px"></colgroup>'
         +'<thead><tr style="background:#f9f9f9;border-bottom:2px solid #eee">'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:center">#</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Order</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Customer</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Rep / Wt</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Customer ETA</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Arrival</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Status</th>'
@@ -635,7 +663,7 @@ function openTplFromBtn(btn) {
     title = 'Delivery Text';
     var fdate = fmtDateStr(date);
     var url = token ? 'https://bccsms-27c55.web.app/?token=' + token : 'https://bccsms-27c55.web.app/';
-    msg = 'Your delivery to ' + address + ' is scheduled for ' + fdate + '.  Track your BCC delivery here: ' + url;
+    msg = 'This is Ben\'s Contractor Center. Your delivery to ' + address + ' is scheduled for ' + fdate + '.  Track your BCC delivery here: ' + url;
   }
   document.getElementById('tpl-title').textContent = title;
   document.getElementById('tpl-body').value = msg;
