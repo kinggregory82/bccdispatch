@@ -420,15 +420,22 @@ async function loadRouteEtrs(routes, dk) {
   for (const [routeId, route] of entries) {
     const el = document.getElementById('etr-'+routeId);
     if (!el) continue;
+    const allStops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
+    const allDone = allStops.length>0 && allStops.every(s=>s.status==='complete');
     try {
-      const etr = await computeRouteEtr(routeId, route);
+      const etr = allDone ? null : await computeRouteEtr(routeId, route);
       const target = document.getElementById('etr-'+routeId);
       if (!target) continue;
-      if (etr) { target.textContent = 'ETR '+etr; target.style.display=''; }
-      else { target.style.display='none'; }
-    } catch { /* leave hidden on failure */ }
+      if (allDone) target.textContent = '\u2713 Done';
+      else if (etr) target.textContent = '\ud83c\udfe0 ETR '+etr;
+      else target.textContent = '\ud83c\udfe0 ETR \u2014';
+    } catch {
+      const target = document.getElementById('etr-'+routeId);
+      if (target) target.textContent = '\ud83c\udfe0 ETR \u2014';
+    }
   }
 }
+
 
 let S = { authed: false, dateOffset: 0 };
 let pollTimer = null;
@@ -726,7 +733,7 @@ function renderRoutes(routes, dk) {
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:20px;font-weight:700;color:#cc0000;letter-spacing:.04em">'+dqId+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#bbb">'+asset+' '+desc+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;color:#bbb;margin-left:4px">&mdash; '+esc(driver)+'</span>'
-        +'<span id="etr-'+routeId+'" style="display:none;font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;color:#b45309;background:rgba(180,83,9,0.15);border:1px solid rgba(180,83,9,0.4);border-radius:3px;padding:3px 8px;margin-left:8px;white-space:nowrap">&#127968; ETR \u2014</span>'
+        +'<span id="etr-'+routeId+'" style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;color:#b45309;background:rgba(180,83,9,0.15);border:1px solid rgba(180,83,9,0.4);border-radius:3px;padding:3px 8px;margin-left:8px;white-space:nowrap">&#127968; ETR \u2014</span>'
         +'<div style="flex:1"></div>'
         +(totalWt>0?'<span style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;color:#888;margin-right:16px">'+totalWt.toLocaleString()+' LBS</span>':'')
         +'<div class="dx-route-progress">'
