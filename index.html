@@ -7,6 +7,8 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23cc0000'/><text x='16' y='23' font-family='Arial' font-size='20' font-weight='900' fill='white' text-anchor='middle'>D</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
 <style>
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -196,6 +198,49 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
   cursor:pointer; line-height:1; background:none; border:none; }
 .bcc-lb-close:hover { color:#fff; }
 
+
+/* ── Map panel ── */
+.dx-body-flex { display:flex; align-items:flex-start; }
+.dx-main { flex:1 1 auto; min-width:0; }
+.dx-map-panel { width:0; flex:0 0 auto; overflow:hidden; transition:width .28s ease;
+  position:sticky; top:0; align-self:flex-start; height:calc(100vh - 128px);
+  background:#0c0c0c; border-left:0 solid #222; box-sizing:border-box; }
+body.dx-map-open .dx-map-panel { width:20vw; min-width:280px; border-left-width:1px; }
+.dx-map-panel-inner { width:20vw; min-width:280px; height:100%; position:relative; }
+.dx-map-panel-header { display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; background:#1a1a1a; border-bottom:1px solid #222; }
+.dx-map-panel-title { font-family:'Oswald',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; color:#eee; }
+.dx-map-panel-close { background:none; border:none; color:#aaa; font-size:20px; line-height:1;
+  cursor:pointer; padding:0 4px; }
+.dx-map-panel-close:hover { color:#fff; }
+#map { width:100%; height:calc(100% - 41px); }
+.dx-map-toggle-btn { display:flex; align-items:center; gap:6px; font-family:'Oswald',sans-serif;
+  font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#333;
+  background:#fff; border:1px solid #ddd; border-radius:3px; padding:0 14px; height:34px;
+  cursor:pointer; margin-left:auto; }
+.dx-map-toggle-btn:hover { background:#f5f5f5; }
+.dx-map-toggle-btn.active { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+
+/* ── Forced card layout when map panel is open (mirrors mobile breakpoint) ── */
+body.dx-map-open .dx-stop-table { display:none !important; }
+body.dx-map-open .dx-stop-card { display:block; border-bottom:1px solid #f0ede8; padding:10px 14px; }
+body.dx-map-open .dx-card-top { display:flex; align-items:flex-start; gap:10px; margin-bottom:5px; }
+body.dx-map-open .dx-card-seq { font-family:Oswald,sans-serif; font-size:18px; font-weight:700; color:#cc0000; min-width:22px; padding-top:1px; }
+body.dx-map-open .dx-card-main { flex:1; min-width:0; }
+body.dx-map-open .dx-card-order { font-family:Oswald,sans-serif; font-size:10px; color:#aaa; letter-spacing:.06em; margin-bottom:2px; }
+body.dx-map-open .dx-card-row { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+body.dx-map-open .dx-card-name { font-family:Oswald,sans-serif; font-size:14px; font-weight:700; color:#1a1a1a; overflow-wrap:break-word; word-break:break-word; }
+body.dx-map-open .dx-card-addr { font-size:11px; color:#888; margin-top:3px; overflow-wrap:break-word; word-break:break-word; }
+body.dx-map-open .dx-card-mid { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
+body.dx-map-open .dx-card-eta { font-family:Oswald,sans-serif; font-size:11px; color:#555; }
+body.dx-map-open .dx-card-arr { font-family:Oswald,sans-serif; font-size:11px; color:#555; }
+body.dx-map-open .dx-card-actions { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+body.dx-map-open .dx-card-actions button, body.dx-map-open .dx-card-actions a {
+  padding:6px 10px; font-size:11px; font-family:Oswald,sans-serif; font-weight:700;
+  letter-spacing:.05em; text-transform:uppercase; border-radius:3px;
+  border:1px solid #ddd; background:#fff; color:#333; cursor:pointer;
+  text-decoration:none; display:inline-flex; align-items:center; gap:3px; }
 
 /* ── Mobile responsive ── */
 .dx-stop-card { display:none; }
@@ -477,9 +522,12 @@ async function loadAndRender(silent=false) {
     const routes = live || {};
     if (arch && typeof arch==='object') Object.entries(arch).forEach(([id,r])=>{if(!routes[id])routes[id]=r});
     if (ua) routes['UNASSIGNED'] = ua;
+    S.lastRoutes = routes;
+    S.lastDk = dk;
     renderStats(routes, dk, mil);
     renderRoutes(routes, dk);
     loadRouteEtrs(routes, dk);
+    if (document.body.classList.contains('dx-map-open') && liveMap) refreshLiveMapMarkers();
   } catch(e) {
     const main = document.getElementById('sv-routes');
     if (main) main.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">Error: '+esc(e.message)+'</div></div>';
@@ -631,7 +679,7 @@ function renderRoutes(routes, dk) {
       });
     const done = stops.filter(s=>s.status==='complete').length;
     const totalWt = stops.reduce((sum,s)=>sum+(s.weight||0),0);
-    const isMobileView = window.matchMedia('(max-width:900px)').matches;
+    const isMobileView = window.matchMedia('(max-width:900px)').matches || document.body.classList.contains('dx-map-open');
     const cards = !isMobileView ? '' : stops.map((s,i)=>{
       const arrTime = s.arrivalTime||s.gpsArrivedAt;
       const pics = s.pictures||[];
@@ -733,7 +781,7 @@ function renderRoutes(routes, dk) {
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:20px;font-weight:700;color:#cc0000;letter-spacing:.04em">'+dqId+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#bbb">'+asset+' '+desc+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;color:#bbb;margin-left:4px">&mdash; '+esc(driver)+'</span>'
-        +'<span id="etr-'+routeId+'" style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;color:#b45309;background:rgba(180,83,9,0.15);border:1px solid rgba(180,83,9,0.4);border-radius:3px;padding:3px 8px;margin-left:8px;white-space:nowrap">&#127968; ETR \u2014</span>'
+        +'<span id="etr-'+routeId+'" style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;color:#fbbf24;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.35);border-radius:3px;padding:3px 8px;margin-left:8px;white-space:nowrap">&#127968; ETR \u2014</span>'
         +'<div style="flex:1"></div>'
         +(totalWt>0?'<span style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;color:#888;margin-right:16px">'+totalWt.toLocaleString()+' LBS</span>':'')
         +'<div class="dx-route-progress">'
@@ -818,17 +866,88 @@ function renderApp() {
         <button onclick="openCalPicker()" title="Jump to date" style="background:#fff;border:1px solid #ddd;color:#555;font-size:16px;width:34px;height:34px;border-radius:3px;cursor:pointer;margin-left:8px;display:flex;align-items:center;justify-content:center">&#128197;</button>
       </div>
       <div class="dx-stats" id="sv-stats"></div>
+      <button class="dx-map-toggle-btn" id="sv-map-toggle-btn" onclick="toggleMapPanel()">&#128506; Map</button>
     </div>
     </div>
+    <div class="dx-body-flex" id="sv-body-flex">
     <main class="dx-main" id="sv-routes">
       <div class="dx-boot"><div class="dx-boot-spinner"></div></div>
-    </main>`;
+    </main>
+    <aside class="dx-map-panel" id="sv-map-panel">
+      <div class="dx-map-panel-inner">
+        <div class="dx-map-panel-header">
+          <span class="dx-map-panel-title">Live Map</span>
+          <button class="dx-map-panel-close" onclick="toggleMapPanel()" title="Close map">&times;</button>
+        </div>
+        <div id="map"></div>
+      </div>
+    </aside>
+    </div>`;
   document.getElementById('sv-lock-btn').onclick = ()=>{ S.authed=false; S.dateOffset=0; clearInterval(pollTimer); renderPin(); };
   refreshDate();
   pollTimer = setInterval(()=>loadAndRender(true), 120000);
 }
 
 document.fonts.ready.then(() => renderPin());
+
+// -- Map panel toggle ---------------------------------------
+let liveMap = null, liveMapMarkers = [], liveMapPollTimer = null;
+function toggleMapPanel() {
+  const isOpen = document.body.classList.toggle('dx-map-open');
+  const btn = document.getElementById('sv-map-toggle-btn');
+  if (btn) btn.classList.toggle('active', isOpen);
+  // Re-render routes so the card/table layout swaps immediately
+  if (S.lastRoutes && S.lastDk) renderRoutes(S.lastRoutes, S.lastDk);
+  if (isOpen) {
+    setTimeout(() => {
+      if (!liveMap) initLiveMap();
+      else liveMap.resize();
+      refreshLiveMapMarkers();
+      if (!liveMapPollTimer) liveMapPollTimer = setInterval(refreshLiveMapMarkers, 30000);
+    }, 300); // wait for the CSS width transition so Mapbox measures the final size
+  } else {
+    if (liveMapPollTimer) { clearInterval(liveMapPollTimer); liveMapPollTimer = null; }
+  }
+}
+function initLiveMap() {
+  if (typeof mapboxgl === 'undefined') return;
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  liveMap = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [YARD.lng, YARD.lat],
+    zoom: 8,
+    attributionControl: false,
+  });
+  liveMap.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+  const yardEl = document.createElement('div');
+  yardEl.style.cssText = 'font-family:Oswald,sans-serif;font-size:11px;font-weight:700;color:#cc0000;text-shadow:0 0 3px #000,1px 1px 0 #000,-1px -1px 0 #000;cursor:default;white-space:nowrap';
+  yardEl.textContent = '\u25CF YARD';
+  new mapboxgl.Marker({ element: yardEl, anchor: 'center' }).setLngLat([YARD.lng, YARD.lat]).addTo(liveMap);
+}
+function clearLiveMapMarkers() { liveMapMarkers.forEach(m => m.remove()); liveMapMarkers = []; }
+function refreshLiveMapMarkers() {
+  if (!liveMap || !S.lastRoutes || !S.lastDk) return;
+  clearLiveMapMarkers();
+  const entries = Object.entries(S.lastRoutes).filter(([id,r])=>r&&r.date===S.lastDk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
+  const bounds = new mapboxgl.LngLatBounds();
+  let any = false;
+  for (const [routeId, route] of entries) {
+    if (!route.gpsLat || !route.gpsLon) continue;
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'background:#fff;border:2px solid #cc0000;border-radius:3px;padding:3px 8px;font-family:Oswald,sans-serif;font-size:11px;font-weight:700;color:#111;white-space:nowrap;cursor:pointer';
+    wrapper.textContent = (route.asset || route.driverName || routeId);
+    const marker = new mapboxgl.Marker({ element: wrapper, anchor: 'center' })
+      .setLngLat([route.gpsLon, route.gpsLat])
+      .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(route.driverName || routeId))
+      .addTo(liveMap);
+    liveMapMarkers.push(marker);
+    bounds.extend([route.gpsLon, route.gpsLat]);
+    any = true;
+  }
+  bounds.extend([YARD.lng, YARD.lat]);
+  if (any) liveMap.fitBounds(bounds, { padding: 60, maxZoom: 12 });
+}
 
 
 // -- Text Template Modal ---------------------------------------
