@@ -202,6 +202,7 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 /* ── Map panel ── */
 .dx-body-flex { display:flex; align-items:flex-start; }
 .dx-main { flex:1 1 auto; min-width:0; }
+body.dx-map-open .dx-main { display:none; }
 .dx-map-panel { width:0; flex:0 0 auto; overflow:hidden; transition:width .28s ease;
   position:sticky; top:0; align-self:flex-start; height:calc(100vh - 128px);
   background:#0c0c0c; border-left:0 solid #222; box-sizing:border-box; }
@@ -215,32 +216,44 @@ body.dx-map-open .dx-map-panel { width:20vw; min-width:280px; border-left-width:
   cursor:pointer; padding:0 4px; }
 .dx-map-panel-close:hover { color:#fff; }
 #map { width:100%; height:calc(100% - 41px); }
-.dx-map-toggle-btn { display:flex; align-items:center; gap:6px; font-family:'Oswald',sans-serif;
-  font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#333;
-  background:#fff; border:1px solid #ddd; border-radius:3px; padding:0 14px; height:34px;
-  cursor:pointer; margin-left:auto; }
-.dx-map-toggle-btn:hover { background:#f5f5f5; }
-.dx-map-toggle-btn.active { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
 
-/* ── Forced card layout when map panel is open (mirrors mobile breakpoint) ── */
-body.dx-map-open .dx-stop-table { display:none !important; }
-body.dx-map-open .dx-stop-card { display:block; border-bottom:1px solid #f0ede8; padding:10px 14px; }
-body.dx-map-open .dx-card-top { display:flex; align-items:flex-start; gap:10px; margin-bottom:5px; }
-body.dx-map-open .dx-card-seq { font-family:Oswald,sans-serif; font-size:18px; font-weight:700; color:#cc0000; min-width:22px; padding-top:1px; }
-body.dx-map-open .dx-card-main { flex:1; min-width:0; }
-body.dx-map-open .dx-card-order { font-family:Oswald,sans-serif; font-size:10px; color:#aaa; letter-spacing:.06em; margin-bottom:2px; }
-body.dx-map-open .dx-card-row { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
-body.dx-map-open .dx-card-name { font-family:Oswald,sans-serif; font-size:14px; font-weight:700; color:#1a1a1a; overflow-wrap:break-word; word-break:break-word; }
-body.dx-map-open .dx-card-addr { font-size:11px; color:#888; margin-top:3px; overflow-wrap:break-word; word-break:break-word; }
-body.dx-map-open .dx-card-mid { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
-body.dx-map-open .dx-card-eta { font-family:Oswald,sans-serif; font-size:11px; color:#555; }
-body.dx-map-open .dx-card-arr { font-family:Oswald,sans-serif; font-size:11px; color:#555; }
-body.dx-map-open .dx-card-actions { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
-body.dx-map-open .dx-card-actions button, body.dx-map-open .dx-card-actions a {
-  padding:6px 10px; font-size:11px; font-family:Oswald,sans-serif; font-weight:700;
-  letter-spacing:.05em; text-transform:uppercase; border-radius:3px;
-  border:1px solid #ddd; background:#fff; color:#333; cursor:pointer;
-  text-decoration:none; display:inline-flex; align-items:center; gap:3px; }
+/* Map toggle — a full-height cell in the subbar, matching the stat blocks */
+.dx-map-toggle-btn { display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; font-family:'Oswald',sans-serif; border:none; background:#1a1a1a; color:#fff;
+  padding:0 32px; cursor:pointer; margin-left:auto; transition:background 0.15s ease; }
+.dx-map-toggle-btn:hover { background:#cc0000; }
+.dx-map-toggle-btn.active { background:#cc0000; }
+.dx-map-toggle-label { font-size:10px; letter-spacing:0.22em; text-transform:uppercase;
+  color:#ccc; font-weight:500; }
+.dx-map-toggle-btn.active .dx-map-toggle-label { color:#fff; }
+.dx-map-toggle-value { font-size:22px; font-weight:700; line-height:1.05; margin-top:1px;
+  letter-spacing:-0.5px; display:flex; align-items:center; gap:6px; }
+
+/* ── Map summary cards (fleet-page style) — shown to the left of the map ── */
+.dx-map-summary { display:none; flex:1 1 auto; min-width:0; padding:24px 28px 60px; }
+body.dx-map-open .dx-map-summary { display:block; }
+.dx-fc-list { display:flex; flex-direction:column; gap:1px; background:#e8e4de;
+  border:1px solid #e8e4de; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.dx-fc-card { background:#fff; display:flex; align-items:stretch; border-left:4px solid #cc0000;
+  transition:background 0.12s ease; }
+.dx-fc-card:hover { background:#fafafa; }
+.dx-fc-left { flex:0 0 auto; display:flex; align-items:center; gap:14px; padding:14px 18px;
+  border-right:1px solid #eee; min-width:210px; }
+.dx-fc-asset { font-family:'Oswald',sans-serif; font-size:30px; font-weight:700;
+  letter-spacing:-1px; line-height:1; min-width:56px; color:#1a1a1a; }
+.dx-fc-etr-block { display:flex; flex-direction:column; }
+.dx-fc-etr-label { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.18em;
+  text-transform:uppercase; color:#999; margin-bottom:2px; }
+.dx-fc-etr-val { font-family:'Oswald',sans-serif; font-size:19px; font-weight:700; line-height:1;
+  color:#b45309; }
+.dx-fc-driver { font-family:'Roboto',sans-serif; font-size:12px; color:#888; margin-top:3px; }
+.dx-fc-orders { flex:1; min-width:0; padding:14px 18px; display:flex; flex-direction:column;
+  justify-content:center; gap:2px; }
+.dx-fc-orders-label { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.18em;
+  text-transform:uppercase; color:#999; margin-bottom:4px; }
+.dx-fc-order-item { font-family:'Roboto',sans-serif; font-size:13px; color:#333; line-height:1.7;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dx-fc-order-item.muted { color:#aaa; }
 
 /* ── Mobile responsive ── */
 .dx-stop-card { display:none; }
@@ -463,21 +476,21 @@ async function computeRouteEtr(routeId, route) {
 async function loadRouteEtrs(routes, dk) {
   const entries = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
   for (const [routeId, route] of entries) {
-    const el = document.getElementById('etr-'+routeId);
-    if (!el) continue;
+    const headerEl = document.getElementById('etr-'+routeId);
+    const cardEl = document.getElementById('fc-etr-'+routeId);
+    if (!headerEl && !cardEl) continue;
     const allStops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
     const allDone = allStops.length>0 && allStops.every(s=>s.status==='complete');
+    let headerText = '\ud83c\udfe0 ETR \u2014', cardText = '\u2014';
     try {
       const etr = allDone ? null : await computeRouteEtr(routeId, route);
-      const target = document.getElementById('etr-'+routeId);
-      if (!target) continue;
-      if (allDone) target.textContent = '\u2713 Done';
-      else if (etr) target.textContent = '\ud83c\udfe0 ETR '+etr;
-      else target.textContent = '\ud83c\udfe0 ETR \u2014';
-    } catch {
-      const target = document.getElementById('etr-'+routeId);
-      if (target) target.textContent = '\ud83c\udfe0 ETR \u2014';
-    }
+      if (allDone) { headerText = '\u2713 Done'; cardText = 'Done'; }
+      else if (etr) { headerText = '\ud83c\udfe0 ETR '+etr; cardText = etr; }
+    } catch { /* leave fallback text */ }
+    const h = document.getElementById('etr-'+routeId);
+    if (h) h.textContent = headerText;
+    const c = document.getElementById('fc-etr-'+routeId);
+    if (c) c.textContent = cardText;
   }
 }
 
@@ -527,7 +540,10 @@ async function loadAndRender(silent=false) {
     renderStats(routes, dk, mil);
     renderRoutes(routes, dk);
     loadRouteEtrs(routes, dk);
-    if (document.body.classList.contains('dx-map-open') && liveMap) refreshLiveMapMarkers();
+    if (document.body.classList.contains('dx-map-open')) {
+      renderMapSummaryCards(routes, dk);
+      if (liveMap) refreshLiveMapMarkers();
+    }
   } catch(e) {
     const main = document.getElementById('sv-routes');
     if (main) main.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">Error: '+esc(e.message)+'</div></div>';
@@ -679,7 +695,7 @@ function renderRoutes(routes, dk) {
       });
     const done = stops.filter(s=>s.status==='complete').length;
     const totalWt = stops.reduce((sum,s)=>sum+(s.weight||0),0);
-    const isMobileView = window.matchMedia('(max-width:900px)').matches || document.body.classList.contains('dx-map-open');
+    const isMobileView = window.matchMedia('(max-width:900px)').matches;
     const cards = !isMobileView ? '' : stops.map((s,i)=>{
       const arrTime = s.arrivalTime||s.gpsArrivedAt;
       const pics = s.pictures||[];
@@ -866,13 +882,17 @@ function renderApp() {
         <button onclick="openCalPicker()" title="Jump to date" style="background:#fff;border:1px solid #ddd;color:#555;font-size:16px;width:34px;height:34px;border-radius:3px;cursor:pointer;margin-left:8px;display:flex;align-items:center;justify-content:center">&#128197;</button>
       </div>
       <div class="dx-stats" id="sv-stats"></div>
-      <button class="dx-map-toggle-btn" id="sv-map-toggle-btn" onclick="toggleMapPanel()">&#128506; Map</button>
+      <button class="dx-map-toggle-btn" id="sv-map-toggle-btn" onclick="toggleMapPanel()">
+        <span class="dx-map-toggle-label">View</span>
+        <span class="dx-map-toggle-value">&#128506; MAP</span>
+      </button>
     </div>
     </div>
     <div class="dx-body-flex" id="sv-body-flex">
     <main class="dx-main" id="sv-routes">
       <div class="dx-boot"><div class="dx-boot-spinner"></div></div>
     </main>
+    <div class="dx-map-summary" id="sv-map-summary"></div>
     <aside class="dx-map-panel" id="sv-map-panel">
       <div class="dx-map-panel-inner">
         <div class="dx-map-panel-header">
@@ -891,14 +911,13 @@ function renderApp() {
 document.fonts.ready.then(() => renderPin());
 
 // -- Map panel toggle ---------------------------------------
-let liveMap = null, liveMapMarkers = [], liveMapPollTimer = null;
+let liveMap = null, liveMapMarkers = {}, liveMapPollTimer = null;
 function toggleMapPanel() {
   const isOpen = document.body.classList.toggle('dx-map-open');
   const btn = document.getElementById('sv-map-toggle-btn');
   if (btn) btn.classList.toggle('active', isOpen);
-  // Re-render routes so the card/table layout swaps immediately
-  if (S.lastRoutes && S.lastDk) renderRoutes(S.lastRoutes, S.lastDk);
   if (isOpen) {
+    if (S.lastRoutes && S.lastDk) { renderMapSummaryCards(S.lastRoutes, S.lastDk); loadRouteEtrs(S.lastRoutes, S.lastDk); }
     setTimeout(() => {
       if (!liveMap) initLiveMap();
       else liveMap.resize();
@@ -925,7 +944,7 @@ function initLiveMap() {
   yardEl.textContent = '\u25CF YARD';
   new mapboxgl.Marker({ element: yardEl, anchor: 'center' }).setLngLat([YARD.lng, YARD.lat]).addTo(liveMap);
 }
-function clearLiveMapMarkers() { liveMapMarkers.forEach(m => m.remove()); liveMapMarkers = []; }
+function clearLiveMapMarkers() { Object.values(liveMapMarkers).forEach(m => m.remove()); liveMapMarkers = {}; }
 function refreshLiveMapMarkers() {
   if (!liveMap || !S.lastRoutes || !S.lastDk) return;
   clearLiveMapMarkers();
@@ -941,12 +960,58 @@ function refreshLiveMapMarkers() {
       .setLngLat([route.gpsLon, route.gpsLat])
       .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(route.driverName || routeId))
       .addTo(liveMap);
-    liveMapMarkers.push(marker);
+    liveMapMarkers[routeId] = marker;
     bounds.extend([route.gpsLon, route.gpsLat]);
     any = true;
   }
   bounds.extend([YARD.lng, YARD.lat]);
   if (any) liveMap.fitBounds(bounds, { padding: 60, maxZoom: 12 });
+}
+function jumpMapToRoute(routeId) {
+  const marker = liveMapMarkers[routeId];
+  if (!liveMap || !marker) return;
+  liveMap.flyTo({ center: marker.getLngLat(), zoom: 13 });
+  marker.togglePopup();
+}
+
+// -- Map summary cards (fleet-page style, left of the map) ---------------
+function renderMapSummaryCards(routes, dk) {
+  const el = document.getElementById('sv-map-summary');
+  if (!el) return;
+  const entries = Object.entries(routes||{}).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
+  if (!entries.length) { el.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">No routes for this date</div></div>'; return; }
+  entries.sort((a,b)=> a[0].localeCompare(b[0]));
+  el.innerHTML = '<div class="dx-fc-list">' + entries.map(([routeId, route]) => {
+    const stops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber)
+      .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+    const remaining = stops.filter(s=>s.status!=='complete');
+    const allDone = stops.length>0 && remaining.length===0;
+    const asset = (route.asset || routeId.replace(/[^0-9]/g,'') || routeId);
+    const driver = route.driverName || '';
+    let orderRows;
+    if (allDone) {
+      orderRows = '<div class="dx-fc-order-item muted">All stops complete</div>';
+    } else if (remaining.length) {
+      orderRows = remaining.slice(0,4).map(s=>'<div class="dx-fc-order-item">'+esc(s.customerName||s.orderNumber||'')+'</div>').join('')
+        + (remaining.length>4 ? '<div class="dx-fc-order-item muted">+'+(remaining.length-4)+' more</div>' : '');
+    } else {
+      orderRows = '<div class="dx-fc-order-item muted">No stops</div>';
+    }
+    return '<div class="dx-fc-card" onclick="jumpMapToRoute(\''+routeId+'\')">'
+      +'<div class="dx-fc-left">'
+        +'<div class="dx-fc-asset">'+esc(asset)+'</div>'
+        +'<div class="dx-fc-etr-block">'
+          +'<div class="dx-fc-etr-label">ETR</div>'
+          +'<div class="dx-fc-etr-val" id="fc-etr-'+routeId+'">\u2014</div>'
+          +'<div class="dx-fc-driver">'+esc(driver)+'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div class="dx-fc-orders">'
+        +'<div class="dx-fc-orders-label">'+(allDone?'Complete':'Remaining Stops')+'</div>'
+        +orderRows
+      +'</div>'
+    +'</div>';
+  }).join('') + '</div>';
 }
 
 
