@@ -202,7 +202,6 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 /* ── Map panel ── */
 .dx-body-flex { display:flex; align-items:flex-start; }
 .dx-main { flex:1 1 auto; min-width:0; }
-body.dx-map-open .dx-main { display:none; }
 .dx-map-panel { width:0; flex:0 0 auto; overflow:hidden; transition:width .28s ease;
   position:sticky; top:0; align-self:flex-start; height:calc(100vh - 128px);
   background:#0c0c0c; border-left:0 solid #222; box-sizing:border-box; }
@@ -229,31 +228,25 @@ body.dx-map-open .dx-map-panel { width:20vw; min-width:280px; border-left-width:
 .dx-map-toggle-value { font-size:22px; font-weight:700; line-height:1.05; margin-top:1px;
   letter-spacing:-0.5px; display:flex; align-items:center; gap:6px; }
 
-/* ── Map summary cards (fleet-page style) — shown to the left of the map ── */
-.dx-map-summary { display:none; flex:1 1 auto; min-width:0; padding:24px 28px 60px; }
+/* ── Map summary — a condensed fleet-status column between the main screen and the map ── */
+.dx-map-summary { display:none; flex:0 0 auto; width:280px; overflow-y:auto;
+  position:sticky; top:0; align-self:flex-start; height:calc(100vh - 128px);
+  background:#f7f5f2; border-left:1px solid #e8e4de; box-sizing:border-box; }
 body.dx-map-open .dx-map-summary { display:block; }
-.dx-fc-list { display:flex; flex-direction:column; gap:1px; background:#e8e4de;
-  border:1px solid #e8e4de; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
-.dx-fc-card { background:#fff; display:flex; align-items:stretch; border-left:4px solid #cc0000;
-  transition:background 0.12s ease; }
+.dx-fc-list { display:flex; flex-direction:column; gap:1px; background:#e8e4de; }
+.dx-fc-card { background:#fff; display:flex; align-items:center; gap:10px;
+  border-left:3px solid #cc0000; padding:8px 12px; cursor:pointer; transition:background 0.12s ease; }
 .dx-fc-card:hover { background:#fafafa; }
-.dx-fc-left { flex:0 0 auto; display:flex; align-items:center; gap:14px; padding:14px 18px;
-  border-right:1px solid #eee; min-width:210px; }
-.dx-fc-asset { font-family:'Oswald',sans-serif; font-size:30px; font-weight:700;
-  letter-spacing:-1px; line-height:1; min-width:56px; color:#1a1a1a; }
-.dx-fc-etr-block { display:flex; flex-direction:column; }
-.dx-fc-etr-label { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.18em;
-  text-transform:uppercase; color:#999; margin-bottom:2px; }
-.dx-fc-etr-val { font-family:'Oswald',sans-serif; font-size:19px; font-weight:700; line-height:1;
-  color:#b45309; }
-.dx-fc-driver { font-family:'Roboto',sans-serif; font-size:12px; color:#888; margin-top:3px; }
-.dx-fc-orders { flex:1; min-width:0; padding:14px 18px; display:flex; flex-direction:column;
-  justify-content:center; gap:2px; }
-.dx-fc-orders-label { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.18em;
-  text-transform:uppercase; color:#999; margin-bottom:4px; }
-.dx-fc-order-item { font-family:'Roboto',sans-serif; font-size:13px; color:#333; line-height:1.7;
+.dx-fc-asset { font-family:'Oswald',sans-serif; font-size:17px; font-weight:700;
+  letter-spacing:-0.5px; line-height:1; min-width:34px; color:#1a1a1a; }
+.dx-fc-mid { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.dx-fc-driver { font-family:'Roboto',sans-serif; font-size:12px; font-weight:500; color:#333;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.dx-fc-order-item.muted { color:#aaa; }
+.dx-fc-status { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.06em;
+  text-transform:uppercase; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dx-fc-status.done { color:#1f7d3a; }
+.dx-fc-etr-val { font-family:'Oswald',sans-serif; font-size:13px; font-weight:700;
+  color:#b45309; white-space:nowrap; text-align:right; flex:0 0 auto; }
 
 /* ── Mobile responsive ── */
 .dx-stop-card { display:none; }
@@ -979,37 +972,22 @@ function renderMapSummaryCards(routes, dk) {
   const el = document.getElementById('sv-map-summary');
   if (!el) return;
   const entries = Object.entries(routes||{}).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
-  if (!entries.length) { el.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">No routes for this date</div></div>'; return; }
+  if (!entries.length) { el.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">No routes</div></div>'; return; }
   entries.sort((a,b)=> a[0].localeCompare(b[0]));
   el.innerHTML = '<div class="dx-fc-list">' + entries.map(([routeId, route]) => {
-    const stops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber)
-      .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+    const stops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
     const remaining = stops.filter(s=>s.status!=='complete');
     const allDone = stops.length>0 && remaining.length===0;
     const asset = (route.asset || routeId.replace(/[^0-9]/g,'') || routeId);
     const driver = route.driverName || '';
-    let orderRows;
-    if (allDone) {
-      orderRows = '<div class="dx-fc-order-item muted">All stops complete</div>';
-    } else if (remaining.length) {
-      orderRows = remaining.slice(0,4).map(s=>'<div class="dx-fc-order-item">'+esc(s.customerName||s.orderNumber||'')+'</div>').join('')
-        + (remaining.length>4 ? '<div class="dx-fc-order-item muted">+'+(remaining.length-4)+' more</div>' : '');
-    } else {
-      orderRows = '<div class="dx-fc-order-item muted">No stops</div>';
-    }
-    return '<div class="dx-fc-card" onclick="jumpMapToRoute(\''+routeId+'\')">'
-      +'<div class="dx-fc-left">'
-        +'<div class="dx-fc-asset">'+esc(asset)+'</div>'
-        +'<div class="dx-fc-etr-block">'
-          +'<div class="dx-fc-etr-label">ETR</div>'
-          +'<div class="dx-fc-etr-val" id="fc-etr-'+routeId+'">\u2014</div>'
-          +'<div class="dx-fc-driver">'+esc(driver)+'</div>'
-        +'</div>'
+    const statusText = allDone ? 'Complete' : (remaining.length + ' stop' + (remaining.length!==1?'s':'') + ' left');
+    return '<div class="dx-fc-card" onclick="jumpMapToRoute(\''+routeId+'\')" title="'+esc(driver)+'">'
+      +'<div class="dx-fc-asset">'+esc(asset)+'</div>'
+      +'<div class="dx-fc-mid">'
+        +'<div class="dx-fc-driver">'+esc(driver)+'</div>'
+        +'<div class="dx-fc-status'+(allDone?' done':'')+'">'+statusText+'</div>'
       +'</div>'
-      +'<div class="dx-fc-orders">'
-        +'<div class="dx-fc-orders-label">'+(allDone?'Complete':'Remaining Stops')+'</div>'
-        +orderRows
-      +'</div>'
+      +'<div class="dx-fc-etr-val" id="fc-etr-'+routeId+'">\u2014</div>'
     +'</div>';
   }).join('') + '</div>';
 }
