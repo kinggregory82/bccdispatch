@@ -245,8 +245,12 @@ body.dx-map-open .dx-map-summary { display:block; }
 .dx-fc-status { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dx-fc-status.done { color:#1f7d3a; }
+.dx-fc-etr-block { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; }
+.dx-fc-etr-label { font-family:'Oswald',sans-serif; font-size:8px; letter-spacing:.15em;
+  text-transform:uppercase; color:#bbb; margin-bottom:1px; }
 .dx-fc-etr-val { font-family:'Oswald',sans-serif; font-size:13px; font-weight:700;
-  color:#b45309; white-space:nowrap; text-align:right; flex:0 0 auto; }
+  color:#b45309; white-space:nowrap; text-align:right; }
+.dx-fc-etr-val.done { color:#1f7d3a; }
 
 /* ── Mobile responsive ── */
 .dx-stop-card { display:none; }
@@ -483,7 +487,7 @@ async function loadRouteEtrs(routes, dk) {
     const h = document.getElementById('etr-'+routeId);
     if (h) h.textContent = headerText;
     const c = document.getElementById('fc-etr-'+routeId);
-    if (c) c.textContent = cardText;
+    if (c) { c.textContent = cardText; c.classList.toggle('done', allDone); }
   }
 }
 
@@ -987,7 +991,10 @@ function renderMapSummaryCards(routes, dk) {
         +'<div class="dx-fc-driver">'+esc(driver)+'</div>'
         +'<div class="dx-fc-status'+(allDone?' done':'')+'">'+statusText+'</div>'
       +'</div>'
-      +'<div class="dx-fc-etr-val" id="fc-etr-'+routeId+'">\u2014</div>'
+      +'<div class="dx-fc-etr-block">'
+        +'<div class="dx-fc-etr-label">ETR</div>'
+        +'<div class="dx-fc-etr-val" id="fc-etr-'+routeId+'">\u2014</div>'
+      +'</div>'
     +'</div>';
   }).join('') + '</div>';
 }
