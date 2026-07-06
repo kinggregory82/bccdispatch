@@ -246,7 +246,7 @@ body.dx-map-open .dx-map-summary { display:block; }
   text-transform:uppercase; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dx-fc-status.done { color:#1f7d3a; }
 .dx-fc-next { font-family:'Roboto',sans-serif; font-size:10px; color:#1a6fcc;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+  white-space:normal; overflow-wrap:break-word; line-height:1.4; margin-top:2px; }
 .dx-fc-etr-block { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; }
 .dx-fc-etr-label { font-family:'Oswald',sans-serif; font-size:8px; letter-spacing:.15em;
   text-transform:uppercase; color:#bbb; margin-bottom:1px; }
@@ -1063,7 +1063,7 @@ function initLiveMap() {
 function clearLiveMapMarkers() { Object.values(liveMapMarkers).forEach(m => m.remove()); liveMapMarkers = {}; }
 // One marker per truck (asset/driver group) for the day, not one per route —
 // otherwise a truck with two rounds shows two overlapping markers.
-function refreshLiveMapMarkers() {
+async function refreshLiveMapMarkers() {
   if (!liveMap || !S.lastRoutes || !S.lastDk) return;
   clearLiveMapMarkers();
   const groups = buildAssetGroups(S.lastRoutes, S.lastDk);
@@ -1073,12 +1073,53 @@ function refreshLiveMapMarkers() {
     if (!g.gpsLat || !g.gpsLon) continue;
     const sid = safeId(g.key);
     liveMapGroupCoords[sid] = { lat: g.gpsLat, lng: g.gpsLon };
+
+    let etr = null;
+    try { etr = await computeGroupEtr(g); } catch { /* leave null, popup shows no status line */ }
+
+    // Remaining stops across all of this truck's rounds today, in order
+    const remainingStops = [];
+    g.rounds.forEach(r => r.stops.forEach(s => { if (s.status !== 'complete') remainingStops.push(s); }));
+
+    const label = g.asset || (g.driver||'?').split(' ')[0] || g.key;
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'background:#fff;border:2px solid #cc0000;border-radius:3px;padding:3px 8px;font-family:Oswald,sans-serif;font-size:11px;font-weight:700;color:#111;white-space:nowrap;cursor:pointer';
-    wrapper.textContent = (g.asset || g.driver || g.key);
+    wrapper.textContent = label;
+
+    let statusHtml = '';
+    if (g.allDone && etr === null) {
+      statusHtml = '<div style="color:#1f7d3a;font-size:11px;margin-top:3px">&#10003; At Yard</div>';
+    } else if (g.allDone && etr) {
+      statusHtml = '<div style="color:#b45309;font-size:11px;margin-top:3px">&#128666; Returning: '+etr+'</div>';
+    } else if (etr) {
+      statusHtml = '<div style="color:#b45309;font-size:11px;margin-top:3px">&#127968; ETR: '+etr+'</div>';
+    }
+
+    let stopsHtml = '';
+    if (g.allDone) {
+      stopsHtml = '<div style="color:#1f7d3a;font-size:11px;margin-top:5px;font-weight:700">&#8617; Returning to yard</div>';
+    } else if (remainingStops.length) {
+      const rows = remainingStops.map((s,i) => {
+        const seq = s.sequence != null ? '<span style="color:#aaa;font-size:10px;margin-right:3px">'+s.sequence+'.</span> ' : '';
+        const name = esc(s.customerName || s.orderNumber || '\u2014');
+        const addr = s.address ? '<div style="color:#aaa;font-size:10px;padding-left:12px">'+esc(s.address)+'</div>' : '';
+        const dot = i===0 ? '&#11044;' : '&#9898;';
+        return '<div style="margin-top:4px;line-height:1.3">'+dot+' '+seq+'<span style="font-size:12px">'+name+'</span>'+addr+'</div>';
+      }).join('');
+      stopsHtml = '<div style="margin-top:6px;border-top:1px solid #eee;padding-top:5px">'
+        + '<div style="font-size:10px;color:#aaa;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px">'+remainingStops.length+' Stop'+(remainingStops.length!==1?'s':'')+' Remaining</div>'
+        + rows + '</div>';
+    }
+
+    const popupHtml = '<div style="font-family:Oswald,sans-serif">'
+      + '<div style="font-weight:700;font-size:14px;color:#cc0000">'+esc(label)+'</div>'
+      + '<div style="font-size:12px;color:#777">'+esc(g.driver)+'</div>'
+      + statusHtml + stopsHtml
+      + '</div>';
+
     const marker = new mapboxgl.Marker({ element: wrapper, anchor: 'center' })
       .setLngLat([g.gpsLon, g.gpsLat])
-      .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(g.driver || g.asset || g.key))
+      .setPopup(new mapboxgl.Popup({ offset: 20, maxWidth: '260px' }).setHTML(popupHtml))
       .addTo(liveMap);
     liveMapMarkers[sid] = marker;
     bounds.extend([g.gpsLon, g.gpsLat]);
