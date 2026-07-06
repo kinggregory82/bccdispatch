@@ -310,6 +310,7 @@ const PIN = '2025';
 // anchoring when there's no live GPS.
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmVuc2dyZWF0b3V0ZG9vcnMiLCJhIjoiY21wbzBqdmh4MDB6ZjJybzhjNnhrdHphdyJ9.ppB9r_WJZwwT6u0lSO0xpw';
 const YARD = { lng: -83.0857, lat: 43.3447 };
+const YARD_RADIUS_MILES = 0.3; // within 0.3 miles = at yard, matching fleet page
 let etrGeocodeCache = {}, etrDriveTimeCache = {};
 const etrStopToStopCache = {};
 const etrLastGpsFor = {};
@@ -319,6 +320,14 @@ function etrHaversineKm(a, b) {
   const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
   const h = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng/2)**2;
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+}
+function isAtYard(gpsLat, gpsLon, gpsStatus) {
+  if (!gpsLat || !gpsLon) return false;
+  if (gpsStatus === 'MOVING') return false;
+  // Last known position counts even if stale — a parked truck at the yard
+  // hours ago is still at the yard.
+  const km = etrHaversineKm({ lat: gpsLat, lng: gpsLon }, YARD);
+  return (km * 0.621371) <= YARD_RADIUS_MILES;
 }
 async function etrGeocode(addr) {
   if (!addr) return null;
@@ -380,22 +389,35 @@ async function etrFromLastStop(lastStop) {
   } catch { return null; }
 }
 // Computes the chained ETR for a single route: GPS (or last completed stop)
-// -> each remaining stop (drive + service time) -> yard.
+// -> each remaining stop (drive + service time) -> yard. If all stops are
+// already complete, this instead returns the ETA back to the yard (or null
+// if the truck is confirmed already at the yard).
 async function computeRouteEtr(routeId, route) {
   const allStops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
   if (!allStops.length) return null;
   const allDone = allStops.every(s=>s.status==='complete');
-  if (allDone) return null; // nothing left to return from — no ETR needed
-
-  const remainingStops = allStops
-    .filter(s=>s.status!=='complete')
-    .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
 
   const gpsLat = route.gpsLat, gpsLon = route.gpsLon, gpsUpdated = route.gpsUpdatedAt;
   const gpsStatus = route.gpsStatus || 'PARKED';
   const gpsAge = gpsUpdated ? (Date.now() - new Date(gpsUpdated).getTime()) / 60000 : 999;
   const gpsStale = gpsStatus === 'MOVING' ? gpsAge > 10 : gpsAge > 120;
   const truckCoords = (gpsLat && gpsLon && !gpsStale) ? { lng: gpsLon, lat: gpsLat } : null;
+
+  if (allDone) {
+    if (isAtYard(gpsLat, gpsLon, gpsStatus)) return null; // truly home, nothing to show
+    // Still out on the road — compute ETA back to the yard from wherever it
+    // actually is (live GPS if we have it, otherwise the last completed stop).
+    if (truckCoords) {
+      const driveMins = await etrDriveMinutes(truckCoords, YARD);
+      return driveMins !== null ? etrFmtTime(new Date(Date.now() + driveMins * 60000)) : null;
+    }
+    const lastDone = [...allStops].reverse().find(s => s.status === 'complete');
+    return lastDone ? await etrFromLastStop(lastDone) : null;
+  }
+
+  const remainingStops = allStops
+    .filter(s=>s.status!=='complete')
+    .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
 
   if (!truckCoords) {
     const lastDone = [...allStops].reverse().find(s => s.status === 'complete');
@@ -478,16 +500,23 @@ async function loadRouteEtrs(routes, dk) {
     if (!headerEl && !cardEl) continue;
     const allStops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
     const allDone = allStops.length>0 && allStops.every(s=>s.status==='complete');
-    let headerText = '\ud83c\udfe0 ETR \u2014', cardText = '\u2014';
+    let headerText = '\ud83c\udfe0 ETR \u2014', cardText = '\u2014', atYardDone = false;
     try {
-      const etr = allDone ? null : await computeRouteEtr(routeId, route);
-      if (allDone) { headerText = '\u2713 Done'; cardText = 'Done'; }
-      else if (etr) { headerText = '\ud83c\udfe0 ETR '+etr; cardText = etr; }
+      const etr = await computeRouteEtr(routeId, route);
+      if (allDone && etr === null) {
+        // computeRouteEtr only returns null for a done route when the truck
+        // is confirmed at the yard (see isAtYard check inside it).
+        headerText = '\u2713 At Yard'; cardText = 'At Yard'; atYardDone = true;
+      } else if (allDone && etr) {
+        headerText = '\ud83d\ude9a Returning ' + etr; cardText = 'Ret. ' + etr;
+      } else if (etr) {
+        headerText = '\ud83c\udfe0 ETR ' + etr; cardText = etr;
+      }
     } catch { /* leave fallback text */ }
     const h = document.getElementById('etr-'+routeId);
     if (h) h.textContent = headerText;
     const c = document.getElementById('fc-etr-'+routeId);
-    if (c) { c.textContent = cardText; c.classList.toggle('done', allDone); }
+    if (c) { c.textContent = cardText; c.classList.toggle('done', atYardDone); }
   }
 }
 
