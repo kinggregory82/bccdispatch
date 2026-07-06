@@ -554,7 +554,7 @@ function buildAssetGroups(routes, dk) {
     const nextOrders = nextRound
       ? nextRound.stops
           .filter(s=>s.status!=='skipped' && (s.deliveryStatus||'').toLowerCase()!=='cancelled')
-          .map(s=>s.customerName||s.orderNumber||'\u2014').filter(Boolean)
+          .map(s=>s.orderNumber||s.customerName||'\u2014').filter(Boolean)
       : [];
 
     groups.push({ key, asset, driver, rounds, totalStops, totalDone, allDone,
