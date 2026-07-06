@@ -245,6 +245,8 @@ body.dx-map-open .dx-map-summary { display:block; }
 .dx-fc-status { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dx-fc-status.done { color:#1f7d3a; }
+.dx-fc-next { font-family:'Roboto',sans-serif; font-size:10px; color:#1a6fcc;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
 .dx-fc-etr-block { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; }
 .dx-fc-etr-label { font-family:'Oswald',sans-serif; font-size:8px; letter-spacing:.15em;
   text-transform:uppercase; color:#bbb; margin-bottom:1px; }
@@ -489,6 +491,98 @@ async function computeRouteEtr(routeId, route) {
 
   return etaMins > 0 ? etrFmtTime(new Date(Date.now() + etaMins * 60000)) : null;
 }
+
+function safeId(key) { return String(key).replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
+// Groups routes by truck asset (falling back to driver name) for a given day,
+// exactly like the fleet page's buildDrivers — a driver can have multiple
+// rounds (separate routeIds) in one day, and this merges them into a single
+// group so the summary card / map marker reflects the truck's whole day,
+// with proper active-round / next-round detection.
+function buildAssetGroups(routes, dk) {
+  const entries = Object.entries(routes||{}).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
+  const map = {};
+  for (const [routeId, route] of entries) {
+    const key = route.asset || route.driverName || routeId;
+    if (!map[key]) map[key] = [];
+    map[key].push({ routeId, route });
+  }
+  const groups = [];
+  for (const [key, list] of Object.entries(map)) {
+    list.sort((a,b) => (parseInt(a.routeId)||0) - (parseInt(b.routeId)||0));
+    const asset = list[0]?.route?.asset || key;
+    const driver = list.map(r => r.route?.driverName).filter(Boolean).pop() || '';
+
+    // Most recent GPS reading across all rounds
+    let gpsLat = null, gpsLon = null, gpsUpdated = null, gpsStatus = 'PARKED';
+    for (const r of list) {
+      const upd = r.route?.gpsUpdatedAt || '';
+      if (r.route?.gpsLat && r.route?.gpsLon && upd >= (gpsUpdated || '')) {
+        gpsLat = r.route.gpsLat; gpsLon = r.route.gpsLon;
+        gpsStatus = r.route.gpsStatus || 'PARKED'; gpsUpdated = upd;
+      }
+    }
+    const gpsAtYard = isAtYard(gpsLat, gpsLon, gpsStatus);
+
+    const rounds = list.map((r,i) => {
+      const stops = Object.values(r.route.stops||{}).filter(s=>s&&s.orderNumber)
+        .sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+      const done = stops.filter(s=>s.status==='complete').length;
+      return { routeId: r.routeId, round: i+1, stops, total: stops.length, done, route: r.route };
+    });
+    const totalStops = rounds.reduce((a,r)=>a+r.total,0);
+    const totalDone = rounds.reduce((a,r)=>a+r.done,0);
+    const allDone = totalStops>0 && totalDone===totalStops;
+
+    // Active round = the round the truck is clearly working (has completed
+    // stops or arrivals), or — once all prior rounds are done — the next
+    // incomplete round. Next round = a genuinely untouched incomplete round
+    // that isn't the active one.
+    const firstIncompleteRound = rounds.find(r => r.total>0 && r.done<r.total) || null;
+    const priorRoundsDone = firstIncompleteRound
+      ? rounds.filter(r => r!==firstIncompleteRound && r.total>0).every(r=>r.done>=r.total)
+      : false;
+    const activeRound = rounds.find(r =>
+        r.route?.eTR || r.stops.some(s=>s.status==='complete'||s.arrivalTime)
+      ) || ((!gpsAtYard && priorRoundsDone && firstIncompleteRound) || null);
+    const nextRound = activeRound
+      ? rounds.find(r =>
+          r!==activeRound && r.total>0 && r.done<r.total &&
+          !r.stops.some(s=>s.status==='complete'||s.arrivalTime)
+        ) || null
+      : null;
+    const nextOrders = nextRound
+      ? nextRound.stops
+          .filter(s=>s.status!=='skipped' && (s.deliveryStatus||'').toLowerCase()!=='cancelled')
+          .map(s=>s.customerName||s.orderNumber||'\u2014').filter(Boolean)
+      : [];
+
+    groups.push({ key, asset, driver, rounds, totalStops, totalDone, allDone,
+      gpsLat, gpsLon, gpsUpdated, gpsStatus, gpsAtYard, nextRound, nextOrders });
+  }
+  return groups;
+}
+
+// Computes the group's return-to-yard / active-route ETR by merging all
+// rounds' incomplete stops into one chain (sequence numbers offset per round
+// so ordering across rounds is preserved), then reusing computeRouteEtr.
+async function computeGroupEtr(group) {
+  const mergedStops = {};
+  group.rounds.forEach((r, ri) => {
+    Object.entries(r.route.stops||{}).forEach(([k,s]) => {
+      if (!s || !s.orderNumber) return;
+      mergedStops[r.routeId+'_'+k] = { ...s, sequence: ri*1000 + (s.sequence||0) };
+    });
+  });
+  const virtualRoute = {
+    stops: mergedStops,
+    gpsLat: group.gpsLat, gpsLon: group.gpsLon, gpsUpdatedAt: group.gpsUpdated,
+    gpsStatus: group.gpsStatus,
+    avgServiceMinutes: group.rounds[group.rounds.length-1]?.route?.avgServiceMinutes,
+  };
+  return computeRouteEtr('group_'+safeId(group.key), virtualRoute);
+}
+
 // Kicks off ETR computation for every visible route and fills in the
 // placeholder badges once each one resolves (badges render instantly;
 // times stream in as Mapbox calls finish, same as the fleet page).
@@ -496,27 +590,18 @@ async function loadRouteEtrs(routes, dk) {
   const entries = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
   for (const [routeId, route] of entries) {
     const headerEl = document.getElementById('etr-'+routeId);
-    const cardEl = document.getElementById('fc-etr-'+routeId);
-    if (!headerEl && !cardEl) continue;
+    if (!headerEl) continue;
     const allStops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
     const allDone = allStops.length>0 && allStops.every(s=>s.status==='complete');
-    let headerText = '\ud83c\udfe0 ETR \u2014', cardText = '\u2014', atYardDone = false;
+    let headerText = '\ud83c\udfe0 ETR \u2014';
     try {
       const etr = await computeRouteEtr(routeId, route);
-      if (allDone && etr === null) {
-        // computeRouteEtr only returns null for a done route when the truck
-        // is confirmed at the yard (see isAtYard check inside it).
-        headerText = '\u2713 At Yard'; cardText = 'At Yard'; atYardDone = true;
-      } else if (allDone && etr) {
-        headerText = '\ud83d\ude9a Returning ' + etr; cardText = 'Ret. ' + etr;
-      } else if (etr) {
-        headerText = '\ud83c\udfe0 ETR ' + etr; cardText = etr;
-      }
+      if (allDone && etr === null) headerText = '\u2713 At Yard';
+      else if (allDone && etr) headerText = '\ud83d\ude9a Returning ' + etr;
+      else if (etr) headerText = '\ud83c\udfe0 ETR ' + etr;
     } catch { /* leave fallback text */ }
     const h = document.getElementById('etr-'+routeId);
     if (h) h.textContent = headerText;
-    const c = document.getElementById('fc-etr-'+routeId);
-    if (c) { c.textContent = cardText; c.classList.toggle('done', atYardDone); }
   }
 }
 
@@ -568,6 +653,7 @@ async function loadAndRender(silent=false) {
     loadRouteEtrs(routes, dk);
     if (document.body.classList.contains('dx-map-open')) {
       renderMapSummaryCards(routes, dk);
+      loadGroupEtrs(routes, dk);
       if (liveMap) refreshLiveMapMarkers();
     }
   } catch(e) {
@@ -937,13 +1023,17 @@ function renderApp() {
 document.fonts.ready.then(() => renderPin());
 
 // -- Map panel toggle ---------------------------------------
-let liveMap = null, liveMapMarkers = {}, liveMapPollTimer = null;
+let liveMap = null, liveMapMarkers = {}, liveMapPollTimer = null, liveMapGroupCoords = {};
 function toggleMapPanel() {
   const isOpen = document.body.classList.toggle('dx-map-open');
   const btn = document.getElementById('sv-map-toggle-btn');
   if (btn) btn.classList.toggle('active', isOpen);
   if (isOpen) {
-    if (S.lastRoutes && S.lastDk) { renderMapSummaryCards(S.lastRoutes, S.lastDk); loadRouteEtrs(S.lastRoutes, S.lastDk); }
+    if (S.lastRoutes && S.lastDk) {
+      renderMapSummaryCards(S.lastRoutes, S.lastDk);
+      loadRouteEtrs(S.lastRoutes, S.lastDk);
+      loadGroupEtrs(S.lastRoutes, S.lastDk);
+    }
     setTimeout(() => {
       if (!liveMap) initLiveMap();
       else liveMap.resize();
@@ -971,58 +1061,89 @@ function initLiveMap() {
   new mapboxgl.Marker({ element: yardEl, anchor: 'center' }).setLngLat([YARD.lng, YARD.lat]).addTo(liveMap);
 }
 function clearLiveMapMarkers() { Object.values(liveMapMarkers).forEach(m => m.remove()); liveMapMarkers = {}; }
+// One marker per truck (asset/driver group) for the day, not one per route —
+// otherwise a truck with two rounds shows two overlapping markers.
 function refreshLiveMapMarkers() {
   if (!liveMap || !S.lastRoutes || !S.lastDk) return;
   clearLiveMapMarkers();
-  const entries = Object.entries(S.lastRoutes).filter(([id,r])=>r&&r.date===S.lastDk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
+  const groups = buildAssetGroups(S.lastRoutes, S.lastDk);
   const bounds = new mapboxgl.LngLatBounds();
   let any = false;
-  for (const [routeId, route] of entries) {
-    if (!route.gpsLat || !route.gpsLon) continue;
+  for (const g of groups) {
+    if (!g.gpsLat || !g.gpsLon) continue;
+    const sid = safeId(g.key);
+    liveMapGroupCoords[sid] = { lat: g.gpsLat, lng: g.gpsLon };
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'background:#fff;border:2px solid #cc0000;border-radius:3px;padding:3px 8px;font-family:Oswald,sans-serif;font-size:11px;font-weight:700;color:#111;white-space:nowrap;cursor:pointer';
-    wrapper.textContent = (route.asset || route.driverName || routeId);
+    wrapper.textContent = (g.asset || g.driver || g.key);
     const marker = new mapboxgl.Marker({ element: wrapper, anchor: 'center' })
-      .setLngLat([route.gpsLon, route.gpsLat])
-      .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(route.driverName || routeId))
+      .setLngLat([g.gpsLon, g.gpsLat])
+      .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(g.driver || g.asset || g.key))
       .addTo(liveMap);
-    liveMapMarkers[routeId] = marker;
-    bounds.extend([route.gpsLon, route.gpsLat]);
+    liveMapMarkers[sid] = marker;
+    bounds.extend([g.gpsLon, g.gpsLat]);
     any = true;
   }
   bounds.extend([YARD.lng, YARD.lat]);
   if (any) liveMap.fitBounds(bounds, { padding: 60, maxZoom: 12 });
 }
-function jumpMapToRoute(routeId) {
-  const marker = liveMapMarkers[routeId];
-  if (!liveMap || !marker) return;
-  liveMap.flyTo({ center: marker.getLngLat(), zoom: 13 });
-  marker.togglePopup();
+function jumpMapToGroup(sid) {
+  const marker = liveMapMarkers[sid];
+  if (liveMap && marker) { liveMap.flyTo({ center: marker.getLngLat(), zoom: 13 }); marker.togglePopup(); return; }
+  const coords = liveMapGroupCoords[sid];
+  if (liveMap && coords) liveMap.flyTo({ center: [coords.lng, coords.lat], zoom: 13 });
+}
+
+// Fills in each truck's ETR in the summary panel — same computeRouteEtr
+// chain as the header badges, but run against the group's merged stops.
+async function loadGroupEtrs(routes, dk) {
+  const groups = buildAssetGroups(routes, dk);
+  for (const g of groups) {
+    const sid = safeId(g.key);
+    const el = document.getElementById('fc-etr-'+sid);
+    if (!el) continue;
+    let text = '\u2014', done = false;
+    try {
+      const etr = await computeGroupEtr(g);
+      if (g.allDone && etr === null) { text = 'At Yard'; done = true; }
+      else if (g.allDone && etr) { text = 'Ret. ' + etr; }
+      else if (etr) { text = etr; }
+    } catch { /* leave fallback */ }
+    const target = document.getElementById('fc-etr-'+sid);
+    if (target) { target.textContent = text; target.classList.toggle('done', done); }
+  }
 }
 
 // -- Map summary cards (fleet-page style, left of the map) ---------------
+// One card per truck (asset/driver) for the day, combining all its rounds —
+// shows the real next round's orders once the active round is complete,
+// same logic as the fleet page.
 function renderMapSummaryCards(routes, dk) {
   const el = document.getElementById('sv-map-summary');
   if (!el) return;
-  const entries = Object.entries(routes||{}).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
-  if (!entries.length) { el.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">No routes</div></div>'; return; }
-  entries.sort((a,b)=> a[0].localeCompare(b[0]));
-  el.innerHTML = '<div class="dx-fc-list">' + entries.map(([routeId, route]) => {
-    const stops = Object.values(route.stops||{}).filter(s=>s&&s.orderNumber);
-    const remaining = stops.filter(s=>s.status!=='complete');
-    const allDone = stops.length>0 && remaining.length===0;
-    const asset = (route.asset || routeId.replace(/[^0-9]/g,'') || routeId);
-    const driver = route.driverName || '';
-    const statusText = allDone ? 'Complete' : (remaining.length + ' stop' + (remaining.length!==1?'s':'') + ' left');
-    return '<div class="dx-fc-card" onclick="jumpMapToRoute(\''+routeId+'\')" title="'+esc(driver)+'">'
-      +'<div class="dx-fc-asset">'+esc(asset)+'</div>'
+  const groups = buildAssetGroups(routes, dk);
+  if (!groups.length) { el.innerHTML = '<div class="dx-empty"><div class="dx-empty-msg">No routes</div></div>'; return; }
+  groups.sort((a,b) => String(a.asset||a.key).localeCompare(String(b.asset||b.key)));
+  el.innerHTML = '<div class="dx-fc-list">' + groups.map(g => {
+    const sid = safeId(g.key);
+    const remaining = g.totalStops - g.totalDone;
+    const statusText = g.allDone ? 'Complete' : (remaining + ' stop' + (remaining!==1?'s':'') + ' left');
+    let nextRoundHtml = '';
+    if (g.nextOrders.length) {
+      const names = g.nextOrders.slice(0,3).map(esc).join(', ')
+        + (g.nextOrders.length>3 ? ' +'+(g.nextOrders.length-3)+' more' : '');
+      nextRoundHtml = '<div class="dx-fc-next">Next Round: '+names+'</div>';
+    }
+    return '<div class="dx-fc-card" onclick="jumpMapToGroup(\''+sid+'\')" title="'+esc(g.driver)+'">'
+      +'<div class="dx-fc-asset">'+esc(g.asset||g.key)+'</div>'
       +'<div class="dx-fc-mid">'
-        +'<div class="dx-fc-driver">'+esc(driver)+'</div>'
-        +'<div class="dx-fc-status'+(allDone?' done':'')+'">'+statusText+'</div>'
+        +'<div class="dx-fc-driver">'+esc(g.driver)+'</div>'
+        +'<div class="dx-fc-status'+(g.allDone?' done':'')+'">'+statusText+'</div>'
+        +nextRoundHtml
       +'</div>'
       +'<div class="dx-fc-etr-block">'
         +'<div class="dx-fc-etr-label">ETR</div>'
-        +'<div class="dx-fc-etr-val" id="fc-etr-'+routeId+'">\u2014</div>'
+        +'<div class="dx-fc-etr-val" id="fc-etr-'+sid+'">\u2014</div>'
       +'</div>'
     +'</div>';
   }).join('') + '</div>';
