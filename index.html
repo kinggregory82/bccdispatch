@@ -234,20 +234,22 @@ body.dx-map-open .dx-map-panel { width:20vw; min-width:280px; border-left-width:
   background:#f7f5f2; border-left:1px solid #e8e4de; box-sizing:border-box; }
 body.dx-map-open .dx-map-summary { display:block; }
 .dx-fc-list { display:flex; flex-direction:column; gap:1px; background:#e8e4de; }
-.dx-fc-card { background:#fff; display:flex; align-items:center; gap:10px;
-  border-left:3px solid #cc0000; padding:8px 12px; cursor:pointer; transition:background 0.12s ease; }
+.dx-fc-card { background:#fff; display:flex; align-items:flex-start; gap:10px;
+  border-left:3px solid #cc0000; padding:9px 12px; cursor:pointer; transition:background 0.12s ease; }
 .dx-fc-card:hover { background:#fafafa; }
 .dx-fc-asset { font-family:'Oswald',sans-serif; font-size:17px; font-weight:700;
-  letter-spacing:-0.5px; line-height:1; min-width:34px; color:#1a1a1a; }
+  letter-spacing:-0.5px; line-height:1.3; min-width:34px; color:#1a1a1a; padding-top:1px; }
 .dx-fc-mid { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
 .dx-fc-driver { font-family:'Roboto',sans-serif; font-size:12px; font-weight:500; color:#333;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dx-fc-status { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dx-fc-status.done { color:#1f7d3a; }
-.dx-fc-next { font-family:'Roboto',sans-serif; font-size:10px; color:#1a6fcc;
-  white-space:normal; overflow-wrap:break-word; line-height:1.4; margin-top:2px; }
-.dx-fc-etr-block { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; }
+.dx-fc-next-label { font-family:'Oswald',sans-serif; font-size:9px; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; color:#1a6fcc; margin-top:5px; }
+.dx-fc-next-list { display:flex; flex-direction:column; margin-top:2px; }
+.dx-fc-next-item { font-family:'Roboto',sans-serif; font-size:11px; color:#333; line-height:1.6; }
+.dx-fc-etr-block { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; padding-top:1px; }
 .dx-fc-etr-label { font-family:'Oswald',sans-serif; font-size:8px; letter-spacing:.15em;
   text-transform:uppercase; color:#bbb; margin-bottom:1px; }
 .dx-fc-etr-val { font-family:'Oswald',sans-serif; font-size:13px; font-weight:700;
@@ -1171,9 +1173,8 @@ function renderMapSummaryCards(routes, dk) {
     const statusText = g.allDone ? 'Complete' : (remaining + ' stop' + (remaining!==1?'s':'') + ' left');
     let nextRoundHtml = '';
     if (g.nextOrders.length) {
-      const names = g.nextOrders.slice(0,3).map(esc).join(', ')
-        + (g.nextOrders.length>3 ? ' +'+(g.nextOrders.length-3)+' more' : '');
-      nextRoundHtml = '<div class="dx-fc-next">Next Round: '+names+'</div>';
+      nextRoundHtml = '<div class="dx-fc-next-label">Next Round \u2014 '+g.nextOrders.length+' order'+(g.nextOrders.length!==1?'s':'')+'</div>'
+        + '<div class="dx-fc-next-list">' + g.nextOrders.map(o=>'<div class="dx-fc-next-item">'+esc(o)+'</div>').join('') + '</div>';
     }
     return '<div class="dx-fc-card" onclick="jumpMapToGroup(\''+sid+'\')" title="'+esc(g.driver)+'">'
       +'<div class="dx-fc-asset">'+esc(g.asset||g.key)+'</div>'
