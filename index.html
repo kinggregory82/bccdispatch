@@ -665,6 +665,31 @@ async function loadAndRender(silent=false) {
 }
 
 
+// Manual driver override — used for trucks DQ never assigns a driver to
+// (e.g. boom/conveyor). Writes driverName + driverManualOverride:true so
+// the poller (dq_poller_v2.py) leaves it alone on future polls. Clearing
+// the field (blank input) removes the override and lets DQ decide again.
+async function editDriverName(el) {
+  const routeId = el.dataset.routeId;
+  const current = el.dataset.driver || '';
+  const val = prompt('Driver for this route (leave blank to clear and let DQ decide again):', current);
+  if (val === null) return;
+  const name = val.trim();
+  try {
+    const resp = await fetch(DB+'/routes/'+routeId+'.json', {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ driverName: name, driverManualOverride: name.length > 0 })
+    });
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    loadAndRender(true);
+  } catch (e) {
+    alert('Could not save driver name. If this keeps happening, the Firebase '
+      +'database rules likely need to allow writes to routes/{id}/driverName '
+      +'and driverManualOverride from the dashboard.\n\n'+e.message);
+  }
+}
+
 function renderStats(routes, dk, mil) {
   const el = document.getElementById('sv-stats');
   if (!el) return;
@@ -910,7 +935,7 @@ function renderRoutes(routes, dk) {
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#888">ROUTE</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:20px;font-weight:700;color:#cc0000;letter-spacing:.04em">'+dqId+'</span>'
         +'<span style="font-family:\'Oswald\',sans-serif;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#bbb">'+asset+' '+desc+'</span>'
-        +'<span style="font-family:\'Oswald\',sans-serif;font-size:12px;color:#bbb;margin-left:4px">&mdash; '+esc(driver)+'</span>'
+        +'<span class="dx-driver-edit" data-route-id="'+routeId+'" data-driver="'+esc(driver)+'" onclick="editDriverName(this)" title="Click to set the driver (overrides DQ — use when DQ has no driver for this truck)" style="font-family:\'Oswald\',sans-serif;font-size:12px;color:#bbb;margin-left:4px;cursor:pointer;border-bottom:1px dashed #777">'+(driver?'&mdash; '+esc(driver):'<span style="color:#777">&mdash; Unassigned</span>')+' \u270e</span>'
         +'<span id="etr-'+routeId+'" style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;color:#fbbf24;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.35);border-radius:3px;padding:3px 8px;margin-left:8px;white-space:nowrap">&#127968; ETR \u2014</span>'
         +'<div style="flex:1"></div>'
         +(totalWt>0?'<span style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;color:#888;margin-right:16px">'+totalWt.toLocaleString()+' LBS</span>':'')
