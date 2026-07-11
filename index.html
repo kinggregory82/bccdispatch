@@ -1035,7 +1035,15 @@ function renderApp() {
         <div class="dx-dash-panel-header">
           <span class="dx-dash-panel-title">&#128506; Fleet Map</span>
         </div>
-        <div id="map"></div>
+        <div style="position:relative; flex:1; min-height:0;">
+          <div id="map"></div>
+          <div id="map-no-gps-msg" style="display:none; position:absolute; top:10px; left:10px; right:10px;
+            background:rgba(26,26,26,0.85); color:#eee; font-family:'Oswald',sans-serif; font-size:11px;
+            letter-spacing:.04em; padding:7px 10px; border-radius:3px; text-align:center; pointer-events:none;
+            align-items:center; justify-content:center; z-index:2;">
+            No live GPS for this date &mdash; showing yard
+          </div>
+        </div>
       </div>
       <div class="dx-dash-panel dx-dash-unsched">
         <div class="dx-dash-panel-header">
@@ -1081,11 +1089,14 @@ function initLiveMap() {
   if (!liveMapPollTimer) liveMapPollTimer = setInterval(refreshLiveMapMarkers, 30000);
 }
 function clearLiveMapMarkers() { Object.values(liveMapMarkers).forEach(m => m.remove()); liveMapMarkers = {}; }
+let liveMapPins = {}; // static delivery-location pins, shown for future dates (no live GPS to show instead)
+function clearLiveMapPins() { Object.values(liveMapPins).forEach(m => m.remove()); liveMapPins = {}; }
 // One marker per truck (asset/driver group) for the day, not one per route —
 // otherwise a truck with two rounds shows two overlapping markers.
 async function refreshLiveMapMarkers() {
   if (!liveMap || !S.lastRoutes || !S.lastDk) return;
   clearLiveMapMarkers();
+  clearLiveMapPins();
   const groups = buildAssetGroups(S.lastRoutes, S.lastDk);
   const bounds = new mapboxgl.LngLatBounds();
   let any = false;
@@ -1146,9 +1157,80 @@ async function refreshLiveMapMarkers() {
     any = true;
   }
   bounds.extend([YARD.lng, YARD.lat]);
-  if (any) liveMap.fitBounds(bounds, { padding: 60, maxZoom: 12 });
+  let pinsPlaced = false;
+  if (any) {
+    liveMap.fitBounds(bounds, { padding: 60, maxZoom: 12 });
+  } else if (S.dateOffset > 0) {
+    // Future date — no live GPS to show, but there are scheduled deliveries.
+    // Drop a static pin per stop instead of leaving the map looking empty.
+    pinsPlaced = await renderDeliveryPins(S.lastRoutes, S.lastDk, bounds);
+  } else {
+    // Today with no active trucks yet, or a past date — no live GPS, no
+    // scheduled-stop pins to show either, so just reset to a clean yard view
+    // instead of leaving the map wherever it last happened to be panned.
+    liveMap.easeTo({ center: [YARD.lng, YARD.lat], zoom: 8 });
+  }
+  const overlay = document.getElementById('map-no-gps-msg');
+  if (overlay) {
+    if (any) overlay.style.display = 'none';
+    else if (S.dateOffset > 0) overlay.style.display = pinsPlaced ? 'none' : 'flex';
+    else overlay.style.display = 'flex';
+    overlay.textContent = (S.dateOffset > 0 && !pinsPlaced)
+      ? 'No deliveries scheduled for this date'
+      : 'No live GPS for this date \u2014 showing yard';
+  }
 }
 
+// Static pins for scheduled deliveries on a date with no live GPS (future
+// dates). Reuses stop.coords when present, otherwise geocodes the address
+// via the same Mapbox geocoder/cache used for ETR calculations, and caches
+// the result back to Firebase so it doesn't need to be geocoded again.
+async function renderDeliveryPins(routes, dk, bounds) {
+  const entries = Object.entries(routes||{}).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
+  const allStops = [];
+  entries.forEach(([routeId, route]) => {
+    Object.entries(route.stops||{}).forEach(([stopId, s]) => {
+      if (s && s.orderNumber && s.status !== 'skipped') {
+        allStops.push({ ...s, routeId, stopId, driverName: route.driverName, asset: route.asset });
+      }
+    });
+  });
+  if (!allStops.length) return false;
+
+  let any = false;
+  for (const s of allStops) {
+    let lat, lng;
+    if (s.coords && s.coords.length >= 2) {
+      lat = s.coords[0]; lng = s.coords[1];
+    } else {
+      const geo = await etrGeocode(s.address);
+      if (!geo) continue;
+      lat = geo.lat; lng = geo.lng;
+      fetch(DB+'/routes/'+s.routeId+'/stops/'+s.stopId+'/coords.json', {
+        method: 'PUT', body: JSON.stringify([lat, lng])
+      }).catch(() => {});
+    }
+    const el = document.createElement('div');
+    el.style.cssText = 'width:13px;height:13px;border-radius:50%;background:#4ade80;'
+      + 'border:2px solid #14532d;cursor:pointer;box-shadow:0 0 0 2px rgba(255,255,255,0.7)';
+    const popupHtml = '<div style="font-family:Oswald,sans-serif">'
+      + '<div style="font-weight:700;font-size:13px;color:#1a1a1a">'+esc(s.customerName||s.orderNumber||'')+'</div>'
+      + '<div style="font-size:11px;color:#777;margin-top:2px">'+esc(s.address||'')+'</div>'
+      + '<div style="font-size:11px;color:#555;margin-top:4px">Driver: '+esc(s.driverName||'\u2014')
+      + (s.asset ? ' &middot; '+esc(s.asset) : '') + '</div>'
+      + '</div>';
+    const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([lng, lat])
+      .setPopup(new mapboxgl.Popup({ offset: 14, maxWidth: '220px' }).setHTML(popupHtml))
+      .addTo(liveMap);
+    liveMapPins[s.routeId+'_'+s.stopId] = marker;
+    bounds.extend([lng, lat]);
+    any = true;
+  }
+  if (any) liveMap.fitBounds(bounds, { padding: 60, maxZoom: 13 });
+  else liveMap.easeTo({ center: [YARD.lng, YARD.lat], zoom: 8 });
+  return any;
+}
 
 // -- Text Template Modal ---------------------------------------
 function fmtDateStr(dateStr) {
