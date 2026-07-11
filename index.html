@@ -213,9 +213,9 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
   color: #fbbf24; }
 .dx-dash-map { flex: 0 0 300px; }
 #map { width: 100%; height: 100%; }
-.dx-dash-unsched { flex: 1 1 auto; min-height: 140px; }
+.dx-dash-unsched { flex: 1 1 auto; min-height: 100px; }
 .dx-dash-unsched-body { flex: 1; overflow-y: auto; }
-.dx-dash-stats { flex: 0 0 auto; max-height: 42vh; overflow-y: auto; }
+.dx-dash-stats { flex: 0 0 auto; max-height: 60vh; overflow-y: auto; }
 
 /* Unscheduled order rows */
 .dx-uo-row { padding: 8px 14px; border-bottom: 1px solid #eee; background: #fff; cursor: default; }
@@ -227,9 +227,9 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 /* Stats — stacked vertically in the sidebar instead of a horizontal row */
 .dx-dash-stats .dx-stats { display: flex; flex-direction: column; }
 .dx-dash-stats .dx-stat { flex-direction: row; align-items: center; justify-content: space-between;
-  padding: 10px 14px; border-bottom: 1px solid #eee; background: #fff; margin: 0; height: auto; }
-.dx-dash-stats .dx-stat-label { margin-bottom: 0; }
-.dx-dash-stats .dx-stat-value { font-size: 20px; }
+  padding: 6px 14px; border-bottom: 1px solid #eee; background: #fff; margin: 0; height: auto; }
+.dx-dash-stats .dx-stat-label { margin-bottom: 0; font-size: 9px; }
+.dx-dash-stats .dx-stat-value { font-size: 15px; }
 
 /* ── Mobile responsive ── */
 .dx-stop-card { display:none; }
