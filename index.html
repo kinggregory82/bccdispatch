@@ -912,10 +912,8 @@ function renderRoutes(routes, dk) {
         photoBtn = '<button disabled style="padding:3px 10px;background:#eee;color:#aaa;font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:700;border-radius:3px;border:1px solid #ddd;cursor:not-allowed;white-space:nowrap">No Photos</button>';
       }
       const wt = s.weight ? s.weight.toLocaleString()+' lbs' : '';
-      return '<tr style="border-bottom:1px solid #f0f0f0">'
-        +'<td style="padding:12px 14px;width:36px;text-align:center">'
-          +'<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-family:\'Oswald\',sans-serif;font-size:14px;font-weight:700;color:#cc0000;background:linear-gradient(145deg,#ffffff 0%,#e4e4e4 55%,#cfcfcf 100%);box-shadow:0 2px 4px rgba(0,0,0,0.22),inset 0 1px 1px rgba(255,255,255,0.9),inset 0 -1px 2px rgba(0,0,0,0.12)">'+((s.sequence)||i+1)+'</span>'
-        +'</td>'
+      return '<tr style="background:linear-gradient(180deg,#ffffff 0%,#f0f0f0 100%);box-shadow:0 2px 5px rgba(0,0,0,0.14),0 1px 0 rgba(255,255,255,0.6) inset">'
+        +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:15px;font-weight:700;color:#cc0000;width:36px;text-align:center">'+((s.sequence)||i+1)+'</td>'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:12px;font-weight:600;color:#333;white-space:nowrap">'+esc(s.orderNumber||'')+'</td>'
         +'<td style="padding:12px 14px">'
           +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
@@ -958,7 +956,7 @@ function renderRoutes(routes, dk) {
           +'<div class="dx-progress-bar-wrap"><div class="dx-progress-bar-fill" style="width:'+pct+'%"></div></div>'
         +'</div>'
       +'</div>'
-      +'<div class="dx-stop-table" style="overflow-x:auto"><table style="width:100%;min-width:1316px;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col style="width:230px"><col style="width:140px"><col style="width:118px"><col style="width:80px"><col style="width:185px"><col style="width:65px"><col style="width:82px"><col style="width:250px"></colgroup>'
+      +'<div class="dx-stop-table" style="overflow-x:auto"><table style="width:100%;min-width:1316px;border-collapse:separate;border-spacing:0 6px;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col style="width:230px"><col style="width:140px"><col style="width:118px"><col style="width:80px"><col style="width:185px"><col style="width:65px"><col style="width:82px"><col style="width:250px"></colgroup>'
         +'<thead><tr style="background:#f9f9f9;border-bottom:2px solid #eee">'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:center">#</th>'
           +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Order</th>'
