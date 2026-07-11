@@ -69,7 +69,7 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
   transition: background 0.15s ease; }
 .dx-stat:hover { background: #fafafa; }
 .dx-stat-label { font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 0.22em;
-  text-transform: uppercase; color: #999; font-weight: 500; }
+  text-transform: uppercase; color: #1a1a1a; font-weight: 600; }
 .dx-stat-value { font-family: 'Oswald', sans-serif; font-size: 30px; font-weight: 700;
   color: #1a1a1a; line-height: 1.05; margin-top: 2px; letter-spacing: -1px; }
 .dx-stat-value.red { color: #cc0000; }
@@ -769,7 +769,14 @@ function computeTiming(s) {
   if(!eta || eta==='null' || eta==='undefined') return null;
   const etaDate = new Date(eta);
   if(isNaN(etaDate)) return null;
-  const arrStr = s.arrivalTime || s.gpsArrivedAt;
+  // Once a stop is actually delivered, judge timing against the real delivery
+  // completion time — the same timestamp the Status badge already shows as
+  // "DELIVERED – X". Comparing against a separate GPS arrival field instead
+  // can produce a Timing badge that flatly contradicts the delivered time
+  // sitting right next to it (e.g. "LATE" next to "DELIVERED – 7:12 AM" when
+  // the GPS arrival reading for the stop is stale or mis-attributed).
+  const doneStr = s.deliveryTime || s.completedAt;
+  const arrStr = (s.status === 'complete' && doneStr) ? doneStr : (s.arrivalTime || s.gpsArrivedAt);
   if(!arrStr){
     // No actual arrival yet to compare — fall back to whatever was stored.
     return (s.timing==='early'||s.timing==='ontime'||s.timing==='late') ? s.timing : null;
@@ -906,7 +913,9 @@ function renderRoutes(routes, dk) {
       }
       const wt = s.weight ? s.weight.toLocaleString()+' lbs' : '';
       return '<tr style="border-bottom:1px solid #f0f0f0">'
-        +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:15px;font-weight:700;color:#cc0000;width:36px;text-align:center">'+((s.sequence)||i+1)+'</td>'
+        +'<td style="padding:12px 14px;width:36px;text-align:center">'
+          +'<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-family:\'Oswald\',sans-serif;font-size:14px;font-weight:700;color:#cc0000;background:linear-gradient(145deg,#ffffff 0%,#e4e4e4 55%,#cfcfcf 100%);box-shadow:0 2px 4px rgba(0,0,0,0.22),inset 0 1px 1px rgba(255,255,255,0.9),inset 0 -1px 2px rgba(0,0,0,0.12)">'+((s.sequence)||i+1)+'</span>'
+        +'</td>'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:12px;font-weight:600;color:#333;white-space:nowrap">'+esc(s.orderNumber||'')+'</td>'
         +'<td style="padding:12px 14px">'
           +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
@@ -951,16 +960,16 @@ function renderRoutes(routes, dk) {
       +'</div>'
       +'<div class="dx-stop-table" style="overflow-x:auto"><table style="width:100%;min-width:1316px;border-collapse:collapse;table-layout:fixed"><colgroup><col style="width:36px"><col style="width:130px"><col style="width:230px"><col style="width:140px"><col style="width:118px"><col style="width:80px"><col style="width:185px"><col style="width:65px"><col style="width:82px"><col style="width:250px"></colgroup>'
         +'<thead><tr style="background:#f9f9f9;border-bottom:2px solid #eee">'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:center">#</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Order</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Customer</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Rep / Wt</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Customer ETA</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Arrival</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Status</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">On Site</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Timing</th>'
-          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#999;font-weight:600;text-align:left">Actions</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:center">#</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Order</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Customer</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Rep / Wt</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Customer ETA</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Arrival</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Status</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">On Site</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Timing</th>'
+          +'<th style="padding:8px 14px;font-family:\'Oswald\',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1a1a1a;font-weight:700;text-align:left">Actions</th>'
         +'</tr></thead>'
         +'<tbody>'+rows+'</tbody>'
       +'</table>'
