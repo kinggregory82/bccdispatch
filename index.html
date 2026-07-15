@@ -244,7 +244,16 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .dx-dash-map.dx-map-expanded #map { height: 100%; }
 
 /* Stats expand-to-show-driver-detail */
-.dx-dash-stats.dx-stats-expanded { flex: 1 1 auto; max-height: none; }
+.dx-dash-stats.dx-stats-expanded { position: fixed; inset: 0; z-index: 5000; background: #f7f5f2;
+  flex: none !important; max-height: none; width: 100vw; height: 100vh; border-left: none; }
+.dx-dash-stats.dx-stats-expanded .dx-dash-panel-header { flex: 0 0 auto; }
+.dx-dash-stats.dx-stats-expanded .dx-stats { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap;
+  gap: 10px; padding: 16px; }
+.dx-dash-stats.dx-stats-expanded .dx-stats .dx-stat { flex: 0 0 150px; flex-direction: column;
+  align-items: flex-start; justify-content: center; border: 1px solid #ddd; border-radius: 4px;
+  padding: 10px 14px; }
+.dx-dash-stats.dx-stats-expanded .dx-stats .dx-stat-value { font-size: 22px; }
+.dx-dash-stats.dx-stats-expanded .dx-stats-detail { flex: 1 1 auto; overflow-y: auto; }
 .dx-stats-detail { border-top: 1px solid #ddd; }
 .dx-driver-row { padding: 8px 14px; border-bottom: 1px solid #eee; background: #fff; }
 .dx-driver-name { font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 700; color: #222;
@@ -1206,6 +1215,7 @@ function toggleMapExpand() {
   setTimeout(() => { if (liveMap) liveMap.resize(); }, 260);
 }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapExpanded) toggleMapExpand(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && statsExpanded) toggleStatsDetail(); });
 
 // Stats — expand to show the per-driver breakdown and back.
 function toggleStatsDetail() {
