@@ -232,6 +232,28 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .dx-dash-stats .dx-stat-label { margin-bottom: 0; font-size: 9px; }
 .dx-dash-stats .dx-stat-value { font-size: 15px; }
 
+/* Panel header toggle buttons (map expand, stats detail) */
+.dx-panel-toggle-btn { background: none; border: none; color: #eee; font-family: 'Oswald', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer;
+  padding: 3px 8px; border-radius: 3px; white-space: nowrap; }
+.dx-panel-toggle-btn:hover { background: rgba(255,255,255,.14); }
+
+/* Fleet map expand-to-fullscreen */
+.dx-dash-map.dx-map-expanded { position: fixed; inset: 0; z-index: 5000; background: #000;
+  flex: none !important; width: 100vw; height: 100vh; border-left: none; }
+.dx-dash-map.dx-map-expanded #map { height: 100%; }
+
+/* Stats expand-to-show-driver-detail */
+.dx-dash-stats.dx-stats-expanded { flex: 1 1 auto; max-height: none; }
+.dx-stats-detail { border-top: 1px solid #ddd; }
+.dx-driver-row { padding: 8px 14px; border-bottom: 1px solid #eee; background: #fff; }
+.dx-driver-name { font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 700; color: #222;
+  text-transform: uppercase; letter-spacing: .04em; }
+.dx-driver-asset { color: #999; font-weight: 400; text-transform: none; }
+.dx-driver-metrics { font-family: 'Roboto', sans-serif; font-size: 11px; color: #666; margin-top: 3px;
+  display: flex; gap: 10px; flex-wrap: wrap; }
+.dx-driver-metrics .late { color: #cc0000; font-weight: 700; }
+
 /* ── Mobile responsive ── */
 .dx-stop-card { display:none; }
 @media (max-width:900px) {
@@ -712,6 +734,54 @@ function renderStats(routes, dk, mil) {
   // Store for modal
   window._uaStops = uaStops;
   window._sameDayStops = sameDayStops;
+
+  // Keep the by-driver detail panel in sync if it's currently open
+  if (typeof statsExpanded !== 'undefined' && statsExpanded) renderDriverBreakdown(routes, dk);
+}
+
+// Per-driver breakdown for the expanded Stats panel — same route/stop data
+// as renderStats() above, just grouped by asset/driver instead of totaled.
+function renderDriverBreakdown(routes, dk) {
+  const el = document.getElementById('sv-stats-detail');
+  if (!el) return;
+  const tr = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
+  const byDriver = {};
+  tr.forEach(([id,r])=>{
+    const key = r.asset || r.driverName || id;
+    const label = r.driverName || r.asset || id;
+    if (!byDriver[key]) byDriver[key] = { label, asset: r.asset||'', routes:0, stops:0, delivered:0, early:0, onTime:0, late:0, eligible:0 };
+    const d = byDriver[key];
+    d.routes++;
+    Object.values(r.stops||{}).forEach(s=>{
+      if(!s||!s.orderNumber) return;
+      d.stops++;
+      if(s.status==='complete') d.delivered++;
+      const _eta = (s.calculatedEta||s.seedEta||'').toString().trim();
+      if(_eta && _eta!=='null' && _eta!=='undefined'){
+        const t = computeTiming(s);
+        if(t==='early'){d.early++;d.eligible++}
+        else if(t==='ontime'){d.onTime++;d.eligible++}
+        else if(t==='late'){d.late++;d.eligible++}
+      }
+    });
+  });
+  const list = Object.values(byDriver).sort((a,b)=>a.label.localeCompare(b.label));
+  if (!list.length) { el.innerHTML = '<div class="dx-uo-empty">No routes for this date</div>'; return; }
+  el.innerHTML = list.map(d=>{
+    const ep = d.eligible>0?Math.round(d.early/d.eligible*100):null;
+    const op = d.eligible>0?Math.round(d.onTime/d.eligible*100):null;
+    const lp = d.eligible>0?Math.round(d.late/d.eligible*100):null;
+    return '<div class="dx-driver-row">'
+      + '<div class="dx-driver-name">'+esc(d.label)+(d.asset?' <span class="dx-driver-asset">('+esc(d.asset)+')</span>':'')+'</div>'
+      + '<div class="dx-driver-metrics">'
+      + '<span>Routes: '+d.routes+'</span>'
+      + '<span>Stops: '+d.stops+'</span>'
+      + '<span>Delivered: '+d.delivered+'</span>'
+      + '<span>Early: '+(ep!==null?ep+'%':'\u2014')+'</span>'
+      + '<span>On Time: '+(op!==null?op+'%':'\u2014')+'</span>'
+      + '<span'+(lp!==null&&lp>20?' class="late"':'')+'>Late: '+(lp!==null?lp+'%':'\u2014')+'</span>'
+      + '</div></div>';
+  }).join('');
 }
 
 // Always-visible sidebar version of the unscheduled-orders list (same
@@ -1040,6 +1110,7 @@ function renderApp() {
       <div class="dx-dash-panel dx-dash-map">
         <div class="dx-dash-panel-header">
           <span class="dx-dash-panel-title">&#128506; Fleet Map</span>
+          <button class="dx-panel-toggle-btn" id="sv-map-toggle" onclick="toggleMapExpand()" title="Expand map to full screen">&#9974; Expand</button>
         </div>
         <div style="position:relative; flex:1; min-height:0;">
           <div id="map"></div>
@@ -1061,8 +1132,10 @@ function renderApp() {
       <div class="dx-dash-panel dx-dash-stats">
         <div class="dx-dash-panel-header">
           <span class="dx-dash-panel-title">Stats</span>
+          <button class="dx-panel-toggle-btn" id="sv-stats-toggle" onclick="toggleStatsDetail()" title="Show breakdown by driver">&#9660; By Driver</button>
         </div>
         <div class="dx-stats" id="sv-stats"></div>
+        <div class="dx-stats-detail" id="sv-stats-detail" style="display:none"></div>
       </div>
     </aside>
     </div>`;
@@ -1077,6 +1150,35 @@ document.fonts.ready.then(() => renderPin());
 // -- Live map (always on) ---------------------------------------
 let liveMap = null, liveMapMarkers = {}, liveMapPollTimer = null, liveMapGroupCoords = {};
 let liveMapGeneration = 0; // guards against overlapping refreshLiveMapMarkers calls (two independent timers can both fire while a previous async call is still running)
+let mapExpanded = false, statsExpanded = false;
+
+// Fleet map — expand to full screen and back. Mapbox GL needs an explicit
+// resize() call after its container's size changes via CSS, or the canvas
+// stays the old dimensions until the next manual pan/zoom.
+function toggleMapExpand() {
+  const panel = document.querySelector('.dx-dash-map');
+  const btn = document.getElementById('sv-map-toggle');
+  if (!panel) return;
+  mapExpanded = !mapExpanded;
+  panel.classList.toggle('dx-map-expanded', mapExpanded);
+  if (btn) btn.innerHTML = mapExpanded ? '&#10005; Minimize' : '&#9974; Expand';
+  setTimeout(() => { if (liveMap) liveMap.resize(); }, 260);
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mapExpanded) toggleMapExpand(); });
+
+// Stats — expand to show the per-driver breakdown and back.
+function toggleStatsDetail() {
+  const panel = document.querySelector('.dx-dash-stats');
+  const detail = document.getElementById('sv-stats-detail');
+  const btn = document.getElementById('sv-stats-toggle');
+  if (!panel || !detail) return;
+  statsExpanded = !statsExpanded;
+  panel.classList.toggle('dx-stats-expanded', statsExpanded);
+  detail.style.display = statsExpanded ? 'block' : 'none';
+  if (btn) btn.innerHTML = statsExpanded ? '&#9650; Hide Detail' : '&#9660; By Driver';
+  if (statsExpanded) renderDriverBreakdown(S.lastRoutes || {}, S.lastDk || dateKey());
+}
+
 function initLiveMap() {
   if (typeof mapboxgl === 'undefined') return;
   mapboxgl.accessToken = MAPBOX_TOKEN;
