@@ -253,6 +253,9 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .dx-driver-metrics { font-family: 'Roboto', sans-serif; font-size: 11px; color: #666; margin-top: 3px;
   display: flex; gap: 10px; flex-wrap: wrap; }
 .dx-driver-metrics .late { color: #cc0000; font-weight: 700; }
+.dx-driver-metrics em { font-style: normal; color: #999; font-size: 10px; }
+.dx-driver-fleet-note { font-family: 'Roboto', sans-serif; font-size: 10px; color: #888; padding: 8px 14px;
+  background: #f0ede8; border-bottom: 1px solid #ddd; }
 
 /* ── Mobile responsive ── */
 .dx-stop-card { display:none; }
@@ -735,13 +738,24 @@ function renderStats(routes, dk, mil) {
   window._uaStops = uaStops;
   window._sameDayStops = sameDayStops;
 
+  // Fleet-wide totals, used by the by-driver panel to show each driver's
+  // share of every stat (not just their own rate).
+  const totals = { routes: tr.length, stops, delivered, early, onTime, late, eligible, sameDay, miles, uaCount, ep, op, lp };
+  window._statsTotals = totals;
+
   // Keep the by-driver detail panel in sync if it's currently open
-  if (typeof statsExpanded !== 'undefined' && statsExpanded) renderDriverBreakdown(routes, dk);
+  if (typeof statsExpanded !== 'undefined' && statsExpanded) renderDriverBreakdown(routes, dk, totals);
 }
 
 // Per-driver breakdown for the expanded Stats panel — same route/stop data
-// as renderStats() above, just grouped by asset/driver instead of totaled.
-function renderDriverBreakdown(routes, dk) {
+// as renderStats() above, grouped by asset/driver, with each driver's own
+// rate PLUS their share of the fleet-wide total for every count-based stat
+// (stops, delivered, same day, early/on-time/late) so it's clear how much
+// each driver is contributing to (or dragging down) the day's overall numbers.
+// Miles and Unscheduled aren't attributable to a driver in the current data
+// model (mileage is a fleet-wide total; unscheduled orders have no driver
+// yet), so those are shown as fleet-level context instead of split per row.
+function renderDriverBreakdown(routes, dk, totals) {
   const el = document.getElementById('sv-stats-detail');
   if (!el) return;
   const tr = Object.entries(routes).filter(([id,r])=>r&&r.date===dk&&id!=='UNASSIGNED'&&id!=='FUTURE_ORDERS');
@@ -749,9 +763,10 @@ function renderDriverBreakdown(routes, dk) {
   tr.forEach(([id,r])=>{
     const key = r.asset || r.driverName || id;
     const label = r.driverName || r.asset || id;
-    if (!byDriver[key]) byDriver[key] = { label, asset: r.asset||'', routes:0, stops:0, delivered:0, early:0, onTime:0, late:0, eligible:0 };
+    if (!byDriver[key]) byDriver[key] = { label, asset: r.asset||'', routes:0, stops:0, delivered:0, early:0, onTime:0, late:0, eligible:0, sameDay:0 };
     const d = byDriver[key];
     d.routes++;
+    const rd = (r.date||'').substring(0,10);
     Object.values(r.stops||{}).forEach(s=>{
       if(!s||!s.orderNumber) return;
       d.stops++;
@@ -763,25 +778,51 @@ function renderDriverBreakdown(routes, dk) {
         else if(t==='ontime'){d.onTime++;d.eligible++}
         else if(t==='late'){d.late++;d.eligible++}
       }
+      if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu) d.sameDay++;}
     });
   });
   const list = Object.values(byDriver).sort((a,b)=>a.label.localeCompare(b.label));
-  if (!list.length) { el.innerHTML = '<div class="dx-uo-empty">No routes for this date</div>'; return; }
-  el.innerHTML = list.map(d=>{
-    const ep = d.eligible>0?Math.round(d.early/d.eligible*100):null;
-    const op = d.eligible>0?Math.round(d.onTime/d.eligible*100):null;
-    const lp = d.eligible>0?Math.round(d.late/d.eligible*100):null;
+  const t = totals || {};
+  const pctOf = (part, whole) => (whole>0 ? Math.round(part/whole*100) : null);
+  const fmtPct = p => p!==null ? p+'%' : '\u2014';
+
+  let html = '';
+  // Fleet-level context that can't be split per driver from the current data.
+  if (t.miles>0 || t.uaCount>0) {
+    html += '<div class="dx-driver-fleet-note">'
+      + (t.miles>0 ? 'Fleet Miles: '+t.miles.toLocaleString()+' (not tracked per truck)' : '')
+      + (t.miles>0 && t.uaCount>0 ? ' &nbsp;&middot;&nbsp; ' : '')
+      + (t.uaCount>0 ? 'Unscheduled: '+t.uaCount+' order(s) not yet assigned to a driver' : '')
+      + '</div>';
+  }
+  if (!list.length) {
+    html += '<div class="dx-uo-empty">No routes for this date</div>';
+    el.innerHTML = html;
+    return;
+  }
+  html += list.map(d=>{
+    const ep = pctOf(d.early, d.eligible), op = pctOf(d.onTime, d.eligible), lp = pctOf(d.late, d.eligible);
+    // Share of the fleet-wide total for each count stat — this is what
+    // shows "how they impact the overall stats", not just the driver's own rate.
+    const shareStops = pctOf(d.stops, t.stops);
+    const shareDelivered = pctOf(d.delivered, t.delivered);
+    const shareSameDay = pctOf(d.sameDay, t.sameDay);
+    const shareEarly = pctOf(d.early, t.early);
+    const shareOnTime = pctOf(d.onTime, t.onTime);
+    const shareLate = pctOf(d.late, t.late);
     return '<div class="dx-driver-row">'
       + '<div class="dx-driver-name">'+esc(d.label)+(d.asset?' <span class="dx-driver-asset">('+esc(d.asset)+')</span>':'')+'</div>'
       + '<div class="dx-driver-metrics">'
       + '<span>Routes: '+d.routes+'</span>'
-      + '<span>Stops: '+d.stops+'</span>'
-      + '<span>Delivered: '+d.delivered+'</span>'
-      + '<span>Early: '+(ep!==null?ep+'%':'\u2014')+'</span>'
-      + '<span>On Time: '+(op!==null?op+'%':'\u2014')+'</span>'
-      + '<span'+(lp!==null&&lp>20?' class="late"':'')+'>Late: '+(lp!==null?lp+'%':'\u2014')+'</span>'
+      + '<span>Stops: '+d.stops+(shareStops!==null?' <em>('+shareStops+'% of fleet)</em>':'')+'</span>'
+      + '<span>Delivered: '+d.delivered+(shareDelivered!==null?' <em>('+shareDelivered+'% of fleet)</em>':'')+'</span>'
+      + '<span>Same Day: '+d.sameDay+(shareSameDay!==null?' <em>('+shareSameDay+'% of fleet)</em>':'')+'</span>'
+      + '<span>Early: '+fmtPct(ep)+(shareEarly!==null?' <em>('+shareEarly+'% of fleet early)</em>':'')+'</span>'
+      + '<span>On Time: '+fmtPct(op)+(shareOnTime!==null?' <em>('+shareOnTime+'% of fleet on-time)</em>':'')+'</span>'
+      + '<span'+(lp!==null&&lp>20?' class="late"':'')+'>Late: '+fmtPct(lp)+(shareLate!==null?' <em>('+shareLate+'% of fleet late)</em>':'')+'</span>'
       + '</div></div>';
   }).join('');
+  el.innerHTML = html;
 }
 
 // Always-visible sidebar version of the unscheduled-orders list (same
@@ -1176,7 +1217,7 @@ function toggleStatsDetail() {
   panel.classList.toggle('dx-stats-expanded', statsExpanded);
   detail.style.display = statsExpanded ? 'block' : 'none';
   if (btn) btn.innerHTML = statsExpanded ? '&#9650; Hide Detail' : '&#9660; By Driver';
-  if (statsExpanded) renderDriverBreakdown(S.lastRoutes || {}, S.lastDk || dateKey());
+  if (statsExpanded) renderDriverBreakdown(S.lastRoutes || {}, S.lastDk || dateKey(), window._statsTotals || {});
 }
 
 function initLiveMap() {
