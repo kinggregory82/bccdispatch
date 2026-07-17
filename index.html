@@ -269,7 +269,7 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 /* ── Route card polish + micro-interactions ── */
 .dx-route-card { animation: dxRouteIn .32s cubic-bezier(.22,1,.36,1) both;
   transition: box-shadow .22s ease, opacity .3s ease; }
-.dx-route-card.is-active { box-shadow: inset 3px 0 0 #cc0000, 0 3px 14px rgba(204,0,0,0.10); }
+.dx-route-card.is-active { border-left: 3px solid #cc0000; box-shadow: 0 3px 14px rgba(204,0,0,0.10); }
 .dx-route-card.is-complete { opacity: .72; }
 .dx-route-card.is-complete:hover { opacity: 1; }
 .dx-route-card.is-complete .dx-route-hd { filter: saturate(.35) brightness(.94); }
@@ -1313,16 +1313,7 @@ async function refreshLiveMapMarkers() {
     const label = g.asset || (g.driver||'?').split(' ')[0] || g.key;
     const accent = g.allDone ? '#16a34a' : '#cc0000';
     const wrapper = document.createElement('div');
-    // display:inline-flex + flex-direction:column keeps the pointer triangle
-    // in normal document flow (stacked under the pill) instead of absolutely
-    // positioned. That matters because Mapbox's anchor:'bottom' measures the
-    // element's in-flow height to decide where "bottom" is — with the
-    // triangle taken out of flow via position:absolute, Mapbox was anchoring
-    // to the bottom of the PILL, leaving the visual pointer tip (the actual
-    // GPS coordinate) hanging several px below the true location. Keeping
-    // the triangle in flow makes its tip the element's real bottom edge, so
-    // the anchor lands exactly where the truck actually is.
-    wrapper.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;cursor:pointer';
+    wrapper.style.cssText = 'position:relative;display:inline-block;cursor:pointer';
     wrapper.innerHTML =
       '<div style="display:flex;align-items:center;gap:5px;background:#141414;border:1.5px solid '+accent+';'
       + 'border-radius:13px;padding:2px 9px 2px 7px;font-family:Oswald,sans-serif;font-size:10.5px;font-weight:700;'
@@ -1330,7 +1321,7 @@ async function refreshLiveMapMarkers() {
       +   '<span style="width:6px;height:6px;border-radius:50%;background:'+accent+';flex:none"></span>'
       +   '<span>'+esc(label)+'</span>'
       + '</div>'
-      + '<div style="width:0;height:0;margin-top:-1px;'
+      + '<div style="position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);width:0;height:0;'
       +   'border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+accent+'"></div>';
 
     let statusHtml = '';
