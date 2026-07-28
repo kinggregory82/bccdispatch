@@ -1268,19 +1268,78 @@ function toggleStatsDetail() {
   if (statsExpanded) renderDriverBreakdown(S.lastRoutes || {}, S.lastDk || dateKey(), window._statsTotals || {});
 }
 
+// Fleet map lighting. 'auto' tracks the real clock so the board looks like
+// the shift feels — dawn at 6am, dusk by the last delivery. Set this to a
+// fixed preset ('dusk' / 'night') if the midday 'day' preset reads too
+// bright against the dark dashboard panels.
+const MAP_LIGHT_MODE = 'auto';   // 'auto' | 'dawn' | 'day' | 'dusk' | 'night'
+
+// Above this zoom the map tilts and the 3D buildings become worth looking at.
+// Below it, a flat overview reads far better for scanning the whole fleet.
+const MAP_PITCH_ZOOM = 13.5;
+
+function lightPresetForNow() {
+  if (MAP_LIGHT_MODE !== 'auto') return MAP_LIGHT_MODE;
+  const h = new Date().getHours();
+  if (h < 7)  return 'dawn';
+  if (h < 17) return 'day';
+  if (h < 20) return 'dusk';
+  return 'night';
+}
+
 function initLiveMap() {
   if (typeof mapboxgl === 'undefined') return;
   mapboxgl.accessToken = MAPBOX_TOKEN;
   liveMap = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
+    style: 'mapbox://styles/mapbox/standard',
     center: [YARD.lng, YARD.lat],
     zoom: 8,
-    attributionControl: false,
+    pitch: 0,                    // flat for the fleet overview; tilts on zoom-in below
+    attributionControl: false,   // replaced by the compact control added below
+    config: {
+      basemap: {
+        lightPreset: lightPresetForNow(),
+        show3dObjects: true,
+        showPointOfInterestLabels: false,  // restaurants/shops are noise on a dispatch board
+        showTransitLabels: false,
+        showPlaceLabels: true,
+        showRoadLabels: true
+      }
+    }
   });
-  liveMap.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+  // Mapbox requires visible attribution (c Mapbox / c OpenStreetMap /
+  // Improve this map). compact:true renders it as a small (i) that expands
+  // on click, so it costs almost no panel space. Do not remove.
+  liveMap.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
+  // showCompass:true matters now that the map can pitch and rotate — without
+  // it there is no way back to north-up once a dispatcher drag-rotates.
+  liveMap.addControl(new mapboxgl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
+
+  // Keep the sky in sync with the actual time for a board left open all shift.
+  if (MAP_LIGHT_MODE === 'auto') {
+    setInterval(() => {
+      if (liveMap && liveMap.isStyleLoaded()) {
+        liveMap.setConfigProperty('basemap', 'lightPreset', lightPresetForNow());
+      }
+    }, 1800000); // every 30 min — catches each preset boundary promptly
+  }
+
+  // Tilt in only when zoomed to a truck or jobsite. The flag stops this from
+  // fighting the user every time easeTo settles.
+  let mapPitched = false;
+  liveMap.on('zoomend', () => {
+    const z = liveMap.getZoom();
+    if (z >= MAP_PITCH_ZOOM && !mapPitched) {
+      mapPitched = true;
+      liveMap.easeTo({ pitch: 55, duration: 700 });
+    } else if (z < MAP_PITCH_ZOOM && mapPitched) {
+      mapPitched = false;
+      liveMap.easeTo({ pitch: 0, duration: 700 });
+    }
+  });
   const yardEl = document.createElement('div');
-  yardEl.style.cssText = 'font-family:Oswald,sans-serif;font-size:11px;font-weight:700;color:#cc0000;text-shadow:0 0 3px #000,1px 1px 0 #000,-1px -1px 0 #000;cursor:default;white-space:nowrap';
+  yardEl.style.cssText = 'font-family:Oswald,sans-serif;font-size:11px;font-weight:700;color:#fff;background:rgba(16,16,16,.9);border:1.5px solid #cc0000;border-radius:11px;padding:1px 8px;letter-spacing:.06em;box-shadow:0 0 0 1px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.6);cursor:default;white-space:nowrap';
   yardEl.textContent = '\u25CF YARD';
   new mapboxgl.Marker({ element: yardEl, anchor: 'center' }).setLngLat([YARD.lng, YARD.lat]).addTo(liveMap);
   refreshLiveMapMarkers();
@@ -1330,13 +1389,23 @@ async function refreshLiveMapMarkers() {
     // the triangle in normal flow (no position:absolute, no bottom offset).
     wrapper.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;cursor:pointer';
     wrapper.innerHTML =
-      '<div style="display:flex;align-items:center;gap:5px;background:#141414;border:1.5px solid '+accent+';'
+      // The old 3px white ring read as a halo/blob and only worked over a flat
+      // dark basemap. Against Standard's day preset and 3D buildings it has to
+      // separate from a light, busy background instead: a dark 1px seat plus a
+      // real cast shadow makes the chip sit ON the map rather than float over it.
+      '<div style="display:flex;align-items:center;gap:5px;background:rgba(16,16,16,.94);'
+      + '-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);border:1.5px solid '+accent+';'
       + 'border-radius:13px;padding:2px 9px 2px 7px;font-family:Oswald,sans-serif;font-size:10.5px;font-weight:700;'
-      + 'letter-spacing:.03em;color:#fff;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.35),0 0 0 3px rgba(255,255,255,.85)">'
+      + 'letter-spacing:.03em;color:#fff;white-space:nowrap;'
+      + 'box-shadow:0 0 0 1px rgba(0,0,0,.55),0 2px 10px rgba(0,0,0,.65),0 6px 16px rgba(0,0,0,.35)">'
       +   '<span style="width:6px;height:6px;border-radius:50%;background:'+accent+';flex:none"></span>'
       +   '<span>'+esc(label)+'</span>'
       + '</div>'
+      // Stays in normal flow — see the anchor note above. filter:drop-shadow
+      // (not box-shadow) is what shadows a CSS triangle, since the element's
+      // box is 0x0 and only the painted border has shape.
       + '<div style="width:0;height:0;margin-top:-1px;'
+      +   'filter:drop-shadow(0 2px 2px rgba(0,0,0,.6));'
       +   'border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+accent+'"></div>';
 
     let statusHtml = '';
