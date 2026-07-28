@@ -1339,8 +1339,18 @@ async function refreshLiveMapMarkers() {
 
     const label = g.asset || (g.driver||'?').split(' ')[0] || g.key;
     const accent = g.allDone ? '#16a34a' : '#cc0000';
+    // Two rules govern this element, and breaking either one scatters the markers:
+    //   1. No `position` on the wrapper. Mapbox's own .mapboxgl-marker rule is
+    //      `position:absolute`, and an inline `position:relative` beats it — the
+    //      marker then sits in the map container's normal flow and its transform
+    //      offsets from wherever it landed rather than from the container origin.
+    //   2. The pointer triangle stays in normal flow. A CSS triangle is a 0x0 box,
+    //      so absolutely positioning it leaves it out of the wrapper's measured
+    //      height and `anchor:'bottom'` pins the pill's base to the GPS fix
+    //      instead of the tip. Flex column keeps it measured; drop-shadow is the
+    //      only way to shade a 0x0 box.
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position:relative;display:inline-block;cursor:pointer';
+    wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer';
     wrapper.innerHTML =
       '<div style="display:flex;align-items:center;gap:5px;background:#141414;border:1.5px solid '+accent+';'
       + 'border-radius:13px;padding:2px 9px 2px 7px;font-family:Oswald,sans-serif;font-size:10.5px;font-weight:700;'
@@ -1348,8 +1358,9 @@ async function refreshLiveMapMarkers() {
       +   '<span style="width:6px;height:6px;border-radius:50%;background:'+accent+';flex:none"></span>'
       +   '<span>'+esc(label)+'</span>'
       + '</div>'
-      + '<div style="position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);width:0;height:0;'
-      +   'border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+accent+'"></div>';
+      + '<div style="width:0;height:0;margin-top:-1px;'
+      +   'border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+accent+';'
+      +   'filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))"></div>';
 
     let statusHtml = '';
     if (g.allDone && etr === null) {
