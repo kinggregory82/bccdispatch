@@ -694,16 +694,18 @@ async function loadAndRender(silent=false) {
   if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua] = await Promise.all([
+    const [live, arch, mil, ua, seen] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/routes/UNASSIGNED.json').then(r=>r.json()).catch(()=>null),
+      fetch(DB+'/orderFirstSeen.json').then(r=>r.json()).catch(()=>null),
     ]);
     if (live && live.error) throw new Error('Firebase: ' + live.error);
     const routes = (live && typeof live === 'object') ? live : {};
     if (arch && typeof arch==='object') Object.entries(arch).forEach(([id,r])=>{if(!routes[id])routes[id]=r});
     if (ua) routes['UNASSIGNED'] = ua;
+    window._firstSeen = seen || {};
     S.lastRoutes = routes;
     S.lastDk = dk;
     renderStats(routes, dk, mil);
@@ -743,6 +745,49 @@ async function editDriverName(el) {
   }
 }
 
+// SAME DAY = entered on the ship date, or entered after 4pm the day before.
+// Two things used to break this. The clock was stripped off the entry date before
+// it ever reached Firebase, so the 4pm half could never fire; the poller now also
+// writes dqOrderTs and a first-seen stamp. And `new Date('2026-07-28')` parses as
+// UTC midnight while `new Date('2026-07-28T00:00:00')` parses as local, so the old
+// code was comparing two clocks four hours apart in opposite directions.
+function orderEnteredAt(s){
+  // The DATE always comes from DQ. Only the TIME is uncertain, so refine it and
+  // never let a first-seen stamp move an order onto a different calendar day —
+  // otherwise every old order the poller meets on its first run looks same-day.
+  const bare = (s.dqOrderDate||'').slice(0,10);
+  if(!bare) return null;
+  const day = new Date(bare+'T00:00:00');
+  if(isNaN(day)) return null;
+
+  const ts = (s.dqOrderTs||'').toString().trim();
+  if(ts && !/T00:00(:00)?(\.0+)?Z?$/.test(ts)){   // a real clock time, not a stripped one
+    const d = new Date(ts);
+    if(!isNaN(d)) return d;
+  }
+  const fs = (window._firstSeen||{})[s.orderNumber||''];
+  if(fs){
+    const d = new Date(fs);
+    if(!isNaN(d) && d.getFullYear()===day.getFullYear()
+       && d.getMonth()===day.getMonth() && d.getDate()===day.getDate()) return d;
+  }
+  return day;   // date known, time unknown
+}
+function isSameDayOrder(s, rd){
+  if(!rd) return false;
+  const en = orderEnteredAt(s);
+  if(!en) return false;
+  const ship = new Date(rd.slice(0,10)+'T00:00:00');
+  if(isNaN(ship)) return false;
+  const shipDay = new Date(ship.getFullYear(), ship.getMonth(), ship.getDate());
+  const entDay  = new Date(en.getFullYear(),  en.getMonth(),  en.getDate());
+  if(entDay.getTime() >= shipDay.getTime()) return true;
+  const cut = new Date(shipDay);
+  cut.setDate(cut.getDate()-1);
+  cut.setHours(16,0,0,0);
+  return en >= cut;
+}
+
 function renderStats(routes, dk, mil) {
   const el = document.getElementById('sv-stats');
   if (!el) return;
@@ -759,7 +804,7 @@ function renderStats(routes, dk, mil) {
       else if(t==='ontime'){onTime++;eligible++}
       else if(t==='late'){late++;eligible++}
     }
-    if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu){sameDay++;sameDayStops.push({...s, routeDate:rd});}}
+    if(isSameDayOrder(s, rd)){sameDay++;sameDayStops.push({...s, routeDate:rd});}
   })});
   const ep=eligible>0?Math.round(early/eligible*100):null;
   const op=eligible>0?Math.round(onTime/eligible*100):null;
@@ -770,6 +815,12 @@ function renderStats(routes, dk, mil) {
   const ua = routes['UNASSIGNED'];
   const uaStops = ua && ua.stops ? Object.values(ua.stops).filter(s=>s&&s.orderNumber) : [];
   const uaCount = uaStops.length;
+
+  uaStops.forEach(s=>{
+    const rd = (s.reqDate||'').slice(0,10);
+    if(rd !== dk) return;
+    if(isSameDayOrder(s, rd)){ sameDay++; sameDayStops.push({...s, routeDate:rd, unscheduled:true}); }
+  });
 
   el.innerHTML =
     '<div class="dx-stat"><span class="dx-stat-label">Routes</span><span class="dx-stat-value">'+tr.length+'</span></div>'+
@@ -826,7 +877,7 @@ function renderDriverBreakdown(routes, dk, totals) {
         else if(t==='ontime'){d.onTime++;d.eligible++}
         else if(t==='late'){d.late++;d.eligible++}
       }
-      if(s.dqOrderDate&&rd){const en=new Date(s.dqOrderDate),sh=new Date(rd+'T00:00:00'),cu=new Date(sh);cu.setDate(cu.getDate()-1);cu.setHours(16,0,0,0);if(en>=cu) d.sameDay++;}
+      if(isSameDayOrder(s, rd)) d.sameDay++;
     });
   });
   const list = Object.values(byDriver).sort((a,b)=>a.label.localeCompare(b.label));
@@ -1700,6 +1751,7 @@ document.addEventListener('keydown', function(e) {
             <th style="padding:8px 12px;text-align:left;font-weight:600">Order #</th>
             <th style="padding:8px 12px;text-align:left;font-weight:600">Delivery Address</th>
             <th style="padding:8px 12px;text-align:left;font-weight:600">Salesman</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:600">Entered</th>
           </tr>
         </thead>
         <tbody id="sd-tbody"></tbody>
@@ -1756,13 +1808,21 @@ function showSameDayModal() {
   const stops = (window._sameDayStops || []).slice().sort((a,b)=>(a.customerName||'').localeCompare(b.customerName||''));
   const tbody = document.getElementById('sd-tbody');
   if (!tbody) return;
-  tbody.innerHTML = stops.length ? stops.map((s,i)=>
-    '<tr style="border-bottom:1px solid #f0f0f0;background:'+(i%2?'#fafafa':'#fff')+'">' +
-    '<td style="padding:8px 12px;font-weight:600">'+esc(s.orderNumber||'')+'</td>'+
+  tbody.innerHTML = stops.length ? stops.map((s,i)=>{
+    const en = orderEnteredAt(s);
+    const mid = en && en.getHours()===0 && en.getMinutes()===0;
+    const when = !en ? '—'
+      : en.toLocaleDateString(undefined,{month:'short',day:'numeric'})
+        + (mid ? ' <span style="color:#aaa">(time unknown)</span>'
+               : ' ' + en.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
+    return '<tr style="border-bottom:1px solid #f0f0f0;background:'+(i%2?'#fafafa':'#fff')+'">' +
+    '<td style="padding:8px 12px;font-weight:600">'+esc(s.orderNumber||'')+
+      (s.unscheduled?' <span style="font-size:10px;color:#c41230;font-weight:600">UNSCHEDULED</span>':'')+'</td>'+
     '<td style="padding:8px 12px;color:#555">'+esc(s.address||s.shipToAddress||'')+'</td>'+
     '<td style="padding:8px 12px;color:#555">'+esc(s.assignedSales||s.salesRep||'—')+'</td>'+
-    '</tr>'
-  ).join('') : '<tr><td colspan="3" style="padding:24px;text-align:center;color:#888">No same day orders</td></tr>';
+    '<td style="padding:8px 12px;color:#555;white-space:nowrap">'+when+'</td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="4" style="padding:24px;text-align:center;color:#888">No same day orders</td></tr>';
   document.getElementById('sd-modal').style.display = 'flex';
 }
 document.getElementById('sd-modal').addEventListener('click', function(e) {
