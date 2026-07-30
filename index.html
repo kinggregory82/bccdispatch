@@ -1060,14 +1060,41 @@ function computeTiming(s) {
   // can produce a Timing badge that flatly contradicts the delivered time
   // sitting right next to it (e.g. "LATE" next to "DELIVERED – 7:12 AM" when
   // the GPS arrival reading for the stop is stale or mis-attributed).
+  // Grade when the truck SHOWED UP, not when the paperwork cleared. Unload time
+  // is not lateness — a driver who hits the middle of his window and then spends
+  // 17 minutes on a moffett was being marked late for the 17 minutes.
+  // The delivery stamp is still the fallback, because the case this code was
+  // originally guarding against is real: DQ sometimes supplies an arrival that
+  // is stale or mis-attributed (route 2786 stamped a stop 93 min after the truck
+  // was back at the yard). So use the arrival only when it is sane — present,
+  // parseable, not AFTER the delivery, and not absurdly far before it.
   const doneStr = s.deliveryTime || s.completedAt;
-  const arrStr = (s.status === 'complete' && doneStr) ? doneStr : (s.arrivalTime || s.gpsArrivedAt);
+  const arrRaw  = s.arrivalTime || s.gpsArrivedAt;
+  let arrStr;
+  if (s.status === 'complete') {
+    const a = arrRaw  ? new Date(arrRaw)  : null;
+    const d = doneStr ? new Date(doneStr) : null;
+    const aOk = a && !isNaN(a);
+    const dOk = d && !isNaN(d);
+    const arrivalSane = aOk && (!dOk || (a <= d && (d - a) <= 12*3600000));
+    arrStr = arrivalSane ? arrRaw : (doneStr || arrRaw);
+  } else {
+    arrStr = arrRaw;
+  }
   if(!arrStr){
     // No actual arrival yet to compare — fall back to whatever was stored.
     return (s.timing==='early'||s.timing==='ontime'||s.timing==='late') ? s.timing : null;
   }
   const arr = new Date(arrStr);
   if(isNaN(arr)) return (s.timing==='early'||s.timing==='ontime'||s.timing==='late') ? s.timing : null;
+  // Never grade across days. If the delivery landed on a different calendar day
+  // from the ETA it was promised against, the comparison is meaningless — it will
+  // read LATE by however many hours separate the two dates. Show nothing instead
+  // of a number that is wrong, and keep it out of the fleet percentages.
+  const sameDay = arr.getFullYear()===etaDate.getFullYear()
+               && arr.getMonth()===etaDate.getMonth()
+               && arr.getDate()===etaDate.getDate();
+  if(!sameDay) return null;
   const low = etaDate.getTime()-15*60000;
   const high = etaDate.getTime()+15*60000;
   const t = arr.getTime();
