@@ -26,6 +26,17 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
   box-shadow: 0 4px 16px rgba(0,0,0,0.3); position: relative; }
 .dx-header::after { content: ''; position: absolute; bottom: 5px; left: 0; right: 0; height: 1px;
   background: linear-gradient(90deg, transparent 0%, rgba(204,0,0,0.5) 50%, transparent 100%); }
+.dx-sync { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600;
+  letter-spacing:.02em; padding:6px 11px; border-radius:5px; white-space:nowrap;
+  border:1px solid transparent; }
+.dx-sync .dot { width:8px; height:8px; border-radius:50%; flex:0 0 8px; }
+.dx-sync.ok    { color:#8fd4a8; background:rgba(22,163,74,.10); border-color:rgba(22,163,74,.35); }
+.dx-sync.ok .dot    { background:#16a34a; }
+.dx-sync.warn  { color:#e8c37a; background:rgba(217,182,74,.10); border-color:rgba(217,182,74,.40); }
+.dx-sync.warn .dot  { background:#d9b64a; }
+.dx-sync.bad   { color:#ef9a9a; background:rgba(196,18,48,.12); border-color:rgba(196,18,48,.45); }
+.dx-sync.bad .dot   { background:#c41230; animation:dxpulse 1.6s ease-in-out infinite; }
+@keyframes dxpulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .dx-brand { display: flex; align-items: center; gap: 18px; }
 .dx-brand img { height: 48px; width: auto; }
 .dx-divider { width: 1px; height: 36px; background: #2c2c2c; }
@@ -674,6 +685,68 @@ const fmtTime = ts => { if(!ts)return '\u2014'; const d=new Date(ts); if(isNaN(d
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 function targetDate() { const d=new Date(); d.setDate(d.getDate()+S.dateOffset); return d; }
+// ── sync heartbeat ────────────────────────────────────────────────────────────
+// The board used to render whatever Firebase last held with no way to tell how
+// old it was. A poller that died at 6am looked exactly like a quiet morning.
+// Two clocks, because the two failures need different actions: lastAttempt says
+// whether the POLLER is alive, lastSuccess says whether the DATA is current.
+// Poller alive but data stale = DQ has stopped feeding it. That's a call, not a
+// restart. Thresholds are generous against a 2-minute poll interval.
+const SYNC_WARN_MIN = 6, SYNC_BAD_MIN = 12;
+function syncAgeMin(iso) {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return null;
+  return (Date.now() - t) / 60000;
+}
+function renderSync(sync) {
+  const el = document.getElementById('sv-sync');
+  if (!el) return;
+  window._sync = sync || null;
+  if (!sync || !sync.lastAttempt) {
+    el.className = 'dx-sync bad';
+    el.innerHTML = '<span class="dot"></span>No sync data';
+    el.title = 'The poller has never written a heartbeat. It is either not running or running an older build.';
+    return;
+  }
+  const att = syncAgeMin(sync.lastAttempt);
+  const suc = syncAgeMin(sync.lastSuccess);
+  let cls, label, tip;
+  if (att === null || att >= SYNC_BAD_MIN) {
+    cls = 'bad';
+    label = 'Poller down ' + fmtAge(att);
+    tip = 'No poll attempt in ' + fmtAge(att) + '. The poller is not running — restart it.';
+  } else if (suc === null || suc >= SYNC_BAD_MIN) {
+    cls = 'bad';
+    label = 'DQ stale ' + fmtAge(suc);
+    tip = 'The poller is running (last attempt ' + fmtAge(att) + ' ago) but DQ has returned no orders for '
+        + fmtAge(suc) + '. Board data is that old. This is a DQ-side stoppage — call support.'
+        + (sync.detail ? '\n\n' + sync.detail : '');
+  } else if (suc >= SYNC_WARN_MIN) {
+    cls = 'warn';
+    label = 'Synced ' + fmtAge(suc);
+    tip = 'Last successful sync ' + fmtAge(suc) + ' ago.';
+  } else {
+    cls = 'ok';
+    label = 'Synced ' + fmtAge(suc);
+    tip = 'Last successful sync ' + fmtAge(suc) + ' ago'
+        + (sync.orders ? ' (' + sync.orders + ' orders).' : '.');
+  }
+  el.className = 'dx-sync ' + cls;
+  el.innerHTML = '<span class="dot"></span>' + label;
+  el.title = tip;
+}
+function fmtAge(m) {
+  if (m === null || m === undefined || isNaN(m)) return 'never';
+  if (m < 1) return 'just now';
+  if (m < 60) return Math.round(m) + 'm ago';
+  const h = m / 60;
+  if (h < 24) return (h < 10 ? h.toFixed(1) : Math.round(h)) + 'h ago';
+  return Math.round(h / 24) + 'd ago';
+}
+// tick the label between polls so a stalling board ages visibly on screen
+setInterval(function(){ if (window._sync !== undefined) renderSync(window._sync); }, 30000);
+
 function dateKey() { return ymd(targetDate()); }
 
 function pickDate(val) {
@@ -694,18 +767,20 @@ async function loadAndRender(silent=false) {
   if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua, seen] = await Promise.all([
+    const [live, arch, mil, ua, seen, sync] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/routes/UNASSIGNED.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/orderFirstSeen.json').then(r=>r.json()).catch(()=>null),
+      fetch(DB+'/sync.json').then(r=>r.json()).catch(()=>null),
     ]);
     if (live && live.error) throw new Error('Firebase: ' + live.error);
     const routes = (live && typeof live === 'object') ? live : {};
     if (arch && typeof arch==='object') Object.entries(arch).forEach(([id,r])=>{if(!routes[id])routes[id]=r});
     if (ua) routes['UNASSIGNED'] = ua;
     window._firstSeen = seen || {};
+    renderSync(sync);
     S.lastRoutes = routes;
     S.lastDk = dk;
     renderStats(routes, dk, mil);
@@ -1246,6 +1321,7 @@ function renderApp() {
         <button class="dx-nav-arrow" id="sv-next-btn" onclick="S.dateOffset++; refreshDate();" title="Next day">&#8250;</button>
         <button class="dx-header-cal-btn" onclick="openCalPicker()">&#128197;</button>
       </div>
+      <div class="dx-sync" id="sv-sync" title="Time since the poller last wrote data"></div>
       <div class="dx-user">
         <span>BCC <b>Dispatcher</b></span>
         <div class="dx-avatar">D</div>
