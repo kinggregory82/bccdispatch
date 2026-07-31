@@ -1206,7 +1206,19 @@ function validateBtnHTML(s){
       +'font-size:12px;border-radius:3px;border:1px dashed #fca5a5;color:#b91c1c;'
       +'background:#fef2f2;vertical-align:middle;white-space:nowrap">No map pin</span>';
   }
-  const url = 'https://www.google.com/maps?q='+c[0]+','+c[1];
+  // Satellite, pinned at the exact coordinate. Two deliberate choices:
+  //
+  //   /maps/place/<lat>,<lon>/  labels the pin with the coordinate itself. The
+  //   ?q= form reverse-geocodes it to the nearest named feature, which out in
+  //   the county is nearly always a road junction — accurate pin, useless
+  //   caption, and it invites you to judge the wrong thing.
+  //
+  //   data=!3m1!1e3 is satellite. A road map shows a line on a road whether or
+  //   not anything is there; imagery shows a house, a driveway, a stacked
+  //   jobsite, or an empty field. "Is this a real delivery point" is a question
+  //   about what's on the ground.
+  const ll = c[0] + ',' + c[1];
+  const url = 'https://www.google.com/maps/place/' + ll + '/@' + ll + ',18z/data=!3m1!1e3';
   return '<a href="'+url+'" target="_blank" rel="noopener" '
     +'title="Opens the coordinate this address resolved to \u2014 check it is the right place" '
     +'style="display:inline-flex;align-items:center;justify-content:center;gap:4px;'
