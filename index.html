@@ -1360,7 +1360,7 @@ function renderRoutes(routes, dk) {
         +'<div class="dx-card-actions">'
           +trackBtn
           +photoBtn
-          +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'">Text</button>'
+          +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'">Text</button>'
         +'</div>'
         +'</div>';
     }).join('');
@@ -1416,7 +1416,7 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px">'+onSiteHTML(s)+'</td>'
         +'<td style="padding:12px 14px">'+timingBadgeHTML(s.timing, s)+'</td>'
         +'<td style="padding:12px 14px;white-space:nowrap">'
-          +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'">Text</button> '
+          +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'">Text</button> '
           +photoBtn
           +(s.token?'<a href="https://bccsms-27c55.web.app/?token='+s.token+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:3px 8px;background:#fff;color:#2563eb;font-size:13px;border-radius:3px;border:1px solid #bfdbfe;cursor:pointer;margin-left:4px;text-decoration:none;vertical-align:middle" title="Open tracking link">&#128225; Track</a>':'')
           +'</td>'
@@ -1811,17 +1811,41 @@ function fmtEtaWindow(isoStr) {
     return low + ' - ' + high;
   } catch(e) { return ''; }
 }
+function fmtEtaHourWindow(isoStr) {
+  // A one-hour window centred on the ETA: 30 minutes either side. Wider than
+  // the ±15 the board shows, on purpose — the board is for dispatch watching a
+  // truck move, this is a promise made to a customer who will hold us to it.
+  if (!isoStr) return '';
+  try {
+    var d = new Date(isoStr);
+    if (isNaN(d)) return '';
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var opts = { hour:'numeric', minute:'2-digit', timeZone:tz };
+    return new Date(d.getTime()-30*60000).toLocaleTimeString('en-US', opts)
+         + ' - '
+         + new Date(d.getTime()+30*60000).toLocaleTimeString('en-US', opts);
+  } catch(e) { return ''; }
+}
 function openTplFromBtn(btn) {
   var type = btn.getAttribute('data-type');
   var address = btn.getAttribute('data-address') || '';
   var date = btn.getAttribute('data-date') || '';
   var token = btn.getAttribute('data-token') || '';
+  var eta = btn.getAttribute('data-eta') || '';
   var msg = '', title = '';
   if (type === 'sameday') {
     title = 'Delivery Text';
     var fdate = fmtDateStr(date);
     var url = token ? 'https://bccsms-27c55.web.app/?token=' + token : 'https://bccsms-27c55.web.app/';
-    msg = 'This is Ben\'s Contractor Center. Your delivery to ' + address + ' is scheduled for ' + fdate + '.  Track your BCC delivery here: ' + url;
+    var win = fmtEtaHourWindow(eta);
+    // Omitted entirely when there's no ETA — a promise with a blank time in it
+    // is worse than not making one.
+    var etaLine = win
+      ? ' Currently, the ETA is ' + win + '. If anything changes we will let you know right away.'
+      : '';
+    msg = 'This is Ben\'s Contractor Center. Your delivery to ' + address
+        + ' is scheduled for ' + fdate + '.' + etaLine
+        + '  Track your BCC delivery here: ' + url;
   }
   document.getElementById('tpl-title').textContent = title;
   document.getElementById('tpl-body').value = msg;
