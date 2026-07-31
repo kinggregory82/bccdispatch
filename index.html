@@ -706,29 +706,44 @@ function syncAgeMin(iso) {
 function renderStopAlerts(alerts, routes) {
   // A truck sitting still somewhere it has no scheduled reason to be. The
   // poller decides this — it is the only component that knows both where the
-  // truck is and where it was supposed to be — so this just renders the verdict.
-  const el = document.getElementById('sv-stop-alerts');
-  if (!el) return;
+  // truck is and where it was supposed to be — and it also reverse-geocodes the
+  // spot, so this renders a place name rather than a coordinate.
+  let el = document.getElementById('sv-stop-alerts');
+  if (!el) {
+    // Full width, directly under the header. A header pill was too quiet for
+    // something that wants a phone call.
+    const host = document.querySelector('.dx-dash') || document.getElementById('root');
+    if (!host) return;
+    el = document.createElement('div');
+    el.id = 'sv-stop-alerts';
+    host.parentNode.insertBefore(el, host);
+  }
   const list = alerts && typeof alerts === 'object' ? Object.values(alerts) : [];
   if (!list.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
-  // Name the driver rather than the asset number where we can — dispatch thinks
-  // in drivers, and the point of an alert is a phone call.
-  const who = {};
-  Object.values(routes || {}).forEach(r => {
-    if (r && r.asset && r.driver) who[String(r.asset).trim()] = r.driver;
-  });
-  el.style.display = 'flex';
-  el.style.cssText += ';flex-wrap:wrap;gap:6px;align-items:center;margin-left:10px';
+  el.style.cssText = 'display:block;background:#7f1d1d;border-bottom:2px solid #c41230;'
+    + 'padding:8px 16px;font-family:Oswald,sans-serif;flex:0 0 auto';
   el.innerHTML = list.map(a => {
-    const label = who[String(a.asset).trim()] || a.asset;
-    return '<a href="'+esc(a.mapUrl||'#')+'" target="_blank" rel="noopener" '
-      +'title="Parked '+esc(String(a.minutes))+' min, '+esc(String(a.nearestStopMi))
-      +' mi from the nearest scheduled stop — click to see where" '
-      +'style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;'
-      +'font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.05em;'
-      +'text-transform:uppercase;border-radius:3px;text-decoration:none;color:#ef9a9a;'
-      +'background:rgba(196,18,48,.12);border:1px solid rgba(196,18,48,.45)">'
-      +'\u26A0 '+esc(label)+' stopped '+esc(String(a.minutes))+'m</a>';
+    const who   = esc(a.driver || a.assetDesc || a.asset || 'Unknown truck');
+    const truck = a.driver && a.asset ? ' <span style="opacity:.7;font-weight:400">('+esc(a.asset)+')</span>' : '';
+    const where = esc(a.place || ((a.lat||'') + ', ' + (a.lon||'')));
+    const from  = a.nearestStop
+        ? esc(String(a.nearestStopMi)) + ' mi from ' + esc(a.nearestStop)
+        : esc(String(a.nearestStopMi)) + ' mi from its nearest stop';
+    return '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;'
+      + 'padding:3px 0;color:#fff;font-size:13px">'
+      + '<span style="font-weight:700;letter-spacing:.04em;text-transform:uppercase;'
+      + 'font-size:12px;color:#ffd7d7">\u26A0 Unexpected stop</span>'
+      + '<span style="font-weight:700;font-size:14px">'+who+truck+'</span>'
+      + '<span style="opacity:.9">stopped '+esc(String(a.minutes))+' min'
+      + (a.sinceLocal ? ' since '+esc(a.sinceLocal) : '')+'</span>'
+      + '<span style="opacity:.9">at <b>'+where+'</b></span>'
+      + '<span style="opacity:.75">'+from+'</span>'
+      + '<a href="'+esc(a.mapUrl||'#')+'" target="_blank" rel="noopener" '
+      + 'style="margin-left:auto;color:#fff;background:rgba(255,255,255,.14);'
+      + 'border:1px solid rgba(255,255,255,.3);border-radius:3px;padding:2px 9px;'
+      + 'font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;'
+      + 'text-decoration:none;white-space:nowrap">Map</a>'
+      + '</div>';
   }).join('');
 }
 
@@ -1488,7 +1503,7 @@ function renderApp() {
         <button class="dx-header-cal-btn" onclick="openCalPicker()">&#128197;</button>
       </div>
       <div class="dx-sync" id="sv-sync" title="Time since the poller last wrote data"></div>
-      <div id="sv-stop-alerts" style="display:none"></div>
+
       <div class="dx-user">
         <span>BCC <b>Dispatcher</b></span>
         <div class="dx-avatar">D</div>
