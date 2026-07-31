@@ -703,6 +703,35 @@ function syncAgeMin(iso) {
   if (isNaN(t)) return null;
   return (Date.now() - t) / 60000;
 }
+function renderStopAlerts(alerts, routes) {
+  // A truck sitting still somewhere it has no scheduled reason to be. The
+  // poller decides this — it is the only component that knows both where the
+  // truck is and where it was supposed to be — so this just renders the verdict.
+  const el = document.getElementById('sv-stop-alerts');
+  if (!el) return;
+  const list = alerts && typeof alerts === 'object' ? Object.values(alerts) : [];
+  if (!list.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  // Name the driver rather than the asset number where we can — dispatch thinks
+  // in drivers, and the point of an alert is a phone call.
+  const who = {};
+  Object.values(routes || {}).forEach(r => {
+    if (r && r.asset && r.driver) who[String(r.asset).trim()] = r.driver;
+  });
+  el.style.display = 'flex';
+  el.style.cssText += ';flex-wrap:wrap;gap:6px;align-items:center;margin-left:10px';
+  el.innerHTML = list.map(a => {
+    const label = who[String(a.asset).trim()] || a.asset;
+    return '<a href="'+esc(a.mapUrl||'#')+'" target="_blank" rel="noopener" '
+      +'title="Parked '+esc(String(a.minutes))+' min, '+esc(String(a.nearestStopMi))
+      +' mi from the nearest scheduled stop — click to see where" '
+      +'style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;'
+      +'font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.05em;'
+      +'text-transform:uppercase;border-radius:3px;text-decoration:none;color:#ef9a9a;'
+      +'background:rgba(196,18,48,.12);border:1px solid rgba(196,18,48,.45)">'
+      +'\u26A0 '+esc(label)+' stopped '+esc(String(a.minutes))+'m</a>';
+  }).join('');
+}
+
 function renderSync(sync) {
   const el = document.getElementById('sv-sync');
   if (!el) return;
@@ -771,13 +800,14 @@ async function loadAndRender(silent=false) {
   if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua, seen, sync] = await Promise.all([
+    const [live, arch, mil, ua, seen, sync, stopAlerts] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/routes/UNASSIGNED.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/orderFirstSeen.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/sync.json').then(r=>r.json()).catch(()=>null),
+      fetch(DB+'/alerts/unexpectedStops.json').then(r=>r.json()).catch(()=>null),
     ]);
     if (live && live.error) throw new Error('Firebase: ' + live.error);
     const routes = (live && typeof live === 'object') ? live : {};
@@ -785,6 +815,7 @@ async function loadAndRender(silent=false) {
     if (ua) routes['UNASSIGNED'] = ua;
     window._firstSeen = seen || {};
     renderSync(sync);
+    renderStopAlerts(stopAlerts, routes);
     S.lastRoutes = routes;
     S.lastDk = dk;
     renderStats(routes, dk, mil);
@@ -1457,6 +1488,7 @@ function renderApp() {
         <button class="dx-header-cal-btn" onclick="openCalPicker()">&#128197;</button>
       </div>
       <div class="dx-sync" id="sv-sync" title="Time since the poller last wrote data"></div>
+      <div id="sv-stop-alerts" style="display:none"></div>
       <div class="dx-user">
         <span>BCC <b>Dispatcher</b></span>
         <div class="dx-avatar">D</div>
