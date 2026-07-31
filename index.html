@@ -1188,39 +1188,28 @@ function addrBadgeHTML(s){
 }
 
 function validateBtnHTML(s){
-  // Only offered when something is wrong with the address, and it deliberately
-  // opens the coordinate the SYSTEM resolved — not a fresh Maps search of the
-  // address text. The whole point is to see where the pin actually landed,
-  // because that pin is what the ETA is measured to and what DQ uses as the
-  // geofence centre. Searching the text would just show where it OUGHT to be
-  // and hide the very mismatch we're checking for.
+  // Only offered when something is wrong with the address.
+  //
+  // This searches the ADDRESS TEXT, not the coordinate our geocoder produced.
+  // Those answer different questions and this is the more useful one: the
+  // coordinate tells you where we ended up, but searching the text tells you
+  // whether the address is real as written. Typing "695 GREENING, APPLEGATE"
+  // into Maps is exactly what exposed that no such number exists in Applegate
+  // and the place is really in Port Sanilac — a pin could never have shown
+  // that, it just sat in a field looking plausible.
   const q = (s.addrCheck && s.addrCheck.risk) ? s.addrCheck : addrQuality(s.address);
   if(q.risk === 'ok') return '';
-  const c = s.coords;
-  const ok = Array.isArray(c) && c.length >= 2 && isFinite(c[0]) && isFinite(c[1]);
-  if(!ok){
-    // No coordinate at all means the geocoder gave up on this address. That is
-    // worse than a wrong pin, not better, so say so rather than showing nothing.
-    return '<span title="No coordinate resolved for this address" '
+  const addr = (s.address || '').trim();
+  if(!addr){
+    return '<span title="No address on this order to check" '
       +'style="display:inline-flex;align-items:center;padding:3px 8px;margin-left:4px;'
       +'font-size:12px;border-radius:3px;border:1px dashed #fca5a5;color:#b91c1c;'
-      +'background:#fef2f2;vertical-align:middle;white-space:nowrap">No map pin</span>';
+      +'background:#fef2f2;vertical-align:middle;white-space:nowrap">No address</span>';
   }
-  // Satellite, pinned at the exact coordinate. Two deliberate choices:
-  //
-  //   /maps/place/<lat>,<lon>/  labels the pin with the coordinate itself. The
-  //   ?q= form reverse-geocodes it to the nearest named feature, which out in
-  //   the county is nearly always a road junction — accurate pin, useless
-  //   caption, and it invites you to judge the wrong thing.
-  //
-  //   data=!3m1!1e3 is satellite. A road map shows a line on a road whether or
-  //   not anything is there; imagery shows a house, a driveway, a stacked
-  //   jobsite, or an empty field. "Is this a real delivery point" is a question
-  //   about what's on the ground.
-  const ll = c[0] + ',' + c[1];
-  const url = 'https://www.google.com/maps/place/' + ll + '/@' + ll + ',18z/data=!3m1!1e3';
+  const url = 'https://www.google.com/maps/search/?api=1&query='
+            + encodeURIComponent(addr);
   return '<a href="'+url+'" target="_blank" rel="noopener" '
-    +'title="Opens the coordinate this address resolved to \u2014 check it is the right place" '
+    +'title="Look this address up in Google Maps exactly as it was entered" '
     +'style="display:inline-flex;align-items:center;justify-content:center;gap:4px;'
     +'padding:3px 8px;margin-left:4px;background:#fef2f2;color:#b91c1c;font-size:12px;'
     +'border-radius:3px;border:1px solid #fca5a5;cursor:pointer;text-decoration:none;'
