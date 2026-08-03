@@ -703,7 +703,7 @@ function syncAgeMin(iso) {
   if (isNaN(t)) return null;
   return (Date.now() - t) / 60000;
 }
-function renderStopAlerts(alerts, routes) {
+function renderStopAlerts(alerts, routes, notes) {
   // Unscheduled stops for the day being viewed: asset, dwell, location.
   //
   // ALWAYS RENDERS, including a zero. Hiding the bar when nothing has fired
@@ -711,6 +711,9 @@ function renderStopAlerts(alerts, routes) {
   // identical from the board, which is the same silent-failure the sync pill
   // exists to prevent. A visible 0 is the evidence that it ran.
   let el = document.getElementById('sv-stop-alerts');
+  // Don't blow away a note being typed when the 120s refresh lands.
+  if (el && el.contains(document.activeElement)
+         && document.activeElement.classList.contains('sv-stop-note')) return;
   if (!el) {
     const host = document.querySelector('.dx-dash') || document.getElementById('root');
     if (!host) return;
@@ -718,8 +721,10 @@ function renderStopAlerts(alerts, routes) {
     el.id = 'sv-stop-alerts';
     host.parentNode.insertBefore(el, host);
   }
-  const list = alerts && typeof alerts === 'object' ? Object.values(alerts) : [];
+  // entries, not values -- the record key is what a note is filed under
+  const list = alerts && typeof alerts === 'object' ? Object.entries(alerts) : [];
   const none = list.length === 0;
+  window._stopNotes = notes && typeof notes === 'object' ? notes : {};
 
   el.style.cssText = 'display:block;font-family:Oswald,sans-serif;flex:0 0 auto;'
     + 'padding:' + (none ? '4px 16px' : '6px 16px') + ';'
@@ -736,20 +741,65 @@ function renderStopAlerts(alerts, routes) {
     return;
   }
 
-  list.sort((a,b) => (b.active?1:0)-(a.active?1:0) || (b.dwellMin||b.minutes||0)-(a.dwellMin||a.minutes||0));
+  list.sort((x,y) => {
+    const a = x[1], b = y[1];
+    return (b.active?1:0)-(a.active?1:0) || (b.dwellMin||b.minutes||0)-(a.dwellMin||a.minutes||0);
+  });
   el.innerHTML = '<div style="display:flex;gap:10px;align-items:baseline;margin-bottom:3px">'
     + label + '<span style="color:#fff;font-size:12px;font-weight:700">'+list.length+'</span></div>'
-    + list.map(a => {
+    + list.map(([key, a]) => {
         const mins = a.dwellMin != null ? a.dwellMin : (a.minutes||0);
+        const note = (window._stopNotes && window._stopNotes[key]) || '';
         return '<div style="display:flex;gap:14px;align-items:baseline;padding:2px 0;color:#fff;'
           + 'font-size:13px;opacity:' + (a.active ? '1' : '.75') + '">'
           + '<span style="font-weight:700;min-width:150px">'+esc(a.asset||'')+'</span>'
           + '<span style="min-width:70px;font-weight:700">'+esc(String(mins))+' min</span>'
           + '<a href="'+esc(a.mapUrl||'#')+'" target="_blank" rel="noopener" '
-          + 'style="color:#fff;text-decoration:underline;text-underline-offset:2px">'
+          + 'style="color:#fff;text-decoration:underline;text-underline-offset:2px;min-width:320px">'
           + esc(a.place || ((a.lat||'')+', '+(a.lon||''))) + '</a>'
+          + '<input class="sv-stop-note" data-key="'+esc(key)+'" value="'+esc(note)+'" '
+          + 'placeholder="Add note" title="Why this stop happened. Saved to the day, not overwritten by the poller." '
+          + 'style="flex:1;min-width:180px;font:inherit;font-size:12px;color:#fff;padding:2px 7px;'
+          + 'background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.30);border-radius:2px">'
           + '</div>';
       }).join('');
+
+  if (!el.dataset.noteWired) {
+    el.dataset.noteWired = '1';
+    el.addEventListener('change', ev => {
+      const inp = ev.target;
+      if (inp && inp.classList.contains('sv-stop-note')) saveStopNote(inp);
+    });
+  }
+}
+
+// Notes on unscheduled stops live in their OWN node, alerts/stopNotes/{date}/{key}.
+// They can't ride on the alert record itself: detect_unexpected_stops() in
+// dq_poller_v2.py rewrites that dict every poll while the truck is still parked,
+// so anything written there is gone within two minutes. Separate node means this
+// is a board-only change with no poller edit.
+async function saveStopNote(inp) {
+  const key = inp.dataset.key;
+  if (!key) return;
+  const val = inp.value.trim();
+  const dk  = S.lastDk || dateKey();
+  const url = DB + '/alerts/stopNotes/' + dk + '/' + encodeURIComponent(key) + '.json';
+  window._stopNotes = window._stopNotes || {};
+  const prevBorder = '1px solid rgba(255,255,255,.30)';
+  inp.style.border = '1px solid rgba(255,255,255,.55)';
+  try {
+    const res = val
+      ? await fetch(url, { method: 'PUT', body: JSON.stringify(val) })
+      : await fetch(url, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (val) window._stopNotes[key] = val; else delete window._stopNotes[key];
+    inp.style.border = prevBorder;
+    inp.title = 'Saved';
+  } catch (e) {
+    // Say so rather than losing it quietly -- the text stays in the box to retype or copy.
+    inp.style.border = '2px solid #ffd7d7';
+    inp.title = 'NOT SAVED: ' + e.message + ' — the text is still here, try again.';
+  }
 }
 
 function renderSync(sync) {
@@ -820,7 +870,7 @@ async function loadAndRender(silent=false) {
   if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua, seen, sync, stopAlerts] = await Promise.all([
+    const [live, arch, mil, ua, seen, sync, stopAlerts, stopNotes] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
@@ -828,6 +878,7 @@ async function loadAndRender(silent=false) {
       fetch(DB+'/orderFirstSeen.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/sync.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/alerts/unexpectedStops/'+dk+'.json').then(r=>r.json()).catch(()=>null),
+      fetch(DB+'/alerts/stopNotes/'+dk+'.json').then(r=>r.json()).catch(()=>null),
     ]);
     if (live && live.error) throw new Error('Firebase: ' + live.error);
     const routes = (live && typeof live === 'object') ? live : {};
@@ -835,7 +886,7 @@ async function loadAndRender(silent=false) {
     if (ua) routes['UNASSIGNED'] = ua;
     window._firstSeen = seen || {};
     renderSync(sync);
-    renderStopAlerts(stopAlerts, routes);
+    renderStopAlerts(stopAlerts, routes, stopNotes);
     S.lastRoutes = routes;
     S.lastDk = dk;
     renderStats(routes, dk, mil);
