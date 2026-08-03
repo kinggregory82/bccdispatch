@@ -703,6 +703,12 @@ function syncAgeMin(iso) {
   if (isNaN(t)) return null;
   return (Date.now() - t) / 60000;
 }
+function fmtStopMins(m) {
+  m = Math.round(m || 0);
+  if (m < 60) return m + ' min';
+  const h = Math.floor(m / 60), r = m % 60;
+  return h + 'h' + (r ? ' ' + r + 'm' : '');
+}
 function renderStopAlerts(alerts, routes, notes) {
   // Unscheduled stops for the day being viewed: asset, dwell, location.
   //
@@ -727,9 +733,10 @@ function renderStopAlerts(alerts, routes, notes) {
   const list = alerts && typeof alerts === 'object' ? Object.entries(alerts) : [];
   const none = list.length === 0;
   window._stopNotes = notes && typeof notes === 'object' ? notes : {};
+  window._lastStopAlerts = alerts || null;
 
   el.style.cssText = 'display:block;font-family:Oswald,sans-serif;flex:0 0 auto;'
-    + 'padding:' + (none ? '4px 16px' : '6px 16px') + ';'
+    + 'padding:' + (none || window._stopAlertsOpen !== true ? '4px 16px' : '6px 16px') + ';'
     + (none ? 'background:#1b1d20;border-bottom:1px solid #2f3338;'
             : 'background:#7f1d1d;border-bottom:2px solid #c41230;');
 
@@ -747,8 +754,25 @@ function renderStopAlerts(alerts, routes, notes) {
     const a = x[1], b = y[1];
     return (b.active?1:0)-(a.active?1:0) || (b.dwellMin||b.minutes||0)-(a.dwellMin||a.minutes||0);
   });
-  el.innerHTML = '<div style="display:flex;gap:10px;align-items:baseline;margin-bottom:3px">'
-    + label + '<span style="color:#fff;font-size:12px;font-weight:700">'+list.length+'</span></div>'
+  // Collapsed by default -- the bar states the case in one line (how many,
+  // how long) and the rows only open when the dispatcher asks for them.
+  const totalMin = list.reduce((t, [k, a]) =>
+    t + (a.dwellMin != null ? a.dwellMin : (a.minutes || 0)), 0);
+  const liveCount = list.filter(([k, a]) => a.active).length;
+  const open = window._stopAlertsOpen === true;
+
+  el.innerHTML = '<div class="sv-stop-head" title="Click to ' + (open ? 'collapse' : 'expand') + '" '
+    + 'style="display:flex;gap:12px;align-items:baseline;cursor:pointer;user-select:none'
+    + (open ? ';margin-bottom:4px' : '') + '">'
+    + label
+    + '<span style="color:#fff;font-size:12px;font-weight:700">'+list.length+'</span>'
+    + '<span style="color:#ffd7d7;font-size:12px;font-weight:700">'+fmtStopMins(totalMin)+' total</span>'
+    + (liveCount ? '<span style="color:#ffd7d7;font-size:12px">'+liveCount+' still parked</span>' : '')
+    + '<span style="margin-left:auto;color:#ffd7d7;font-size:11px;font-weight:700;'
+    + 'letter-spacing:.07em;text-transform:uppercase">'
+    + (open ? 'Hide &#9650;' : 'Show &#9660;') + '</span>'
+    + '</div>'
+    + '<div id="sv-stop-detail" style="display:' + (open ? 'block' : 'none') + '">'
     + list.map(([key, a]) => {
         const mins = a.dwellMin != null ? a.dwellMin : (a.minutes||0);
         const note = (window._stopNotes && window._stopNotes[key]) || '';
@@ -764,13 +788,20 @@ function renderStopAlerts(alerts, routes, notes) {
           + 'style="flex:1;min-width:180px;font:inherit;font-size:12px;color:#fff;padding:2px 7px;'
           + 'background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.30);border-radius:2px">'
           + '</div>';
-      }).join('');
+      }).join('')
+    + '</div>';
 
   if (!el.dataset.noteWired) {
     el.dataset.noteWired = '1';
     el.addEventListener('change', ev => {
       const inp = ev.target;
       if (inp && inp.classList.contains('sv-stop-note')) saveStopNote(inp);
+    });
+    el.addEventListener('click', ev => {
+      if (ev.target.closest && ev.target.closest('.sv-stop-head')) {
+        window._stopAlertsOpen = !window._stopAlertsOpen;
+        renderStopAlerts(window._lastStopAlerts, null, window._stopNotes);
+      }
     });
   }
 }
