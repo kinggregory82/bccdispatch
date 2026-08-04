@@ -709,17 +709,18 @@ function fmtStopMins(m) {
   const h = Math.floor(m / 60), r = m % 60;
   return h + 'h' + (r ? ' ' + r + 'm' : '');
 }
-function renderStopAlerts(alerts, routes, notes) {
-  // Unscheduled stops for the day being viewed: asset, dwell, location.
+function renderStopAlerts(alerts) {
+  // Unscheduled stops for the day being viewed, as a per-TRUCK chart:
+  // how many stops and how long, one row each. Individual stops are a
+  // drill-down, not the default view -- the question the board answers is
+  // "which truck is losing time", and the where/when only matters once a
+  // truck has been picked.
   //
   // ALWAYS RENDERS, including a zero. Hiding the bar when nothing has fired
   // makes "no unscheduled stops today" and "the check isn't running" look
   // identical from the board, which is the same silent-failure the sync pill
   // exists to prevent. A visible 0 is the evidence that it ran.
   let el = document.getElementById('sv-stop-alerts');
-  // Don't blow away a note being typed when the 120s refresh lands.
-  if (el && el.contains(document.activeElement)
-         && document.activeElement.classList.contains('sv-stop-note')) return;
   if (!el) {
     // Lives inside the scrolling route column so it scrolls away with the page
     // instead of sitting frozen above it.
@@ -729,14 +730,14 @@ function renderStopAlerts(alerts, routes, notes) {
     el.id = 'sv-stop-alerts';
     host.insertBefore(el, host.firstChild);
   }
-  // entries, not values -- the record key is what a note is filed under
-  const list = alerts && typeof alerts === 'object' ? Object.entries(alerts) : [];
+
+  const list = alerts && typeof alerts === 'object' ? Object.values(alerts) : [];
   const none = list.length === 0;
-  window._stopNotes = notes && typeof notes === 'object' ? notes : {};
   window._lastStopAlerts = alerts || null;
+  const open = window._stopAlertsOpen === true;
 
   el.style.cssText = 'display:block;font-family:Oswald,sans-serif;flex:0 0 auto;'
-    + 'padding:' + (none || window._stopAlertsOpen !== true ? '4px 16px' : '6px 16px') + ';'
+    + 'padding:' + (none || !open ? '4px 16px' : '6px 16px 8px') + ';'
     + (none ? 'background:#1b1d20;border-bottom:1px solid #2f3338;'
             : 'background:#7f1d1d;border-bottom:2px solid #c41230;');
 
@@ -750,20 +751,30 @@ function renderStopAlerts(alerts, routes, notes) {
     return;
   }
 
-  list.sort((x,y) => {
-    const a = x[1], b = y[1];
-    return (b.active?1:0)-(a.active?1:0) || (b.dwellMin||b.minutes||0)-(a.dwellMin||a.minutes||0);
+  // Roll the individual stops up per asset -- that is the whole change.
+  const byAsset = {};
+  list.forEach(a => {
+    const k = a.asset || '\u2014';
+    const t = byAsset[k] || (byAsset[k] = { asset: k, count: 0, mins: 0, live: 0, stops: [] });
+    t.count++;
+    t.mins += (a.dwellMin != null ? a.dwellMin : (a.minutes || 0));
+    if (a.active) t.live++;
+    t.stops.push(a);
   });
-  // Collapsed by default -- the bar states the case in one line (how many,
-  // how long) and the rows only open when the dispatcher asks for them.
-  const totalMin = list.reduce((t, [k, a]) =>
-    t + (a.dwellMin != null ? a.dwellMin : (a.minutes || 0)), 0);
-  const liveCount = list.filter(([k, a]) => a.active).length;
-  const open = window._stopAlertsOpen === true;
+  const trucks = Object.values(byAsset)
+    .sort((x, y) => y.mins - x.mins || y.count - x.count);
+  trucks.forEach(t => t.stops.sort((p, q) =>
+    (q.active?1:0)-(p.active?1:0)
+    || ((q.dwellMin!=null?q.dwellMin:q.minutes||0) - (p.dwellMin!=null?p.dwellMin:p.minutes||0))));
+
+  const totalMin  = trucks.reduce((n, t) => n + t.mins, 0);
+  const liveCount = trucks.reduce((n, t) => n + t.live, 0);
+  const worst     = Math.max(1, ...trucks.map(t => t.mins));
+  const sel       = window._stopAsset || null;
 
   el.innerHTML = '<div class="sv-stop-head" title="Click to ' + (open ? 'collapse' : 'expand') + '" '
     + 'style="display:flex;gap:12px;align-items:baseline;cursor:pointer;user-select:none'
-    + (open ? ';margin-bottom:4px' : '') + '">'
+    + (open ? ';margin-bottom:6px' : '') + '">'
     + label
     + '<span style="color:#fff;font-size:12px;font-weight:700">'+list.length+'</span>'
     + '<span style="color:#ffd7d7;font-size:12px;font-weight:700">'+fmtStopMins(totalMin)+' total</span>'
@@ -773,66 +784,64 @@ function renderStopAlerts(alerts, routes, notes) {
     + (open ? 'Hide &#9650;' : 'Show &#9660;') + '</span>'
     + '</div>'
     + '<div id="sv-stop-detail" style="display:' + (open ? 'block' : 'none') + '">'
-    + list.map(([key, a]) => {
-        const mins = a.dwellMin != null ? a.dwellMin : (a.minutes||0);
-        const note = (window._stopNotes && window._stopNotes[key]) || '';
-        return '<div style="display:flex;gap:14px;align-items:baseline;padding:2px 0;color:#fff;'
-          + 'font-size:13px;opacity:' + (a.active ? '1' : '.75') + '">'
-          + '<span style="font-weight:700;min-width:150px">'+esc(a.asset||'')+'</span>'
-          + '<span style="min-width:70px;font-weight:700">'+esc(String(mins))+' min</span>'
-          + '<a href="'+esc(a.mapUrl||'#')+'" target="_blank" rel="noopener" '
-          + 'style="color:#fff;text-decoration:underline;text-underline-offset:2px;min-width:320px">'
-          + esc(a.place || ((a.lat||'')+', '+(a.lon||''))) + '</a>'
-          + '<input class="sv-stop-note" data-key="'+esc(key)+'" value="'+esc(note)+'" '
-          + 'placeholder="Add note" title="Why this stop happened. Saved to the day, not overwritten by the poller." '
-          + 'style="flex:1;min-width:180px;font:inherit;font-size:12px;color:#fff;padding:2px 7px;'
-          + 'background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.30);border-radius:2px">'
-          + '</div>';
-      }).join('')
+    + trucks.map(t => stopTruckRow(t, worst, sel === t.asset)).join('')
     + '</div>';
 
-  if (!el.dataset.noteWired) {
-    el.dataset.noteWired = '1';
-    el.addEventListener('change', ev => {
-      const inp = ev.target;
-      if (inp && inp.classList.contains('sv-stop-note')) saveStopNote(inp);
-    });
+  if (!el.dataset.stopWired) {
+    el.dataset.stopWired = '1';
     el.addEventListener('click', ev => {
       if (ev.target.closest && ev.target.closest('.sv-stop-head')) {
         window._stopAlertsOpen = !window._stopAlertsOpen;
-        renderStopAlerts(window._lastStopAlerts, null, window._stopNotes);
+        renderStopAlerts(window._lastStopAlerts);
+        return;
+      }
+      const row = ev.target.closest && ev.target.closest('.sv-stop-truck');
+      if (row && !ev.target.closest('a')) {
+        // Drill into one truck; clicking it again closes it.
+        window._stopAsset = window._stopAsset === row.dataset.asset ? null : row.dataset.asset;
+        renderStopAlerts(window._lastStopAlerts);
       }
     });
   }
 }
 
-// Notes on unscheduled stops live in their OWN node, alerts/stopNotes/{date}/{key}.
-// They can't ride on the alert record itself: detect_unexpected_stops() in
-// dq_poller_v2.py rewrites that dict every poll while the truck is still parked,
-// so anything written there is gone within two minutes. Separate node means this
-// is a board-only change with no poller edit.
-async function saveStopNote(inp) {
-  const key = inp.dataset.key;
-  if (!key) return;
-  const val = inp.value.trim();
-  const dk  = S.lastDk || dateKey();
-  const url = DB + '/alerts/stopNotes/' + dk + '/' + encodeURIComponent(key) + '.json';
-  window._stopNotes = window._stopNotes || {};
-  const prevBorder = '1px solid rgba(255,255,255,.30)';
-  inp.style.border = '1px solid rgba(255,255,255,.55)';
-  try {
-    const res = val
-      ? await fetch(url, { method: 'PUT', body: JSON.stringify(val) })
-      : await fetch(url, { method: 'DELETE' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    if (val) window._stopNotes[key] = val; else delete window._stopNotes[key];
-    inp.style.border = prevBorder;
-    inp.title = 'Saved';
-  } catch (e) {
-    // Say so rather than losing it quietly -- the text stays in the box to retype or copy.
-    inp.style.border = '2px solid #ffd7d7';
-    inp.title = 'NOT SAVED: ' + e.message + ' — the text is still here, try again.';
-  }
+// One truck: asset, a bar for elapsed time, count and total. Expands to its
+// individual stops when selected.
+function stopTruckRow(t, worst, selected) {
+  const pct = Math.max(3, Math.round(t.mins / worst * 100));
+  const bar = '<span style="flex:1;min-width:80px;max-width:340px;height:9px;'
+    + 'background:rgba(0,0,0,.30);border-radius:2px;overflow:hidden;display:inline-block">'
+    + '<span style="display:block;height:100%;width:'+pct+'%;'
+    + 'background:' + (t.live ? '#ffd7d7' : 'rgba(255,255,255,.62)') + '"></span></span>';
+
+  let head = '<div class="sv-stop-truck" data-asset="'+esc(t.asset)+'" '
+    + 'title="Click for the individual stops" '
+    + 'style="display:flex;gap:14px;align-items:center;padding:3px 0;color:#fff;font-size:13px;'
+    + 'cursor:pointer;user-select:none;opacity:' + (t.live ? '1' : '.8') + '">'
+    + '<span style="font-size:11px;width:10px;color:#ffd7d7">' + (selected ? '&#9660;' : '&#9654;') + '</span>'
+    + '<span style="font-weight:700;min-width:150px">'+esc(t.asset)+'</span>'
+    + '<span style="min-width:56px;font-weight:700">'+t.count+'</span>'
+    + '<span style="min-width:74px;font-weight:700">'+esc(fmtStopMins(t.mins))+'</span>'
+    + bar
+    + (t.live ? '<span style="font-size:11px;color:#ffd7d7;min-width:64px">'+t.live+' parked</span>'
+              : '<span style="min-width:64px"></span>')
+    + '</div>';
+
+  if (!selected) return head;
+
+  return head + '<div style="padding:2px 0 8px 24px">'
+    + t.stops.map(a => {
+        const mins = a.dwellMin != null ? a.dwellMin : (a.minutes || 0);
+        return '<div style="display:flex;gap:14px;align-items:baseline;padding:2px 0;'
+          + 'color:#fff;font-size:12.5px;opacity:' + (a.active ? '1' : '.75') + '">'
+          + '<span style="min-width:74px;font-weight:700">'+esc(String(mins))+' min</span>'
+          + '<span style="min-width:80px;color:#ffd7d7">'+esc(a.sinceLocal || '')+'</span>'
+          + '<a href="'+esc(a.mapUrl||'#')+'" target="_blank" rel="noopener" '
+          + 'style="color:#fff;text-decoration:underline;text-underline-offset:2px">'
+          + esc(a.place || ((a.lat||'')+', '+(a.lon||''))) + '</a>'
+          + '</div>';
+      }).join('')
+    + '</div>';
 }
 
 function renderSync(sync) {
@@ -903,7 +912,7 @@ async function loadAndRender(silent=false) {
   if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua, seen, sync, stopAlerts, stopNotes] = await Promise.all([
+    const [live, arch, mil, ua, seen, sync, stopAlerts] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
@@ -911,7 +920,6 @@ async function loadAndRender(silent=false) {
       fetch(DB+'/orderFirstSeen.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/sync.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/alerts/unexpectedStops/'+dk+'.json').then(r=>r.json()).catch(()=>null),
-      fetch(DB+'/alerts/stopNotes/'+dk+'.json').then(r=>r.json()).catch(()=>null),
     ]);
     if (live && live.error) throw new Error('Firebase: ' + live.error);
     const routes = (live && typeof live === 'object') ? live : {};
@@ -919,7 +927,7 @@ async function loadAndRender(silent=false) {
     if (ua) routes['UNASSIGNED'] = ua;
     window._firstSeen = seen || {};
     renderSync(sync);
-    renderStopAlerts(stopAlerts, routes, stopNotes);
+    renderStopAlerts(stopAlerts);
     S.lastRoutes = routes;
     S.lastDk = dk;
     renderStats(routes, dk, mil);
