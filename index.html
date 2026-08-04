@@ -965,7 +965,7 @@ async function editDriverName(el) {
 // writes dqOrderTs and a first-seen stamp. And `new Date('2026-07-28')` parses as
 // UTC midnight while `new Date('2026-07-28T00:00:00')` parses as local, so the old
 // code was comparing two clocks four hours apart in opposite directions.
-function orderEnteredAt(s){
+function orderEnteredAt(s, rd){
   // The DATE always comes from DQ. Only the TIME is uncertain, so refine it and
   // never let a first-seen stamp move an order onto a different calendar day —
   // otherwise every old order the poller meets on its first run looks same-day.
@@ -979,17 +979,37 @@ function orderEnteredAt(s){
     const d = new Date(ts);
     if(!isNaN(d)) return d;
   }
-  const fs = (window._firstSeen||{})[s.orderNumber||''];
-  if(fs){
-    const d = new Date(fs);
-    if(!isNaN(d) && d.getFullYear()===day.getFullYear()
-       && d.getMonth()===day.getMonth() && d.getDate()===day.getDate()) return d;
+  const fsRaw = (window._firstSeen||{})[s.orderNumber||''];
+  const fs = fsRaw ? new Date(fsRaw) : null;
+  if(fs && !isNaN(fs)){
+    if(fs.getFullYear()===day.getFullYear()
+       && fs.getMonth()===day.getMonth() && fs.getDate()===day.getDate()) return fs;
+
+    // First seen LATER than the order date. This is the after-shift case, and
+    // the old code lost it: an order keyed at 5pm is only met by the poller the
+    // next morning, the calendar days disagree, the stamp was discarded, and the
+    // order fell back to midnight — failing the 4pm test it should have passed.
+    // If the order is dated exactly the day before the ship date, the poller was
+    // running through that day and still never saw it, so it was written after
+    // the last run. Credit it at the 4pm cutoff; the exact minute is gone.
+    // Restricted to the day-before case, which preserves the original guard —
+    // a months-old order met on a first run has no ship date next to it.
+    const ship = rd ? new Date(String(rd).slice(0,10)+'T00:00:00') : null;
+    if(ship && !isNaN(ship)){
+      const dayBefore = new Date(ship.getFullYear(), ship.getMonth(), ship.getDate()-1);
+      if(day.getTime()===dayBefore.getTime() && fs.getTime() > day.getTime()){
+        const cut = new Date(day);
+        cut.setHours(16,0,0,0);
+        cut._afterShift = true;   // so the modal shows this as inferred, not measured
+        return cut;
+      }
+    }
   }
   return day;   // date known, time unknown
 }
 function isSameDayOrder(s, rd){
   if(!rd) return false;
-  const en = orderEnteredAt(s);
+  const en = orderEnteredAt(s, rd);
   if(!en) return false;
   const ship = new Date(rd.slice(0,10)+'T00:00:00');
   if(isNaN(ship)) return false;
@@ -2183,11 +2203,12 @@ function showSameDayModal() {
   const tbody = document.getElementById('sd-tbody');
   if (!tbody) return;
   tbody.innerHTML = stops.length ? stops.map((s,i)=>{
-    const en = orderEnteredAt(s);
+    const en = orderEnteredAt(s, s.routeDate);
     const mid = en && en.getHours()===0 && en.getMinutes()===0;
     const when = !en ? '—'
       : en.toLocaleDateString(undefined,{month:'short',day:'numeric'})
-        + (mid ? ' <span style="color:#aaa">(time unknown)</span>'
+        + (en._afterShift ? ' <span style="color:#aaa">after 4pm</span>'
+           : mid ? ' <span style="color:#aaa">(time unknown)</span>'
                : ' ' + en.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
     return '<tr style="border-bottom:1px solid #f0f0f0;background:'+(i%2?'#fafafa':'#fff')+'">' +
     '<td style="padding:8px 12px;font-weight:600">'+esc(s.orderNumber||'')+
