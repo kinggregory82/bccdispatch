@@ -912,7 +912,7 @@ async function loadAndRender(silent=false) {
   if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua, seen, sync, stopAlerts] = await Promise.all([
+    const [live, arch, mil, ua, seen, sync, stopAlerts, spruce] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
@@ -920,12 +920,17 @@ async function loadAndRender(silent=false) {
       fetch(DB+'/orderFirstSeen.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/sync.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/alerts/unexpectedStops/'+dk+'.json').then(r=>r.json()).catch(()=>null),
+      // Spruce (the ERP the orders originate in) keyed by DOCUMENT id, not by
+      // DQ order number — split orders -1/-2 share one entry. Written by the
+      // poller's sync_spruce_orders(). Same pattern as orderFirstSeen.
+      fetch(DB+'/spruceOrders.json').then(r=>r.json()).catch(()=>null),
     ]);
     if (live && live.error) throw new Error('Firebase: ' + live.error);
     const routes = (live && typeof live === 'object') ? live : {};
     if (arch && typeof arch==='object') Object.entries(arch).forEach(([id,r])=>{if(!routes[id])routes[id]=r});
     if (ua) routes['UNASSIGNED'] = ua;
     window._firstSeen = seen || {};
+    window._spruce    = spruce || {};
     renderSync(sync);
     renderStopAlerts(stopAlerts);
     S.lastRoutes = routes;
@@ -973,7 +978,40 @@ async function editDriverName(el) {
 // writes dqOrderTs and a first-seen stamp. And `new Date('2026-07-28')` parses as
 // UTC midnight while `new Date('2026-07-28T00:00:00')` parses as local, so the old
 // code was comparing two clocks four hours apart in opposite directions.
+// Spruce document id for a stop: '2607-C19903-1' -> '2607-C19903'. DQ appends a
+// -N split counter, and it can be doubled ('2606-C96630-1-1'), so strip in a
+// loop. Only strip a genuine third numeric part — an invoice number like
+// '2607-491439' is two parts and must be left alone.
+function spruceDocId(orderNumber){
+  let num = (orderNumber||'').toString().trim();
+  for(;;){
+    const parts = num.split('-');
+    if(parts.length >= 3 && /^\d+$/.test(parts[parts.length-1])){
+      num = parts.slice(0,-1).join('-');
+      continue;
+    }
+    return num;
+  }
+}
+function spruceFor(s){
+  const id = spruceDocId(s && s.orderNumber);
+  if(!id) return null;
+  return (window._spruce||{})[id] || null;
+}
+
 function orderEnteredAt(s, rd){
+  // BEST SOURCE FIRST: Spruce is the ERP the order was actually keyed into, and
+  // its IssueDate carries a real clock time. DQ returns midnight for the large
+  // majority of orders, which is the whole reason the two fallbacks below exist.
+  // When Spruce has the order, nothing else is a better answer — including the
+  // calendar date, since this IS the moment of entry rather than a stamp
+  // derived from when the poller happened to notice it.
+  const sp = spruceFor(s);
+  if(sp && sp.issueDate){
+    const spd = new Date(sp.issueDate);
+    if(!isNaN(spd) && !/T00:00(:00)?(\.0+)?Z?$/.test(String(sp.issueDate).trim())) return spd;
+  }
+
   // The DATE always comes from DQ. Only the TIME is uncertain, so refine it and
   // never let a first-seen stamp move an order onto a different calendar day —
   // otherwise every old order the poller meets on its first run looks same-day.
@@ -1350,6 +1388,33 @@ function addrBadgeHTML(s){
     +esc(q.flags.join(' \u00b7 '))+'</span>';
 }
 
+function notesBadgeHTML(s){
+  // Delivery notes come from Spruce. DQ's GraphQL schema has NO delivery-notes
+  // field at all, so this content has never reached the board — 35 of 57 live
+  // orders carried one on 8/5/26. They are operational instructions, not
+  // trivia: "WANTS FIRST AM", "NO MATERIAL IS TO BE LEFT ON THE GROUND",
+  // "MUST HAVE DRIVEWAY SIGN OFF", site contacts and phone numbers.
+  const sp = spruceFor(s);
+  if(!sp) return '';
+  // Spruce wraps these at the column width of its own form, so a note arrives
+  // as several short lines. Collapse to flowing text and let the chip wrap.
+  const clean = t => (t||'').replace(/\s+/g,' ').trim();
+  const note  = clean(sp.deliveryNotes);
+  const onote = clean(sp.orderNotes);
+  const both  = [note, onote].filter(Boolean).join(' \u00b7 ');
+  if(!both) return '';
+  // Deliberately NOT red. The address badge means "something is wrong"; this
+  // means "there is an instruction here", and the two must not look alike.
+  return '<span style="display:inline-flex;align-items:flex-start;gap:5px;'
+    +'padding:3px 8px;font-size:11.5px;line-height:1.4;border:1px solid #bfdbfe;'
+    +'border-left:3px solid #2563eb;border-radius:2px;color:#1e3a8a;'
+    +'background:#eff6ff;white-space:normal;vertical-align:middle;max-width:100%">'
+    +'<span style="font-family:Oswald,sans-serif;font-size:9.5px;font-weight:700;'
+    +'letter-spacing:.06em;text-transform:uppercase;color:#2563eb;'
+    +'padding-top:1px;white-space:nowrap">Note</span>'
+    +'<span>'+esc(both)+'</span></span>';
+}
+
 function validateBtnHTML(s){
   // Only offered when something is wrong with the address.
   //
@@ -1458,7 +1523,7 @@ function renderRoutes(routes, dk) {
             +'</div>'
             +'<div class="dx-card-addr">'+esc(s.address||'')+'</div>'
             +(function(){
-                const b = addrBadgeHTML(s) + validateBtnHTML(s);
+                const b = addrBadgeHTML(s) + validateBtnHTML(s) + notesBadgeHTML(s);
                 return b ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px">'+b+'</div>' : '';
               })()
           +'</div>'
@@ -1511,7 +1576,7 @@ function renderRoutes(routes, dk) {
               // in their own wrapping flex row. The button used to live in the
               // actions column at the far end of the row, which overran that
               // cell's width and read as unrelated to the address.
-              const b = addrBadgeHTML(s) + validateBtnHTML(s);
+              const b = addrBadgeHTML(s) + validateBtnHTML(s) + notesBadgeHTML(s);
               return b ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:4px">'+b+'</div>' : '';
             })()
         +'</td>'
@@ -1883,9 +1948,15 @@ async function renderDeliveryPins(routes, dk, bounds, myGen) {
       const geo = await etrGeocode(s.address);
       if (!geo) continue;
       lat = geo.lat; lng = geo.lng;
-      fetch(DB+'/routes/'+s.routeId+'/stops/'+s.stopId+'/coords.json', {
-        method: 'PUT', body: JSON.stringify([lat, lng])
-      }).catch(() => {});
+      // Never write with a missing id: 'routes/undefined/stops/undefined' was
+      // found in Firebase on 8/5/26, and a by-path PUT CREATES whatever parent
+      // it needs, so one undefined variable silently manufactures a junk stop
+      // record that then gets scored and counted like a real one.
+      if (s.routeId && s.stopId) {
+        fetch(DB+'/routes/'+s.routeId+'/stops/'+s.stopId+'/coords.json', {
+          method: 'PUT', body: JSON.stringify([lat, lng])
+        }).catch(() => {});
+      }
     }
     const el = document.createElement('div');
     el.style.cssText = 'width:13px;height:13px;border-radius:50%;background:#4ade80;'
