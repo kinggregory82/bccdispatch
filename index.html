@@ -294,7 +294,9 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .dx-stop-row.has-addr-warn { box-shadow: inset 4px 0 0 #dc2626, 0 2px 5px rgba(0,0,0,0.14) !important;
   background: linear-gradient(180deg,#fffafa 0%,#ffecec 100%) !important; }
 .dx-stop-row.has-addr-warn:hover { box-shadow: inset 4px 0 0 #dc2626, 0 4px 14px rgba(0,0,0,0.17) !important; }
-.dx-stop-card.has-addr-warn { border-left-color:#dc2626 !important; background:#fffafa; }
+.dx-stop-card.has-addr-warn { border-left-color:#dc2626 !important;
+  background:rgba(220,38,38,0.07) !important; }
+.dx-stop-row.has-addr-warn > td { background:rgba(220,38,38,0.06) !important; }
 .dx-stop-row.is-done:hover { opacity: 1; }
 
 /* ── Mobile responsive ── */
@@ -1388,6 +1390,133 @@ function addrBadgeHTML(s){
     +esc(q.flags.join(' \u00b7 '))+'</span>';
 }
 
+// ── ORDER DETAIL POPUP ────────────────────────────────────────────────────
+// The address-reason badge and the Spruce note chip used to sit on every card
+// and made the board unreadable at a glance. Everything they carried moved in
+// here, behind one button, so a row shows only what a dispatcher scans for.
+function orderDetailBtnHTML(s){
+  const id = s.orderNumber || '';
+  if(!id) return '';
+  return '<button onclick="showOrderDetail(\'' + esc(id).replace(/'/g,"\\'") + '\');event.stopPropagation()" '
+    +'style="display:inline-flex;align-items:center;padding:3px 9px;'
+    +'background:#fff;color:#1d4ed8;font-family:Oswald,sans-serif;font-size:11px;'
+    +'font-weight:600;letter-spacing:.04em;text-transform:uppercase;'
+    +'border:1px solid #bfdbfe;border-radius:3px;cursor:pointer;white-space:nowrap">'
+    +'View Order Detail</button>';
+}
+
+function _odStamp(raw){
+  if(!raw) return '\u2014';
+  const d = new Date(raw);
+  if(isNaN(d.getTime())) return String(raw);
+  return d.toLocaleDateString('en-US',{month:'numeric',day:'numeric'}) + ' '
+       + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}).toLowerCase().replace(' ','');
+}
+
+function _odFindStop(orderNumber){
+  const rs = (typeof S !== 'undefined' && S.lastRoutes) ? S.lastRoutes : (window._routes || {});
+  for(const rid in rs){
+    const stops = (rs[rid] && rs[rid].stops) || {};
+    for(const sid in stops){
+      if(stops[sid] && stops[sid].orderNumber === orderNumber) return stops[sid];
+    }
+  }
+  return null;
+}
+
+function showOrderDetail(orderNumber){
+  const s = _odFindStop(orderNumber);
+  if(!s) return;
+  const sp   = spruceFor(s) || {};
+  const seen = (window._firstSeen || {})[orderNumber] || {};
+  const invoiced = (String(sp.docStatus) === '1');
+
+  const stamps = [
+    ['Order keyed', _odStamp(sp.issueDate || seen.orderEnteredAt || seen.dqOrderTs)],
+    ['Invoiced',    invoiced ? 'invoiced' : 'not invoiced'],
+    ['Reached DQ',  _odStamp(seen.firstSeen || seen.ts)],
+    ['Yard out',    _odStamp(s.timeOut)],
+    ['Arrived',     _odStamp(s.arrivalTime)],
+    ['Delivered',   _odStamp(s.completedAt || s.deliveryTime)]
+  ];
+
+  const clean = t => (t||'').replace(/\s+/g,' ').trim();
+  const notes = [clean(sp.deliveryNotes), clean(sp.orderNotes)].filter(Boolean);
+  const lines = Array.isArray(sp.lines) ? sp.lines : [];
+
+  const th = 'text-align:left;padding:5px 10px;border-bottom:1px solid #ddd;'
+           + 'font-family:Oswald,sans-serif;font-size:9.5px;letter-spacing:.1em;'
+           + 'text-transform:uppercase;color:#888';
+  const td = 'padding:6px 10px;border-bottom:1px solid #eee;font-size:12px';
+
+  const lineRows = lines.map(function(l){
+    return '<tr'+(l.bo?' style="background:rgba(180,83,9,0.09)"':'')+'>'
+      +'<td style="'+td+';font-family:Oswald,sans-serif">'+esc(l.item||'\u2014')+'</td>'
+      +'<td style="'+td+'">'+esc(l.desc||'')+'</td>'
+      +'<td style="'+td+';text-align:right;white-space:nowrap">'+esc(l.qty||'')+'</td>'
+      +'<td style="'+td+'">'+esc(l.um||'')+'</td></tr>';
+  }).join('');
+
+  const body =
+     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">'
+    + stamps.map(function(p){
+        return '<div><div style="font-family:Oswald,sans-serif;font-size:9.5px;letter-spacing:.12em;'
+          +'text-transform:uppercase;color:#888;margin-bottom:2px">'+esc(p[0])+'</div>'
+          +'<div style="font-size:13px;color:#222">'+esc(p[1])+'</div></div>';
+      }).join('')
+    +'</div>'
+    + (notes.length
+        ? '<div style="border-left:3px solid #2563eb;background:#eff6ff;padding:9px 12px;'
+          +'margin-bottom:16px;color:#1e3a8a;font-size:13px;line-height:1.45">'
+          + notes.map(function(n){return esc(n);}).join('<br>') + '</div>'
+        : '')
+    + '<div style="font-family:Oswald,sans-serif;font-size:10px;letter-spacing:.14em;'
+      +'text-transform:uppercase;color:#888;margin-bottom:6px">Line Items'
+      + (lines.length ? ' \u00b7 '+lines.length : '') + '</div>'
+    + (lineRows
+        ? '<table style="width:100%;border-collapse:collapse"><thead><tr>'
+          +'<th style="'+th+'">Item</th><th style="'+th+'">Description</th>'
+          +'<th style="'+th+';text-align:right">Qty</th><th style="'+th+'">UM</th>'
+          +'</tr></thead><tbody>'+lineRows+'</tbody></table>'
+          + (sp.linesTruncated
+              ? '<div style="color:#888;font-style:italic;font-size:12px;margin-top:7px">Showing the first '
+                +lines.length+' of '+esc(sp.itemLines||'?')+' lines.</div>' : '')
+        // An order the poller has not reached yet must never render as an empty
+        // order -- that reads as "nothing on it", which would be a lie.
+        : '<div style="color:#888;font-style:italic;font-size:13px">'
+          + (sp.itemLines
+              ? 'This order has '+esc(sp.itemLines)+' line(s). Detail arrives on the next Spruce refresh.'
+              : 'Line items not read from Spruce yet.')
+          +'</div>');
+
+  const ov = document.createElement('div');
+  ov.id = 'od-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;'
+    +'display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto';
+  ov.addEventListener('click', function(e){ if(e.target===ov) closeOrderDetail(); });
+  ov.innerHTML =
+     '<div style="background:#fff;border-radius:4px;max-width:820px;width:100%;'
+    +'box-shadow:0 18px 50px rgba(0,0,0,.4)">'
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;'
+    +'padding:14px 18px;border-bottom:3px solid #cc0000;background:#1a1a1a">'
+    +'<div><div style="font-family:Oswald,sans-serif;font-size:17px;font-weight:700;color:#fff;'
+    +'letter-spacing:.04em">'+esc(orderNumber)+'</div>'
+    +'<div style="font-size:12px;color:#aaa;margin-top:2px">'+esc(s.customerName||'')
+    + (s.address ? ' \u00b7 '+esc(s.address) : '')+'</div></div>'
+    +'<button onclick="closeOrderDetail()" style="background:none;border:none;color:#888;'
+    +'font-size:26px;line-height:1;cursor:pointer;padding:0 4px">&times;</button></div>'
+    +'<div style="padding:18px">'+body+'</div></div>';
+  document.body.appendChild(ov);
+  document.addEventListener('keydown', _odEsc);
+}
+
+function closeOrderDetail(){
+  const ov = document.getElementById('od-overlay');
+  if(ov) ov.remove();
+  document.removeEventListener('keydown', _odEsc);
+}
+function _odEsc(e){ if(e.key === 'Escape') closeOrderDetail(); }
+
 function notesBadgeHTML(s){
   // Delivery notes come from Spruce. DQ's GraphQL schema has NO delivery-notes
   // field at all, so this content has never reached the board — 35 of 57 live
@@ -1523,7 +1652,7 @@ function renderRoutes(routes, dk) {
             +'</div>'
             +'<div class="dx-card-addr">'+esc(s.address||'')+'</div>'
             +(function(){
-                const b = addrBadgeHTML(s) + validateBtnHTML(s) + notesBadgeHTML(s);
+                const b = validateBtnHTML(s) + orderDetailBtnHTML(s);
                 return b ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px">'+b+'</div>' : '';
               })()
           +'</div>'
@@ -1576,7 +1705,7 @@ function renderRoutes(routes, dk) {
               // in their own wrapping flex row. The button used to live in the
               // actions column at the far end of the row, which overran that
               // cell's width and read as unrelated to the address.
-              const b = addrBadgeHTML(s) + validateBtnHTML(s) + notesBadgeHTML(s);
+              const b = validateBtnHTML(s) + orderDetailBtnHTML(s);
               return b ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:4px">'+b+'</div>' : '';
             })()
         +'</td>'
