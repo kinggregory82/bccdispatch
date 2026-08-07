@@ -378,7 +378,7 @@ const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
 // Bumped by hand on every hand-off. It renders in the header under "Tracking
 // Interface", so one look at the page says which copy is actually live --
 // cheaper than view-source hunting after a deploy.
-const BUILD_TAG = 'b.2026-08-07e';
+const BUILD_TAG = 'b.2026-08-07f';
 
 // The BCC photo used by the page background, the login screen and the header
 // logo. It used to be pasted in all three places, which tripled the file size
@@ -788,7 +788,7 @@ function renderMaintBody(status, meta){
   const rows = Object.entries(status || {})
     .map(([unit, r]) => Object.assign({unit}, r))
     .sort((a,b) => mtWorst(a) - mtWorst(b)
-                || ((a.daysLeft ?? 9999) - (b.daysLeft ?? 9999)));
+                || ((a.milesLeft ?? 9e9) - (b.milesLeft ?? 9e9)));
 
   if(sub){
     // The mileage is only as fresh as the poller's last run, so say when that
@@ -817,7 +817,7 @@ function renderMaintBody(status, meta){
     + rows.map((r,i) => mtRow(r,i)).join('')
     +'</table>'
     +'<div style="font-size:11px;color:#777;padding-top:12px;line-height:1.5">'
-    +'Mileage comes from the poller and refreshes hourly. Logging a service resets that unit\u2019s next due date.'
+    +'Wet PMs are scheduled on mileage; DOT is the 12-month federal annual. '+'Mileage comes from the poller and refreshes hourly. Logging a service resets that unit\u2019s next due.'
     +'</div>';
 }
 
@@ -841,16 +841,29 @@ function mtRow(r, i){
       + (note ? '<div style="font-size:11px;color:'+col+';margin-top:1px">'+esc(note)+'</div>' : '');
   };
 
-  // "3 days over" reads faster than a date in the past.
-  const pmOver  = (r.daysLeft != null && r.daysLeft < 0) ? Math.abs(r.daysLeft)+' days over'
-                : (r.milesLeft != null && r.milesLeft <= 0) ? Math.abs(r.milesLeft).toLocaleString()+' mi over'
-                : null;
-  const dotOver = (r.dotDays  != null && r.dotDays  < 0) ? 'expired '+Math.abs(r.dotDays)+' days ago' : null;
+  // Wet PM is scheduled on mileage, so the note under the date is an odometer
+  // figure, never a date. DOT is the only thing with a calendar due.
+  let pmNote;
+  if(!r.pmDate && r.pmOdo == null)      pmNote = 'nothing on record';
+  else if(r.pmPending)                  pmNote = 'next due updates on poller refresh';
+  else if(r.milesLeft == null)          pmNote = r.pmDueOdo != null
+                                          ? 'due at ' + r.pmDueOdo.toLocaleString() + ' mi'
+                                          : 'no odometer reading';
+  else if(r.milesLeft <= 0)             pmNote = Math.abs(r.milesLeft).toLocaleString()+' mi over';
+  else                                  pmNote = r.milesLeft.toLocaleString()+' mi to go'
+                                          + (r.pmDueOdo != null ? ' \u00b7 due at '+r.pmDueOdo.toLocaleString() : '');
+  const dotOver = (r.dotDays != null && r.dotDays < 0) ? 'expired '+Math.abs(r.dotDays)+' days ago' : null;
+
+  const pmCol = r.pmPending ? '#777' : (MT_COLOR[r.pmStatus] || '#333');
+  const pmCell = '<div style="color:'+((r.pmDate||r.pmOdo!=null) ? '#222' : '#999')+'">'
+    + esc(r.pmDate || '\u2014')
+    + (r.pmOdo != null ? ' <span style="color:#777">@ '+r.pmOdo.toLocaleString()+'</span>' : '')
+    + '</div><div style="font-size:11px;color:'+pmCol+';margin-top:1px">'+esc(pmNote)+'</div>';
 
   return '<tr style="background:'+bg+'">'
     + cell('<b>'+esc(r.unit)+'</b>')
     + cell(r.odometer != null ? r.odometer.toLocaleString() : '\u2014', 'right')
-    + cell(dateCell(r.pmDate, r.pmDueDate, r.pmStatus, pmOver,  r.pmPending))
+    + cell(pmCell)
     + cell(dateCell(r.dot,    r.dotDue,    r.dotStatus, dotOver, r.dotPending))
     + cell('<button class="mt-log" data-unit="'+esc(r.unit)+'" data-kind="pm" '
            +'style="font-size:11px;padding:3px 9px;margin-right:5px;cursor:pointer">+ Wet PM</button>'
@@ -909,8 +922,8 @@ async function mtLog(unit, kind){
   if(kind === 'pm'){
     rec.pmOdo = odo; rec.pmDate = when; rec.pmStatus = 'OK';
     // These belong to the service just replaced. Leaving them would keep the
-    // row reading "46 days over" on a truck that was serviced this morning.
-    rec.pmDueDate = null; rec.daysLeft = null; rec.milesLeft = null;
+    // row reading "13,892 mi over" on a truck serviced this morning.
+    rec.pmDueOdo = null; rec.milesLeft = null;
     rec.pmPending = true;
   } else {
     rec.dot = when; rec.dotStatus = 'OK';
@@ -938,7 +951,7 @@ function mtPdf(){
   const rows = Object.entries(status)
     .map(([unit, r]) => Object.assign({unit}, r))
     .sort((a,b) => mtWorst(a) - mtWorst(b)
-                || ((a.daysLeft ?? 9999) - (b.daysLeft ?? 9999)));
+                || ((a.milesLeft ?? 9e9) - (b.milesLeft ?? 9e9)));
 
   if(!rows.length){ alert('Nothing to print yet - the schedule has not loaded.'); return; }
 
@@ -954,19 +967,18 @@ function mtPdf(){
     + v + '</td>';
 
   const body = rows.map(r => {
-    const rem = [];
-    if(r.milesLeft != null) rem.push(r.milesLeft > 0 ? r.milesLeft.toLocaleString()+' mi'
-                                                     : Math.abs(r.milesLeft).toLocaleString()+' mi over');
-    if(r.daysLeft  != null) rem.push(r.daysLeft  > 0 ? r.daysLeft+' days'
-                                                     : Math.abs(r.daysLeft)+' days over');
+    const rem = r.milesLeft == null ? '\u2014'
+              : r.milesLeft > 0 ? r.milesLeft.toLocaleString()+' mi to go'
+                                : Math.abs(r.milesLeft).toLocaleString()+' mi over';
     const bad = s => (s==='OVERDUE'||s==='EXPIRED') ? '#c00000'
                    : s==='DUE SOON' ? '#b26b00' : null;
     return '<tr>'
       + td('<b>'+esc(r.unit)+'</b>')
       + td(r.odometer != null ? r.odometer.toLocaleString() : '\u2014', 'right')
       + td(esc(r.pmDate || '\u2014'))
-      + td(esc(r.pmDueDate || '\u2014'))
-      + td(esc(rem.join(' / ') || '\u2014'), null, bad(r.pmStatus))
+      + td(r.pmOdo    != null ? r.pmOdo.toLocaleString()    : '\u2014', 'right')
+      + td(r.pmDueOdo != null ? r.pmDueOdo.toLocaleString() : '\u2014', 'right')
+      + td(esc(rem), null, bad(r.pmStatus))
       + td(esc(r.pmStatus || ''), null, bad(r.pmStatus))
       + td(esc(r.dot || '\u2014'))
       + td(esc(r.dotDue || '\u2014'))
@@ -993,11 +1005,11 @@ function mtPdf(){
     + (meta && meta.lastRun ? ' &middot; mileage as of '+esc(String(meta.lastRun).replace('T',' ').slice(0,16)) : '')
     + ' &middot; '+rows.length+' units, '+flagged+' needing attention</div>'
     +'<table><tr>'
-    +['Unit','Mileage','Last Wet PM','PM Due','Remaining','PM','Last DOT','DOT Due','DOT']
+    +['Unit','Mileage','Last Wet PM','PM @ mi','PM Due mi','Remaining','PM','Last DOT','DOT Due','DOT']
       .map(h=>'<th>'+h+'</th>').join('')
     +'</tr>'+body+'</table>'
-    +'<div class="foot">PM comes due on miles or months, whichever is first &mdash; a truck that barely '
-    +'moves still comes due on time. DOT is the 12-month federal annual inspection. '
+    +'<div class="foot">Wet PMs are scheduled on MILEAGE only &mdash; a unit that is not accumulating '
+    +'miles will not come due. DOT is the 12-month federal annual inspection. '
     +'Mileage is read from the trucks and refreshes hourly; a unit with no reading shows a dash.</div>'
     +'</body></html>';
 
