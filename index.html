@@ -378,7 +378,7 @@ const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
 // Bumped by hand on every hand-off. It renders in the header under "Tracking
 // Interface", so one look at the page says which copy is actually live --
 // cheaper than view-source hunting after a deploy.
-const BUILD_TAG = 'b.2026-08-07f';
+const BUILD_TAG = 'b.2026-08-07g';
 
 // The BCC photo used by the page background, the login screen and the header
 // logo. It used to be pasted in all three places, which tripled the file size
@@ -810,7 +810,7 @@ function renderMaintBody(status, meta){
     +'letter-spacing:.06em;text-transform:uppercase">'
     +'<th align="left"  style="padding:7px 9px">Unit</th>'
     +'<th align="right" style="padding:7px 9px">Mileage</th>'
-    +'<th align="left"  style="padding:7px 9px">Last Wet PM</th>'
+    +'<th align="left"  style="padding:7px 9px">Wet PM</th>'
     +'<th align="left"  style="padding:7px 9px">Last DOT</th>'
     +'<th align="left"  style="padding:7px 9px">Log</th>'
     +'</tr>'
@@ -843,21 +843,20 @@ function mtRow(r, i){
 
   // Wet PM is scheduled on mileage, so the note under the date is an odometer
   // figure, never a date. DOT is the only thing with a calendar due.
+  // Wet PM is mileage end to end: last service is an odometer reading, the
+  // due figure is an odometer reading. No date appears in this column.
   let pmNote;
-  if(!r.pmDate && r.pmOdo == null)      pmNote = 'nothing on record';
-  else if(r.pmPending)                  pmNote = 'next due updates on poller refresh';
-  else if(r.milesLeft == null)          pmNote = r.pmDueOdo != null
-                                          ? 'due at ' + r.pmDueOdo.toLocaleString() + ' mi'
-                                          : 'no odometer reading';
-  else if(r.milesLeft <= 0)             pmNote = Math.abs(r.milesLeft).toLocaleString()+' mi over';
-  else                                  pmNote = r.milesLeft.toLocaleString()+' mi to go'
-                                          + (r.pmDueOdo != null ? ' \u00b7 due at '+r.pmDueOdo.toLocaleString() : '');
+  if(r.pmOdo == null)          pmNote = 'nothing on record';
+  else if(r.pmPending)         pmNote = 'next due updates on poller refresh';
+  else if(r.milesLeft == null) pmNote = 'no odometer reading';
+  else if(r.milesLeft <= 0)    pmNote = Math.abs(r.milesLeft).toLocaleString()+' mi over';
+  else                         pmNote = r.milesLeft.toLocaleString()+' mi to go';
   const dotOver = (r.dotDays != null && r.dotDays < 0) ? 'expired '+Math.abs(r.dotDays)+' days ago' : null;
 
   const pmCol = r.pmPending ? '#777' : (MT_COLOR[r.pmStatus] || '#333');
-  const pmCell = '<div style="color:'+((r.pmDate||r.pmOdo!=null) ? '#222' : '#999')+'">'
-    + esc(r.pmDate || '\u2014')
-    + (r.pmOdo != null ? ' <span style="color:#777">@ '+r.pmOdo.toLocaleString()+'</span>' : '')
+  const pmCell = '<div style="color:'+(r.pmOdo != null ? '#222' : '#999')+'">'
+    + (r.pmOdo != null ? 'last ' + r.pmOdo.toLocaleString() : '\u2014')
+    + (r.pmDueOdo != null ? '<span style="color:#777"> \u00b7 due ' + r.pmDueOdo.toLocaleString() + '</span>' : '')
     + '</div><div style="font-size:11px;color:'+pmCol+';margin-top:1px">'+esc(pmNote)+'</div>';
 
   return '<tr style="background:'+bg+'">'
@@ -881,26 +880,28 @@ async function mtLog(unit, kind){
   const iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')
             +'-'+String(today.getDate()).padStart(2,'0');
 
-  const when = prompt('Date '+kind.toUpperCase()+' was completed on '+unit+' (YYYY-MM-DD):', iso);
-  if(when === null) return;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(when)){ alert('Date must be YYYY-MM-DD.'); return; }
-  if(when > iso){ alert('That date is in the future.'); return; }
-
-  let odo = null;
+  // A wet PM is logged against an odometer, not a date — asking for one would
+  // be a field nothing reads. DOT is the opposite: a date and nothing else.
+  let odo = null, when = null;
   if(kind === 'pm'){
     const guess = cur.odometer != null ? String(cur.odometer) : '';
-    const ans = prompt('Odometer at service for '+unit+':', guess);
+    const ans = prompt('Odometer at wet PM for '+unit+':', guess);
     if(ans === null) return;
     odo = parseInt(String(ans).replace(/[, ]/g,''), 10);
     if(!isFinite(odo) || odo <= 0){ alert('Odometer must be a number.'); return; }
+  } else {
+    when = prompt('Date DOT inspection was completed on '+unit+' (YYYY-MM-DD):', iso);
+    if(when === null) return;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(when)){ alert('Date must be YYYY-MM-DD.'); return; }
+    if(when > iso){ alert('That date is in the future.'); return; }
   }
 
-  const patch = kind === 'pm' ? { pmOdo: odo, pmDate: when } : { dot: when };
+  const patch = kind === 'pm' ? { pmOdo: odo } : { dot: when };
   const entry = {
-    kind: kind, date: when, odometer: odo,
-    logged: new Date().toISOString(),
+    kind: kind, odometer: odo, date: when,
+    logged: new Date().toISOString(),   // audit trail, not part of the schedule
     by: 'dispatcher board',
-    previous: { pmOdo: cur.pmOdo ?? null, pmDate: cur.pmDate ?? null, dot: cur.dot ?? null }
+    previous: { pmOdo: cur.pmOdo ?? null, dot: cur.dot ?? null }
   };
 
   try {
@@ -920,7 +921,7 @@ async function mtLog(unit, kind){
   const st = window._maint || (window._maint = {});
   const rec = st[unit] || (st[unit] = {});
   if(kind === 'pm'){
-    rec.pmOdo = odo; rec.pmDate = when; rec.pmStatus = 'OK';
+    rec.pmOdo = odo; rec.pmStatus = 'OK';
     // These belong to the service just replaced. Leaving them would keep the
     // row reading "13,892 mi over" on a truck serviced this morning.
     rec.pmDueOdo = null; rec.milesLeft = null;
@@ -936,7 +937,8 @@ async function mtLog(unit, kind){
   if(b) b.insertAdjacentHTML('afterbegin',
     '<div style="background:#eaf7ee;border:1px solid #16a34a;color:#14532d;'
     +'padding:8px 10px;border-radius:3px;font-size:12.5px;margin-bottom:12px">'
-    +esc(unit)+' '+kind.toUpperCase()+' recorded for '+esc(when)
+    +esc(unit)+' '+(kind === 'pm' ? 'wet PM recorded at '+odo.toLocaleString()+' mi'
+                                    : 'DOT recorded for '+esc(when))
     +'. Exact next-due figures refresh on the poller\u2019s next hourly run.</div>');
 }
 
@@ -975,7 +977,6 @@ function mtPdf(){
     return '<tr>'
       + td('<b>'+esc(r.unit)+'</b>')
       + td(r.odometer != null ? r.odometer.toLocaleString() : '\u2014', 'right')
-      + td(esc(r.pmDate || '\u2014'))
       + td(r.pmOdo    != null ? r.pmOdo.toLocaleString()    : '\u2014', 'right')
       + td(r.pmDueOdo != null ? r.pmDueOdo.toLocaleString() : '\u2014', 'right')
       + td(esc(rem), null, bad(r.pmStatus))
@@ -1005,7 +1006,7 @@ function mtPdf(){
     + (meta && meta.lastRun ? ' &middot; mileage as of '+esc(String(meta.lastRun).replace('T',' ').slice(0,16)) : '')
     + ' &middot; '+rows.length+' units, '+flagged+' needing attention</div>'
     +'<table><tr>'
-    +['Unit','Mileage','Last Wet PM','PM @ mi','PM Due mi','Remaining','PM','Last DOT','DOT Due','DOT']
+    +['Unit','Mileage','Last PM mi','PM Due mi','Remaining','PM','Last DOT','DOT Due','DOT']
       .map(h=>'<th>'+h+'</th>').join('')
     +'</tr>'+body+'</table>'
     +'<div class="foot">Wet PMs are scheduled on MILEAGE only &mdash; a unit that is not accumulating '
