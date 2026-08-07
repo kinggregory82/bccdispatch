@@ -30,6 +30,11 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
   letter-spacing:.02em; padding:6px 11px; border-radius:5px; white-space:nowrap;
   border:1px solid transparent; }
 .dx-sync .dot { width:8px; height:8px; border-radius:50%; flex:0 0 8px; }
+.dx-maint-btn { font-family:'Oswald',sans-serif; font-size:12px; font-weight:600;
+                letter-spacing:.06em; text-transform:uppercase; cursor:pointer;
+                padding:6px 13px; border-radius:3px; color:#d6dae0;
+                background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.18); }
+.dx-maint-btn:hover { background:rgba(255,255,255,.11); color:#fff; }
 .dx-sync.ok    { color:#8fd4a8; background:rgba(22,163,74,.10); border-color:rgba(22,163,74,.35); }
 .dx-sync.ok .dot    { background:#16a34a; }
 .dx-sync.warn  { color:#e8c37a; background:rgba(217,182,74,.10); border-color:rgba(217,182,74,.40); }
@@ -373,7 +378,7 @@ const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
 // Bumped by hand on every hand-off. It renders in the header under "Tracking
 // Interface", so one look at the page says which copy is actually live --
 // cheaper than view-source hunting after a deploy.
-const BUILD_TAG = 'b.2026-08-07b';
+const BUILD_TAG = 'b.2026-08-07e';
 
 // The BCC photo used by the page background, the login screen and the header
 // logo. It used to be pasted in all three places, which tripled the file size
@@ -713,146 +718,360 @@ function syncAgeMin(iso) {
   if (isNaN(t)) return null;
   return (Date.now() - t) / 60000;
 }
-function fmtStopMins(m) {
-  m = Math.round(m || 0);
-  if (m < 60) return m + ' min';
-  const h = Math.floor(m / 60), r = m % 60;
-  return h + 'h' + (r ? ' ' + r + 'm' : '');
+/* ══════════════════════════════════════════════════════
+   MAINTENANCE — PM / DOT schedule and logger
+   Replaces the unscheduled-stops bar. Data is written by the poller's
+   compute_pm_status() into maintenance/status; completions written back
+   here land in maintenance/fleet and are picked up on its next hourly run.
+   ══════════════════════════════════════════════════════ */
+
+let _mtPos = null;                 // remembers where he dragged it
+const MT_RANK = { 'OVERDUE':0, 'EXPIRED':0, 'DUE SOON':1, 'NO DATA':2, 'OK':3 };
+const MT_COLOR = { 'OVERDUE':'#cc0000', 'EXPIRED':'#cc0000',
+                   'DUE SOON':'#b26b00', 'NO DATA':'#888', 'OK':'#16a34a' };
+
+function mtWorst(r){
+  return Math.min(MT_RANK[r.pmStatus] ?? 3, MT_RANK[r.dotStatus] ?? 3);
 }
-function renderStopAlerts(alerts) {
-  // Unscheduled stops for the day being viewed, as a per-TRUCK chart:
-  // how many stops and how long, one row each. Individual stops are a
-  // drill-down, not the default view -- the question the board answers is
-  // "which truck is losing time", and the where/when only matters once a
-  // truck has been picked.
-  //
-  // ALWAYS RENDERS, including a zero. Hiding the bar when nothing has fired
-  // makes "no unscheduled stops today" and "the check isn't running" look
-  // identical from the board, which is the same silent-failure the sync pill
-  // exists to prevent. A visible 0 is the evidence that it ran.
-  let el = document.getElementById('sv-stop-alerts');
-  if (!el) {
-    // Lives inside the scrolling route column so it scrolls away with the page
-    // instead of sitting frozen above it.
-    const host = document.getElementById('sv-routes');
-    if (!host) return;
-    el = document.createElement('div');
-    el.id = 'sv-stop-alerts';
-    host.insertBefore(el, host.firstChild);
+
+async function showMaintenance(){
+  if(document.getElementById('mt-overlay')){ closeMaintenance(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'mt-overlay';
+  // Floating, not modal: pointer-events off on the backdrop so the board
+  // stays usable and this can sit open beside it.
+  ov.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:10002;'
+    +'display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;'
+    +'pointer-events:none';
+  ov.innerHTML = '<div style="background:#fff;border-radius:4px;max-width:900px;width:100%;'
+    +'pointer-events:auto;max-height:calc(100vh - 80px);overflow:auto;'
+    +'border:1px solid #000;box-shadow:0 18px 50px rgba(0,0,0,.55)">'
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;'
+    +'padding:14px 18px;border-bottom:3px solid #cc0000;background:#1a1a1a">'
+    +'<div><div style="font-family:Oswald,sans-serif;font-size:17px;font-weight:700;color:#fff;'
+    +'letter-spacing:.04em">Maintenance</div>'
+    +'<div style="font-size:12px;color:#aaa;margin-top:2px" id="mt-sub">loading\u2026</div></div>'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<button onclick="mtPdf()" title="Open a print dialog - choose Save as PDF" '
+    +'style="font-family:Oswald,sans-serif;font-size:11px;letter-spacing:.06em;'
+    +'text-transform:uppercase;padding:5px 11px;cursor:pointer;color:#eee;'
+    +'background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.30);'
+    +'border-radius:3px">PDF</button>'
+    +'<button onclick="closeMaintenance()" title="Close (Esc)" style="background:none;border:none;'
+    +'color:#bbb;font-size:26px;line-height:1;cursor:pointer;padding:0 4px">&times;</button></div></div>'
+    +'<div style="padding:16px" id="mt-body">'
+    +'<div style="color:#666;font-size:13px">Reading schedule\u2026</div></div></div>';
+  document.body.appendChild(ov);
+  _mtMakeDraggable(ov);
+  document.addEventListener('keydown', _mtEsc, true);
+
+  try {
+    const [status, meta] = await Promise.all([
+      fetch(DB+'/maintenance/status.json').then(r=>r.json()).catch(()=>null),
+      fetch(DB+'/maintenance/meta.json').then(r=>r.json()).catch(()=>null),
+    ]);
+    window._maint = status || null;
+    window._maintMeta = meta || null;
+    renderMaintBody(status, meta);
+  } catch(e){
+    const b = document.getElementById('mt-body');
+    if(b) b.innerHTML = '<div style="color:#cc0000;font-size:13px">Could not read the schedule: '+esc(e.message)+'</div>';
+  }
+}
+
+function renderMaintBody(status, meta){
+  const body = document.getElementById('mt-body');
+  const sub  = document.getElementById('mt-sub');
+  if(!body) return;
+
+  const rows = Object.entries(status || {})
+    .map(([unit, r]) => Object.assign({unit}, r))
+    .sort((a,b) => mtWorst(a) - mtWorst(b)
+                || ((a.daysLeft ?? 9999) - (b.daysLeft ?? 9999)));
+
+  if(sub){
+    // The mileage is only as fresh as the poller's last run, so say when that
+    // was rather than letting a stale number look live.
+    sub.textContent = meta && meta.lastRun
+      ? rows.length + ' units \u00b7 mileage as of ' + String(meta.lastRun).replace('T',' ').slice(0,16)
+      : rows.length + ' units \u00b7 no poller run recorded yet';
   }
 
-  const list = alerts && typeof alerts === 'object' ? Object.values(alerts) : [];
-  const none = list.length === 0;
-  window._lastStopAlerts = alerts || null;
-  const open = window._stopAlertsOpen === true;
-
-  el.style.cssText = 'display:block;font-family:Oswald,sans-serif;flex:0 0 auto;'
-    + 'padding:' + (none || !open ? '4px 16px' : '6px 16px 8px') + ';'
-    + (none ? 'background:#1b1d20;border-bottom:1px solid #2f3338;'
-            : 'background:#7f1d1d;border-bottom:2px solid #c41230;');
-
-  const label = '<span style="font-size:11px;font-weight:700;letter-spacing:.07em;'
-    + 'text-transform:uppercase;color:' + (none ? '#7d858e' : '#ffd7d7') + '">'
-    + 'Unscheduled stops</span>';
-
-  if (none) {
-    el.innerHTML = '<div style="display:flex;gap:10px;align-items:baseline">'
-      + label + '<span style="color:#9aa2ab;font-size:12px;font-weight:700">0</span></div>';
+  if(!rows.length){
+    body.innerHTML = '<div style="color:#666;font-size:13px">'
+      +'Nothing in <code>maintenance/status</code> yet. The poller writes it hourly.</div>';
     return;
   }
 
-  // Roll the individual stops up per asset -- that is the whole change.
-  const byAsset = {};
-  list.forEach(a => {
-    const k = a.asset || '\u2014';
-    const t = byAsset[k] || (byAsset[k] = { asset: k, count: 0, mins: 0, live: 0, stops: [] });
-    t.count++;
-    t.mins += (a.dwellMin != null ? a.dwellMin : (a.minutes || 0));
-    if (a.active) t.live++;
-    t.stops.push(a);
-  });
-  const trucks = Object.values(byAsset)
-    .sort((x, y) => y.mins - x.mins || y.count - x.count);
-  trucks.forEach(t => t.stops.sort((p, q) =>
-    (q.active?1:0)-(p.active?1:0)
-    || ((q.dwellMin!=null?q.dwellMin:q.minutes||0) - (p.dwellMin!=null?p.dwellMin:p.minutes||0))));
+  body.innerHTML =
+     '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<tr style="background:#1a1a1a;color:#fff;font-family:Oswald,sans-serif;font-size:11px;'
+    +'letter-spacing:.06em;text-transform:uppercase">'
+    +'<th align="left"  style="padding:7px 9px">Unit</th>'
+    +'<th align="right" style="padding:7px 9px">Mileage</th>'
+    +'<th align="left"  style="padding:7px 9px">Last Wet PM</th>'
+    +'<th align="left"  style="padding:7px 9px">Last DOT</th>'
+    +'<th align="left"  style="padding:7px 9px">Log</th>'
+    +'</tr>'
+    + rows.map((r,i) => mtRow(r,i)).join('')
+    +'</table>'
+    +'<div style="font-size:11px;color:#777;padding-top:12px;line-height:1.5">'
+    +'Mileage comes from the poller and refreshes hourly. Logging a service resets that unit\u2019s next due date.'
+    +'</div>';
+}
 
-  const totalMin  = trucks.reduce((n, t) => n + t.mins, 0);
-  const liveCount = trucks.reduce((n, t) => n + t.live, 0);
-  const worst     = Math.max(1, ...trucks.map(t => t.mins));
-  const sel       = window._stopAsset || null;
+/* One row: what we have on record, and the two buttons that reset it. The
+   next-due sits under each date in muted text so the effect of logging is
+   visible without adding two more columns. */
+function mtRow(r, i){
+  const bg = i % 2 ? '#f6f7fa' : '#fff';
+  const cell = (v,al) => '<td align="'+(al||'left')
+    + '" style="padding:7px 9px;border-bottom:1px solid #e6e8ec;vertical-align:top">'+v+'</td>';
 
-  el.innerHTML = '<div class="sv-stop-head" title="Click to ' + (open ? 'collapse' : 'expand') + '" '
-    + 'style="display:flex;gap:12px;align-items:baseline;cursor:pointer;user-select:none'
-    + (open ? ';margin-bottom:6px' : '') + '">'
-    + label
-    + '<span style="color:#fff;font-size:12px;font-weight:700">'+list.length+'</span>'
-    + '<span style="color:#ffd7d7;font-size:12px;font-weight:700">'+fmtStopMins(totalMin)+' total</span>'
-    + (liveCount ? '<span style="color:#ffd7d7;font-size:12px">'+liveCount+' still parked</span>' : '')
-    + '<span style="margin-left:auto;color:#ffd7d7;font-size:11px;font-weight:700;'
-    + 'letter-spacing:.07em;text-transform:uppercase">'
-    + (open ? 'Hide &#9650;' : 'Show &#9660;') + '</span>'
-    + '</div>'
-    + '<div id="sv-stop-detail" style="display:' + (open ? 'block' : 'none') + '">'
-    + trucks.map(t => stopTruckRow(t, worst, sel === t.asset)).join('')
-    + '</div>';
+  const dateCell = (last, due, status, overWord, pending) => {
+    const col = pending ? '#777' : (MT_COLOR[status] || '#333');
+    let note;
+    if(!last)                        note = 'nothing on record';
+    else if(pending)                 note = 'next due updates on poller refresh';
+    else if(status === 'NO DATA')    note = '';
+    else if(overWord)                note = overWord;
+    else                             note = due ? 'due ' + due : '';
+    return '<div style="color:'+(last ? '#222' : '#999')+'">'+esc(last || '\u2014')+'</div>'
+      + (note ? '<div style="font-size:11px;color:'+col+';margin-top:1px">'+esc(note)+'</div>' : '');
+  };
 
-  if (!el.dataset.stopWired) {
-    el.dataset.stopWired = '1';
-    el.addEventListener('click', ev => {
-      if (ev.target.closest && ev.target.closest('.sv-stop-head')) {
-        window._stopAlertsOpen = !window._stopAlertsOpen;
-        renderStopAlerts(window._lastStopAlerts);
-        return;
-      }
-      const row = ev.target.closest && ev.target.closest('.sv-stop-truck');
-      if (row && !ev.target.closest('a')) {
-        // Drill into one truck; clicking it again closes it.
-        window._stopAsset = window._stopAsset === row.dataset.asset ? null : row.dataset.asset;
-        renderStopAlerts(window._lastStopAlerts);
-      }
-    });
+  // "3 days over" reads faster than a date in the past.
+  const pmOver  = (r.daysLeft != null && r.daysLeft < 0) ? Math.abs(r.daysLeft)+' days over'
+                : (r.milesLeft != null && r.milesLeft <= 0) ? Math.abs(r.milesLeft).toLocaleString()+' mi over'
+                : null;
+  const dotOver = (r.dotDays  != null && r.dotDays  < 0) ? 'expired '+Math.abs(r.dotDays)+' days ago' : null;
+
+  return '<tr style="background:'+bg+'">'
+    + cell('<b>'+esc(r.unit)+'</b>')
+    + cell(r.odometer != null ? r.odometer.toLocaleString() : '\u2014', 'right')
+    + cell(dateCell(r.pmDate, r.pmDueDate, r.pmStatus, pmOver,  r.pmPending))
+    + cell(dateCell(r.dot,    r.dotDue,    r.dotStatus, dotOver, r.dotPending))
+    + cell('<button class="mt-log" data-unit="'+esc(r.unit)+'" data-kind="pm" '
+           +'style="font-size:11px;padding:3px 9px;margin-right:5px;cursor:pointer">+ Wet PM</button>'
+           +'<button class="mt-log" data-unit="'+esc(r.unit)+'" data-kind="dot" '
+           +'style="font-size:11px;padding:3px 9px;cursor:pointer">+ DOT</button>')
+    + '</tr>';
+}
+
+/* Log a completion. Writes maintenance/fleet/{unit} plus an append-only
+   history entry that keeps what it replaced, so a mistyped odometer can be
+   traced and reversed instead of silently overwriting the record. */
+async function mtLog(unit, kind){
+  const cur = (window._maint || {})[unit] || {};
+  const today = new Date();
+  const iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')
+            +'-'+String(today.getDate()).padStart(2,'0');
+
+  const when = prompt('Date '+kind.toUpperCase()+' was completed on '+unit+' (YYYY-MM-DD):', iso);
+  if(when === null) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(when)){ alert('Date must be YYYY-MM-DD.'); return; }
+  if(when > iso){ alert('That date is in the future.'); return; }
+
+  let odo = null;
+  if(kind === 'pm'){
+    const guess = cur.odometer != null ? String(cur.odometer) : '';
+    const ans = prompt('Odometer at service for '+unit+':', guess);
+    if(ans === null) return;
+    odo = parseInt(String(ans).replace(/[, ]/g,''), 10);
+    if(!isFinite(odo) || odo <= 0){ alert('Odometer must be a number.'); return; }
   }
+
+  const patch = kind === 'pm' ? { pmOdo: odo, pmDate: when } : { dot: when };
+  const entry = {
+    kind: kind, date: when, odometer: odo,
+    logged: new Date().toISOString(),
+    by: 'dispatcher board',
+    previous: { pmOdo: cur.pmOdo ?? null, pmDate: cur.pmDate ?? null, dot: cur.dot ?? null }
+  };
+
+  try {
+    const r1 = await fetch(DB+'/maintenance/fleet/'+encodeURIComponent(unit)+'.json',
+                           { method:'PATCH', body: JSON.stringify(patch) });
+    if(!r1.ok) throw new Error('HTTP '+r1.status);
+    // History is append-only; POST lets Firebase key it so two logs in the
+    // same minute cannot overwrite each other.
+    await fetch(DB+'/maintenance/history/'+encodeURIComponent(unit)+'.json',
+                { method:'POST', body: JSON.stringify(entry) }).catch(()=>{});
+  } catch(e){
+    alert('Could not save: '+e.message+'\n\nNothing was recorded. Try again.');
+    return;
+  }
+
+  // Reflect it immediately rather than waiting up to an hour for the poller.
+  const st = window._maint || (window._maint = {});
+  const rec = st[unit] || (st[unit] = {});
+  if(kind === 'pm'){
+    rec.pmOdo = odo; rec.pmDate = when; rec.pmStatus = 'OK';
+    // These belong to the service just replaced. Leaving them would keep the
+    // row reading "46 days over" on a truck that was serviced this morning.
+    rec.pmDueDate = null; rec.daysLeft = null; rec.milesLeft = null;
+    rec.pmPending = true;
+  } else {
+    rec.dot = when; rec.dotStatus = 'OK';
+    rec.dotDue = null; rec.dotDays = null;
+    rec.dotPending = true;
+  }
+  renderMaintBody(st, window._maintMeta);
+
+  const b = document.getElementById('mt-body');
+  if(b) b.insertAdjacentHTML('afterbegin',
+    '<div style="background:#eaf7ee;border:1px solid #16a34a;color:#14532d;'
+    +'padding:8px 10px;border-radius:3px;font-size:12.5px;margin-bottom:12px">'
+    +esc(unit)+' '+kind.toUpperCase()+' recorded for '+esc(when)
+    +'. Exact next-due figures refresh on the poller\u2019s next hourly run.</div>');
 }
 
-// One truck: asset, a bar for elapsed time, count and total. Expands to its
-// individual stops when selected.
-function stopTruckRow(t, worst, selected) {
-  const pct = Math.max(3, Math.round(t.mins / worst * 100));
-  const bar = '<span style="flex:1;min-width:80px;max-width:340px;height:9px;'
-    + 'background:rgba(0,0,0,.30);border-radius:2px;overflow:hidden;display:inline-block">'
-    + '<span style="display:block;height:100%;width:'+pct+'%;'
-    + 'background:' + (t.live ? '#ffd7d7' : 'rgba(255,255,255,.62)') + '"></span></span>';
+/* Print the maintenance schedule as a standalone document. Uses a hidden
+   iframe rather than window.open() because a popup blocker silently kills
+   the second one and the user just sees nothing happen. The browser's print
+   dialog offers "Save as PDF" on every platform, so this needs no library
+   and nothing loaded from a CDN. */
+function mtPdf(){
+  const status = window._maint || {};
+  const meta   = window._maintMeta || null;
+  const rows = Object.entries(status)
+    .map(([unit, r]) => Object.assign({unit}, r))
+    .sort((a,b) => mtWorst(a) - mtWorst(b)
+                || ((a.daysLeft ?? 9999) - (b.daysLeft ?? 9999)));
 
-  let head = '<div class="sv-stop-truck" data-asset="'+esc(t.asset)+'" '
-    + 'title="Click for the individual stops" '
-    + 'style="display:flex;gap:14px;align-items:center;padding:3px 0;color:#fff;font-size:13px;'
-    + 'cursor:pointer;user-select:none;opacity:' + (t.live ? '1' : '.8') + '">'
-    + '<span style="font-size:11px;width:10px;color:#ffd7d7">' + (selected ? '&#9660;' : '&#9654;') + '</span>'
-    + '<span style="font-weight:700;min-width:150px">'+esc(t.asset)+'</span>'
-    + '<span style="min-width:56px;font-weight:700">'+t.count+'</span>'
-    + '<span style="min-width:74px;font-weight:700">'+esc(fmtStopMins(t.mins))+'</span>'
-    + bar
-    + (t.live ? '<span style="font-size:11px;color:#ffd7d7;min-width:64px">'+t.live+' parked</span>'
-              : '<span style="min-width:64px"></span>')
-    + '</div>';
+  if(!rows.length){ alert('Nothing to print yet - the schedule has not loaded.'); return; }
 
-  if (!selected) return head;
+  const now = new Date();
+  const stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')
+              +'-'+String(now.getDate()).padStart(2,'0')+' '
+              +String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
 
-  return head + '<div style="padding:2px 0 8px 24px">'
-    + t.stops.map(a => {
-        const mins = a.dwellMin != null ? a.dwellMin : (a.minutes || 0);
-        return '<div style="display:flex;gap:14px;align-items:baseline;padding:2px 0;'
-          + 'color:#fff;font-size:12.5px;opacity:' + (a.active ? '1' : '.75') + '">'
-          + '<span style="min-width:74px;font-weight:700">'+esc(String(mins))+' min</span>'
-          + '<span style="min-width:80px;color:#ffd7d7">'+esc(a.sinceLocal || '')+'</span>'
-          + '<a href="'+esc(a.mapUrl||'#')+'" target="_blank" rel="noopener" '
-          + 'style="color:#fff;text-decoration:underline;text-underline-offset:2px">'
-          + esc(a.place || ((a.lat||'')+', '+(a.lon||''))) + '</a>'
-          + '</div>';
-      }).join('')
-    + '</div>';
+  // The PDF has room the popup does not, so it carries the due dates and the
+  // remaining figures as their own columns rather than as subtext.
+  const td = (v, al, col) => '<td'+(al?' align="'+al+'"':'')
+    +' style="padding:5px 7px;border:1px solid #ccc;'+(col?'color:'+col+';font-weight:bold;':'')+'">'
+    + v + '</td>';
+
+  const body = rows.map(r => {
+    const rem = [];
+    if(r.milesLeft != null) rem.push(r.milesLeft > 0 ? r.milesLeft.toLocaleString()+' mi'
+                                                     : Math.abs(r.milesLeft).toLocaleString()+' mi over');
+    if(r.daysLeft  != null) rem.push(r.daysLeft  > 0 ? r.daysLeft+' days'
+                                                     : Math.abs(r.daysLeft)+' days over');
+    const bad = s => (s==='OVERDUE'||s==='EXPIRED') ? '#c00000'
+                   : s==='DUE SOON' ? '#b26b00' : null;
+    return '<tr>'
+      + td('<b>'+esc(r.unit)+'</b>')
+      + td(r.odometer != null ? r.odometer.toLocaleString() : '\u2014', 'right')
+      + td(esc(r.pmDate || '\u2014'))
+      + td(esc(r.pmDueDate || '\u2014'))
+      + td(esc(rem.join(' / ') || '\u2014'), null, bad(r.pmStatus))
+      + td(esc(r.pmStatus || ''), null, bad(r.pmStatus))
+      + td(esc(r.dot || '\u2014'))
+      + td(esc(r.dotDue || '\u2014'))
+      + td(esc(r.dotStatus || ''), null, bad(r.dotStatus))
+      + '</tr>';
+  }).join('');
+
+  const flagged = rows.filter(r => mtWorst(r) <= 1).length;
+
+  const doc = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+    +'<title>BCC Maintenance Schedule '+stamp.slice(0,10)+'</title>'
+    +'<style>'
+    +'@page{size:landscape;margin:12mm}'
+    +'body{font-family:Arial,Helvetica,sans-serif;color:#222;margin:0}'
+    +'h1{font-size:17px;color:#1F3864;margin:0 0 2px}'
+    +'.sub{font-size:11px;color:#555;margin-bottom:12px}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px}'
+    +'th{background:#2F5496;color:#fff;padding:6px 7px;border:1px solid #2F5496;text-align:left}'
+    +'tr:nth-child(even) td{background:#f4f6fa}'
+    +'.foot{font-size:9.5px;color:#666;margin-top:12px;line-height:1.5}'
+    +'</style></head><body>'
+    +'<h1>Ben&#39;s Contractor Center &mdash; PM / DOT Schedule</h1>'
+    +'<div class="sub">Generated '+stamp
+    + (meta && meta.lastRun ? ' &middot; mileage as of '+esc(String(meta.lastRun).replace('T',' ').slice(0,16)) : '')
+    + ' &middot; '+rows.length+' units, '+flagged+' needing attention</div>'
+    +'<table><tr>'
+    +['Unit','Mileage','Last Wet PM','PM Due','Remaining','PM','Last DOT','DOT Due','DOT']
+      .map(h=>'<th>'+h+'</th>').join('')
+    +'</tr>'+body+'</table>'
+    +'<div class="foot">PM comes due on miles or months, whichever is first &mdash; a truck that barely '
+    +'moves still comes due on time. DOT is the 12-month federal annual inspection. '
+    +'Mileage is read from the trucks and refreshes hourly; a unit with no reading shows a dash.</div>'
+    +'</body></html>';
+
+  const fr = document.createElement('iframe');
+  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.appendChild(fr);
+  fr.onload = function(){
+    try {
+      fr.contentWindow.focus();
+      fr.contentWindow.print();
+    } catch(e){
+      alert('Could not open the print dialog: '+e.message);
+    }
+    // Leave it up long enough for the dialog to take its snapshot; removing
+    // the frame too early cancels the print on some browsers.
+    setTimeout(function(){ fr.remove(); }, 60000);
+  };
+  fr.srcdoc = doc;
 }
+
+function _mtMakeDraggable(ov){
+  const card = ov.firstElementChild;
+  const bar  = card && card.firstElementChild;
+  if(!card || !bar) return;
+  bar.style.cursor = 'move';
+  bar.style.userSelect = 'none';
+  bar.title = 'Drag to move';
+  if(_mtPos) card.style.transform = 'translate('+_mtPos.x+'px,'+_mtPos.y+'px)';
+
+  let drag = null;
+  bar.addEventListener('pointerdown', function(e){
+    if(e.button !== 0 || e.target.closest('button')) return;
+    const cur = _mtPos || {x:0,y:0};
+    const r = card.getBoundingClientRect();
+    drag = { x:e.clientX, y:e.clientY, tx:cur.x, ty:cur.y,
+             baseL:r.left - cur.x, baseT:r.top - cur.y, w:r.width };
+    bar.setPointerCapture && bar.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  bar.addEventListener('pointermove', function(e){
+    if(!drag) return;
+    let nx = drag.tx + (e.clientX - drag.x);
+    let ny = drag.ty + (e.clientY - drag.y);
+    const minX = 140 - drag.w - drag.baseL;
+    const maxX = window.innerWidth - 140 - drag.baseL;
+    const minY = -drag.baseT;
+    const maxY = window.innerHeight - 46 - drag.baseT;
+    nx = Math.max(minX, Math.min(maxX, nx));
+    ny = Math.max(minY, Math.min(maxY, ny));
+    card.style.transform = 'translate('+nx+'px,'+ny+'px)';
+    _mtPos = { x:nx, y:ny };
+  });
+  const stop = function(){ drag = null; };
+  bar.addEventListener('pointerup', stop);
+  bar.addEventListener('pointercancel', stop);
+}
+
+function closeMaintenance(){
+  const ov = document.getElementById('mt-overlay');
+  if(ov) ov.remove();
+  document.removeEventListener('keydown', _mtEsc, true);
+}
+function _mtEsc(e){
+  if(e.key !== 'Escape') return;
+  e.stopImmediatePropagation();
+  closeMaintenance();
+}
+
+/* One delegated listener for every Log button, wired once. */
+document.addEventListener('click', function(ev){
+  const b = ev.target.closest && ev.target.closest('.mt-log');
+  if(!b) return;
+  mtLog(b.dataset.unit, b.dataset.kind);
+});
 
 function renderSync(sync) {
   const el = document.getElementById('sv-sync');
@@ -922,14 +1141,13 @@ async function loadAndRender(silent=false) {
   if (main && !silent) main.innerHTML = '<div class="dx-boot"><div class="dx-boot-spinner"></div></div>';
   try {
     const dk = dateKey();
-    const [live, arch, mil, ua, seen, sync, stopAlerts, spruce] = await Promise.all([
+    const [live, arch, mil, ua, seen, sync, spruce] = await Promise.all([
       fetch(DB+'/routes.json?orderBy="date"&equalTo="'+dk+'"').then(r=>r.json()).catch(()=>({})),
       fetch(DB+'/reports/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/mileage.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/routes/UNASSIGNED.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/orderFirstSeen.json').then(r=>r.json()).catch(()=>null),
       fetch(DB+'/sync.json').then(r=>r.json()).catch(()=>null),
-      fetch(DB+'/alerts/unexpectedStops/'+dk+'.json').then(r=>r.json()).catch(()=>null),
       // Spruce (the ERP the orders originate in) keyed by DOCUMENT id, not by
       // DQ order number — split orders -1/-2 share one entry. Written by the
       // poller's sync_spruce_orders(). Same pattern as orderFirstSeen.
@@ -942,7 +1160,6 @@ async function loadAndRender(silent=false) {
     window._firstSeen = seen || {};
     window._spruce    = spruce || {};
     renderSync(sync);
-    renderStopAlerts(stopAlerts);
     S.lastRoutes = routes;
     S.lastDk = dk;
     renderStats(routes, dk, mil);
@@ -1879,6 +2096,7 @@ function renderApp() {
         <button class="dx-header-cal-btn" onclick="openCalPicker()">&#128197;</button>
       </div>
       <div class="dx-sync" id="sv-sync" title="Time since the poller last wrote data"></div>
+      <button class="dx-maint-btn" id="sv-maint-btn" onclick="showMaintenance()" title="Mileage, last DOT and Wet PM, and logging">Maintenance</button>
 
       <div class="dx-user">
         <span>BCC <b>Dispatcher</b></span>
@@ -1889,7 +2107,6 @@ function renderApp() {
     </div>
     <div class="dx-dash" id="sv-dash">
     <main class="dx-main dx-dash-main" id="sv-routes">
-      <div id="sv-stop-alerts"></div>
       <div id="sv-routes-body">
         <div class="dx-boot"><div class="dx-boot-spinner"></div></div>
       </div>
