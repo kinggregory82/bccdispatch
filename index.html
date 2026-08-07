@@ -199,8 +199,11 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 .bcc-lb-overlay.open { display:flex; }
 .bcc-lb-img { max-width:90vw; max-height:80vh; object-fit:contain;
   border:2px solid #333; cursor:zoom-in; transition:transform .15s ease;
-  transform-origin:center center; user-select:none; }
+  transform-origin:center center; user-select:none; touch-action:none; }
 .bcc-lb-img.zoomed { cursor:zoom-out; }
+/* while a drag is running the transition has to be off or the photo lags
+   behind the cursor by 150ms and feels broken */
+.bcc-lb-img.dragging { transition:none; cursor:grabbing; }
 .bcc-lb-nav { display:flex; align-items:center; gap:24px; margin-top:16px; }
 .bcc-lb-btn { background:#cc0000; color:#fff; border:none; font-family:'Oswald',sans-serif;
   font-size:13px; font-weight:700; letter-spacing:.08em; padding:6px 18px; cursor:pointer; }
@@ -366,6 +369,11 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 
 'use strict';
 const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
+
+// Bumped by hand on every hand-off. It renders in the header under "Tracking
+// Interface", so one look at the page says which copy is actually live --
+// cheaper than view-source hunting after a deploy.
+const BUILD_TAG = 'b.2026-08-07a';
 
 // The BCC photo used by the page background, the login screen and the header
 // logo. It used to be pasted in all three places, which tripled the file size
@@ -1493,7 +1501,10 @@ function showOrderDetail(orderNumber){
   ov.id = 'od-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;'
     +'display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto';
-  ov.addEventListener('click', function(e){ if(e.target===ov) closeOrderDetail(); });
+  // A drag ending over the backdrop fires a click on the overlay; without this
+  // the popup would close the moment he let go outside the card.
+  ov.addEventListener('pointerdown', function(e){ ov._downOnBackdrop = (e.target === ov); });
+  ov.addEventListener('click', function(e){ if(e.target===ov && ov._downOnBackdrop) closeOrderDetail(); });
   ov.innerHTML =
      '<div style="background:#fff;border-radius:4px;max-width:820px;width:100%;'
     +'box-shadow:0 18px 50px rgba(0,0,0,.4)">'
@@ -1507,7 +1518,53 @@ function showOrderDetail(orderNumber){
     +'font-size:26px;line-height:1;cursor:pointer;padding:0 4px">&times;</button></div>'
     +'<div style="padding:18px">'+body+'</div></div>';
   document.body.appendChild(ov);
+  _odMakeDraggable(ov);
   document.addEventListener('keydown', _odEsc);
+}
+
+/* Where the popup was last dragged to, kept for the life of the page so it
+   reopens where he put it instead of jumping back to centre on every order. */
+let _odPos = null;
+
+function _odMakeDraggable(ov){
+  const card = ov.firstElementChild;
+  const bar  = card && card.firstElementChild;      // the black title strip
+  if(!card || !bar) return;
+
+  bar.style.cursor = 'move';
+  bar.style.userSelect = 'none';
+  bar.title = 'Drag to move';
+  if(_odPos) card.style.transform = 'translate('+_odPos.x+'px,'+_odPos.y+'px)';
+
+  let drag = null;
+  bar.addEventListener('pointerdown', function(e){
+    if(e.button !== 0 || e.target.closest('button')) return;   // × still closes
+    const cur = _odPos || {x:0,y:0};
+    const r = card.getBoundingClientRect();
+    drag = { x:e.clientX, y:e.clientY, tx:cur.x, ty:cur.y,
+             // the card's untransformed position, so the clamp works in page terms
+             baseL:r.left - cur.x, baseT:r.top - cur.y, w:r.width };
+    bar.setPointerCapture && bar.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  bar.addEventListener('pointermove', function(e){
+    if(!drag) return;
+    let nx = drag.tx + (e.clientX - drag.x);
+    let ny = drag.ty + (e.clientY - drag.y);
+    // keep the title bar reachable: never above the top of the window, and
+    // always at least 140px of it on screen left and right
+    const minX = 140 - drag.w - drag.baseL;
+    const maxX = window.innerWidth - 140 - drag.baseL;
+    const minY = -drag.baseT;
+    const maxY = window.innerHeight - 46 - drag.baseT;
+    nx = Math.max(minX, Math.min(maxX, nx));
+    ny = Math.max(minY, Math.min(maxY, ny));
+    card.style.transform = 'translate('+nx+'px,'+ny+'px)';
+    _odPos = { x:nx, y:ny };
+  });
+  const stop = function(){ drag = null; };
+  bar.addEventListener('pointerup', stop);
+  bar.addEventListener('pointercancel', stop);
 }
 
 function closeOrderDetail(){
@@ -1801,7 +1858,7 @@ function renderApp() {
         <div class="dx-divider"></div>
         <div class="dx-product">
           <span class="dx-product-name">Dispatch</span>
-          <span class="dx-product-sub">Tracking Interface</span>
+          <span class="dx-product-sub">Tracking Interface <span style="opacity:.55">&middot; ${BUILD_TAG}</span></span>
         </div>
       </div>
       <div class="dx-header-datenav">
@@ -2205,10 +2262,35 @@ document.addEventListener('keydown', function(e) {
 // Photo lightbox
 let _lbUrls=[], _lbIdx=0;
 let _lbScale=1, _lbPinchDist=null;
-function lbResetZoom(){
-  _lbScale=1;
+// where the photo has been dragged to, in screen pixels
+let _lbTx=0, _lbTy=0, _lbDrag=null, _lbMoved=false;
+
+// Every paint of the photo goes through here so the pan offset and the zoom
+// can never get out of step. CSS applies the list right-to-left, so the image
+// is scaled first and then shifted -- which means _lbTx/_lbTy stay in plain
+// screen pixels and the clamp below can be written in screen terms.
+function lbApply(){
   const img=document.getElementById('bcc-lb-img');
-  if(img){img.style.transform='scale(1)';img.classList.remove('zoomed');}
+  if(!img) return;
+  lbClampPan(img);
+  img.style.transform='translate('+_lbTx+'px,'+_lbTy+'px) scale('+_lbScale+')';
+  img.classList.toggle('zoomed',_lbScale>1);
+}
+
+// Let it go anywhere, but never off the screen entirely: at least 80px of the
+// photo stays in view, so a hard fling can't lose it.
+function lbClampPan(img){
+  const w=(img.offsetWidth||0)*_lbScale, h=(img.offsetHeight||0)*_lbScale;
+  const maxX=Math.max(0, w/2 + window.innerWidth/2  - 80);
+  const maxY=Math.max(0, h/2 + window.innerHeight/2 - 80);
+  _lbTx=Math.max(-maxX,Math.min(maxX,_lbTx));
+  _lbTy=Math.max(-maxY,Math.min(maxY,_lbTy));
+}
+
+function lbResetZoom(){
+  _lbScale=1; _lbTx=0; _lbTy=0;
+  const img=document.getElementById('bcc-lb-img');
+  if(img){img.style.transform='translate(0px,0px) scale(1)';img.classList.remove('zoomed');}
 }
 function lbOpen(urls,idx){ _lbUrls=urls; _lbIdx=idx; document.getElementById('bcc-lb').classList.add('open'); lbRender(); }
 function lbClose(){ document.getElementById('bcc-lb').classList.remove('open'); lbResetZoom(); }
@@ -2227,14 +2309,46 @@ document.addEventListener('wheel', function(e){
   if(!document.getElementById('bcc-lb').classList.contains('open')||!img) return;
   e.preventDefault();
   _lbScale=Math.min(5,Math.max(1,_lbScale-(e.deltaY>0?0.2:-0.2)));
-  img.style.transform='scale('+_lbScale+')';
-  img.classList.toggle('zoomed',_lbScale>1);
+  if(_lbScale===1){_lbTx=0;_lbTy=0;}     // back to 1x re-centres it
+  lbApply();
 },{passive:false});
 // Click to toggle zoom
 document.addEventListener('click',function(e){
   if(e.target.id!=='bcc-lb-img') return;
+  // a drag ends in a click event too -- if the photo actually moved, that was
+  // a pan and must not also toggle the zoom
+  if(_lbMoved){_lbMoved=false; return;}
   if(_lbScale>1){lbResetZoom();}
-  else{_lbScale=2.5;e.target.style.transform='scale(2.5)';e.target.classList.add('zoomed');}
+  else{_lbScale=2.5; lbApply();}
+});
+
+// ── drag the photo around ────────────────────────────────────────────────
+document.addEventListener('pointerdown',function(e){
+  if(e.target.id!=='bcc-lb-img'||e.button!==0) return;
+  _lbDrag={x:e.clientX,y:e.clientY,tx:_lbTx,ty:_lbTy};
+  _lbMoved=false;
+  e.target.classList.add('dragging');
+  e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+document.addEventListener('pointermove',function(e){
+  if(!_lbDrag) return;
+  const dx=e.clientX-_lbDrag.x, dy=e.clientY-_lbDrag.y;
+  if(!_lbMoved && Math.hypot(dx,dy)<4) return;   // a click has a little wobble
+  _lbMoved=true;
+  _lbTx=_lbDrag.tx+dx; _lbTy=_lbDrag.ty+dy;
+  lbApply();
+});
+document.addEventListener('pointerup',function(){
+  if(!_lbDrag) return;
+  _lbDrag=null;
+  const img=document.getElementById('bcc-lb-img');
+  if(img) img.classList.remove('dragging');
+});
+document.addEventListener('pointercancel',function(){
+  _lbDrag=null;
+  const img=document.getElementById('bcc-lb-img');
+  if(img) img.classList.remove('dragging');
 });
 // Pinch to zoom
 document.addEventListener('touchstart',function(e){
@@ -2253,8 +2367,8 @@ document.addEventListener('touchmove',function(e){
     const dist=Math.hypot(dx,dy);
     _lbScale=Math.min(5,Math.max(1,_lbScale*(dist/_lbPinchDist)));
     _lbPinchDist=dist;
-    const img=document.getElementById('bcc-lb-img');
-    if(img){img.style.transform='scale('+_lbScale+')';img.classList.toggle('zoomed',_lbScale>1);}
+    if(_lbScale===1){_lbTx=0;_lbTy=0;}
+    lbApply();
   }
 },{passive:true});
 document.addEventListener('touchend',function(){_lbPinchDist=null;},{passive:true});
