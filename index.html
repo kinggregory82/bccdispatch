@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BCC Dispatcher</title>
+<title>BCC Dispatch</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23cc0000'/><text x='16' y='23' font-family='Arial' font-size='20' font-weight='900' fill='white' text-anchor='middle'>D</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -375,8 +375,8 @@ body::before { content: ''; position: fixed; inset: 0; background: rgba(244,244,
 'use strict';
 const DB = 'https://bccsms-27c55-default-rtdb.firebaseio.com';
 
-// Bumped by hand on every hand-off. It renders in the header under "Tracking
-// Interface", so one look at the page says which copy is actually live --
+// Bumped by hand on every hand-off. It renders in the header under "Tracking"
+// , so one look at the page says which copy is actually live --
 // cheaper than view-source hunting after a deploy.
 const BUILD_TAG = 'b.2026-08-07g';
 
@@ -1580,6 +1580,125 @@ function onSiteHTML(s) {
 // tell a missing city from a missing zip by position rather than by count.
 const ADDR_SUFFIX = /\b(RD|ROAD|ST|STREET|DR|DRIVE|LN|LANE|AVE|AVENUE|CT|COURT|BLVD|TRL|TRAIL|HWY|HIGHWAY|WAY|TER|TERRACE|PL|PLACE|CIR|CIRCLE|PKWY|PARKWAY|PIKE|RUN|PATH|LOOP)\b/i;
 
+// ── ONE PHYSICAL STOP, ONE ROW ───────────────────────────────────────────────
+// DQ sends a separate stop per order, so three orders to one jobsite arrive as
+// three stops with three sequence numbers and ETAs stacked an hour apart. It
+// also spells the same address differently between them — "Mckay rd" against
+// "Mckay Rd." — so matching on the text was never going to hold.
+//
+// Coordinates settle it. The poller geocodes every ship-to, so two spellings of
+// one address land on the same point. Text is only the fallback for the handful
+// where geocoding failed.
+const SAME_SPOT_FT = 150;        // anything closer is the same place to a truck
+
+const ADDR_WORDS = {
+  ROAD:'RD', RD:'RD', STREET:'ST', ST:'ST', DRIVE:'DR', DR:'DR', AVENUE:'AVE',
+  AVE:'AVE', AV:'AVE', LANE:'LN', LN:'LN', COURT:'CT', CT:'CT', BOULEVARD:'BLVD',
+  BLVD:'BLVD', HIGHWAY:'HWY', HWY:'HWY', PLACE:'PL', PL:'PL', TRAIL:'TRL',
+  TRL:'TRL', CIRCLE:'CIR', CIR:'CIR', PARKWAY:'PKWY', PKWY:'PKWY',
+  TERRACE:'TER', TER:'TER', NORTH:'N', SOUTH:'S', EAST:'E', WEST:'W',
+  NORTHEAST:'NE', NORTHWEST:'NW', SOUTHEAST:'SE', SOUTHWEST:'SW',
+  MI:'MI', MICHIGAN:'MI',
+};
+
+function normAddr(a){
+  return String(a||'').toUpperCase().replace(/[.,#]/g,' ').replace(/\s+/g,' ')
+    .trim().split(' ').map(function(w){ return ADDR_WORDS[w] || w; }).join(' ');
+}
+
+// Two different customers can share a jobsite, so the name has to agree too.
+function normName(c){
+  return String(c||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+}
+
+function stopCoords(s){
+  if(Array.isArray(s.coords) && s.coords.length >= 2){
+    var lat = Number(s.coords[0]), lng = Number(s.coords[1]);
+    if(isFinite(lat) && isFinite(lng) && (lat || lng)) return [lat, lng];
+  }
+  return null;
+}
+
+function feetApart(a, b){
+  var R = 20902231;                        // earth radius in feet
+  var rad = function(d){ return d * Math.PI / 180; };
+  var dLat = rad(b[0]-a[0]), dLng = rad(b[1]-a[1]);
+  var h = Math.pow(Math.sin(dLat/2),2)
+        + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.pow(Math.sin(dLng/2),2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function sameSpot(a, b){
+  var ca = stopCoords(a), cb = stopCoords(b);
+  if(ca && cb) return feetApart(ca, cb) <= SAME_SPOT_FT;
+  var na = normAddr(a.address), nb = normAddr(b.address);
+  return !!na && na === nb;                // no coords: fall back to the text
+}
+
+// Least advanced wins, so a merged row is never shown as finished while part of
+// it is still on the truck.
+function stopRank(s){
+  var ds = (s.deliveryStatus || '').toLowerCase();
+  if(s.status === 'complete') return 3;
+  if(ds.indexOf('arrived') >= 0) return 2;
+  if(ds.indexOf('enroute') >= 0 || ds.indexOf('en route') >= 0
+     || ds.indexOf('next stop') >= 0 || ds.indexOf('out for delivery') >= 0) return 1;
+  return 0;
+}
+
+function etaMs(s){
+  var e = s.calculatedEta || s.seedEta;
+  if(!e) return Infinity;
+  var d = new Date(e);
+  return isNaN(d) ? Infinity : d.getTime();
+}
+
+// Returns [{ stops:[...], rep:{...} }] in the order the stops arrived.
+function groupStopsByPlace(stops){
+  var groups = [];
+  (stops || []).forEach(function(s){
+    var hit = null;
+    for(var i = 0; i < groups.length; i++){
+      var g = groups[i];
+      if(normName(g.stops[0].customerName) !== normName(s.customerName)) continue;
+      if(g.stops.some(function(x){ return sameSpot(x, s); })){ hit = g; break; }
+    }
+    if(hit) hit.stops.push(s); else groups.push({ stops: [s] });
+  });
+
+  // The representative is ASSEMBLED, not picked: base is the least-advanced stop
+  // so its status fields stay coherent, then the earliest times, the lowest
+  // sequence and the summed weight go on top.
+  groups.forEach(function(g){
+    var base = g.stops.slice().sort(function(a,b){ return stopRank(a) - stopRank(b); })[0];
+    var rep = Object.assign({}, base);
+
+    var seqs = g.stops.map(function(s){ return Number(s.sequence) || 0; })
+                      .filter(function(n){ return n > 0; });
+    if(seqs.length) rep.sequence = Math.min.apply(null, seqs);
+
+    var soonest = g.stops.slice().sort(function(a,b){ return etaMs(a) - etaMs(b); })[0];
+    rep.calculatedEta = soonest.calculatedEta;
+    rep.seedEta       = soonest.seedEta;
+
+    var arr = g.stops.map(function(s){ return s.arrivalTime || s.gpsArrivedAt; })
+                     .filter(Boolean)
+                     .sort(function(a,b){ return new Date(a) - new Date(b); });
+    if(arr.length){ rep.arrivalTime = arr[0]; rep.gpsArrivedAt = null; }
+
+    var w = g.stops.reduce(function(t,s){ return t + (Number(s.weight) || 0); }, 0);
+    if(w) rep.weight = w;
+
+    // Any one bad address on the drop is worth flagging on the row.
+    var worst = g.stops.filter(function(s){ return s.addrCheck && s.addrCheck.risk === 'high'; })[0];
+    if(worst) rep.addrCheck = worst.addrCheck;
+
+    g.rep = rep;
+  });
+
+  return groups;
+}
+
 function addrQuality(raw){
   const s = (raw||'').trim();
   if(!s) return {risk:'high', flags:['No address']};
@@ -1910,12 +2029,16 @@ function renderRoutes(routes, dk) {
         if(ad!==bd) return ad-bd; // active deliveries first, completed sink to bottom
         const sd=(a.sequence||0)-(b.sequence||0); if(sd!==0)return sd; return (a.orderNumber||'').localeCompare(b.orderNumber||'');
       });
-    const done = stops.filter(s=>s.status==='complete').length;
+    // One row per PLACE, not per order — see groupStopsByPlace above.
+    const drops = groupStopsByPlace(stops);
+    const done = drops.filter(g=>g.rep.status==='complete').length;
     const totalWt = stops.reduce((sum,s)=>sum+(s.weight||0),0);
     const isMobileView = window.matchMedia('(max-width:900px)').matches;
-    const cards = !isMobileView ? '' : stops.map((s,i)=>{
+    const cards = !isMobileView ? '' : drops.map((_g,i)=>{
+      const s = _g.rep;
       const arrTime = s.arrivalTime||s.gpsArrivedAt;
-      const pics = s.pictures||[];
+      // Photos belong to orders, so a merged card shows every order's.
+      const pics = _g.stops.reduce((a,st)=>a.concat(st.pictures||[]), []);
       const wt = s.weight?s.weight.toLocaleString()+' lbs':'';
       const pj = pics.length ? JSON.stringify(pics) : '';
       const photoBtn = pics.length
@@ -1939,7 +2062,7 @@ function renderRoutes(routes, dk) {
         +'<div class="dx-card-top">'
           +'<div class="dx-card-seq">'+(s.sequence||i+1)+'</div>'
           +'<div class="dx-card-main">'
-            +'<div class="dx-card-order">'+esc(s.orderNumber||'')+'</div>'
+            +'<div class="dx-card-order">'+_g.stops.map(st=>esc(st.orderNumber||'')).join(' &middot; ')+'</div>'
             +'<div class="dx-card-row">'
               +'<span class="dx-card-name">'+esc(s.customerName||'\u2014')+'</span>'
               +(s.assignedSales?'<span style="padding:1px 5px;font-family:Oswald,sans-serif;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1px solid #f5c2c2;border-radius:2px;color:#cc0000;background:#fff0f0">'+esc(s.assignedSales)+'</span>':'')
@@ -1947,7 +2070,8 @@ function renderRoutes(routes, dk) {
             +'</div>'
             +'<div class="dx-card-addr">'+esc(s.address||'')+'</div>'
             +(function(){
-                const b = validateBtnHTML(s) + orderDetailBtnHTML(s);
+                const b = validateBtnHTML(s)
+                  + _g.stops.map(st=>orderDetailBtnHTML(st)).join('');
                 return b ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px">'+b+'</div>' : '';
               })()
           +'</div>'
@@ -1973,8 +2097,11 @@ function renderRoutes(routes, dk) {
     const desc = (route.assetDescription||'').toUpperCase();
     const driver = route.driverName || '\u2014';
 
-    const rows = stops.map((s,i)=>{
-      const pics = s.pictures || [];
+    const rows = drops.map((_g,i)=>{
+      const s = _g.rep;
+      // Photos, tracking and the order-detail link belong to individual ORDERS,
+      // so they are built per order on the drop rather than from the rep.
+      const pics = _g.stops.reduce((a,st)=>a.concat(st.pictures||[]), []);
       const hasPics = pics.length > 0;
       const arrTime = s.arrivalTime || s.gpsArrivedAt;
       let photoBtn;
@@ -1988,7 +2115,8 @@ function renderRoutes(routes, dk) {
       const _aq = (s.addrCheck && s.addrCheck.risk) ? s.addrCheck : addrQuality(s.address);
       return '<tr class="dx-stop-row'+(s.status==='complete'?' is-done':'')+(_aq.risk==='high'?' has-addr-warn':'')+'" style="background:linear-gradient(180deg,#ffffff 0%,#f0f0f0 100%);box-shadow:0 2px 5px rgba(0,0,0,0.14),0 1px 0 rgba(255,255,255,0.6) inset">'
         +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:15px;font-weight:700;color:#cc0000;width:36px;text-align:center">'+((s.sequence)||i+1)+'</td>'
-        +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:12px;font-weight:600;color:#333;white-space:nowrap">'+esc(s.orderNumber||'')+'</td>'
+        +'<td style="padding:12px 14px;font-family:\'Oswald\',sans-serif;font-size:12px;font-weight:600;color:#333;white-space:nowrap;line-height:1.5">'
+          +_g.stops.map(st=>esc(st.orderNumber||'')).join('<br>')+'</td>'
         +'<td style="padding:12px 14px">'
           +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
           +'<span class="dx-customer-name">'+esc(s.customerName||'\u2014')+'</span>'
@@ -2000,7 +2128,8 @@ function renderRoutes(routes, dk) {
               // in their own wrapping flex row. The button used to live in the
               // actions column at the far end of the row, which overran that
               // cell's width and read as unrelated to the address.
-              const b = validateBtnHTML(s) + orderDetailBtnHTML(s);
+              const b = validateBtnHTML(s)
+                + _g.stops.map(st=>orderDetailBtnHTML(st)).join('');
               return b ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:4px">'+b+'</div>' : '';
             })()
         +'</td>'
@@ -2019,7 +2148,14 @@ function renderRoutes(routes, dk) {
         +'<td style="padding:12px 14px;white-space:nowrap">'
           +'<button class="dx-act-btn" data-type="sameday" data-order="'+esc(s.orderNumber||'')+'" data-address="'+esc(s.address||'')+'" data-date="'+esc(route.date||'')+'" data-token="'+esc(s.token||'')+'" data-eta="'+esc(s.calculatedEta||s.seedEta||'')+'">Text</button> '
           +photoBtn
-          +(s.token?'<a href="https://bccsms-27c55.web.app/?token='+s.token+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:3px 8px;background:#fff;color:#2563eb;font-size:13px;border-radius:3px;border:1px solid #bfdbfe;cursor:pointer;margin-left:4px;text-decoration:none;vertical-align:middle" title="Open tracking link">&#128225; Track</a>':'')
+          // One tracking link per order that has a token — a merged row can hold
+          // several, and each customer link is its own order.
+          +_g.stops.filter(st=>st.token).map(st=>
+             '<a href="https://bccsms-27c55.web.app/?token='+st.token+'" target="_blank"'
+             +' style="display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:3px 8px;background:#fff;color:#2563eb;font-size:13px;border-radius:3px;border:1px solid #bfdbfe;cursor:pointer;margin-left:4px;text-decoration:none;vertical-align:middle"'
+             +' title="Tracking link \u2014 '+esc(st.orderNumber||'')+'">&#128225; Track'
+             +(_g.stops.filter(x=>x.token).length>1?' '+esc(String(st.orderNumber||'').slice(-4)):'')
+             +'</a>').join('')
           +'</td>'
         +'</tr>';
     }).join('');
@@ -2035,7 +2171,8 @@ function renderRoutes(routes, dk) {
         +'<div style="flex:1"></div>'
         +(totalWt>0?'<span style="font-family:\'Oswald\',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1em;color:#888;margin-right:16px">'+totalWt.toLocaleString()+' LBS</span>':'')
         +'<div class="dx-route-progress">'
-          +'<span style="color:#aaa">'+done+' of '+stops.length+' stops done</span>'
+          +'<span style="color:#aaa">'+done+' of '+drops.length+' stops done</span>'
+          +(drops.length!==stops.length?'<span style="color:#777;margin-left:6px">('+stops.length+' orders)</span>':'')
           +'<div class="dx-progress-bar-wrap"><div class="dx-progress-bar-fill" style="width:'+pct+'%"></div></div>'
         +'</div>'
       +'</div>'
